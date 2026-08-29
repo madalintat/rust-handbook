@@ -465,6 +465,8 @@ async function viewWork(slug, nRaw) {
           <button class="btn quiet" id="hint">${ico('bulb', 13)} Hint</button>
           <button class="btn quiet" id="reset">${ico('reset', 13)} Reset</button>
           <button class="btn ghost" id="sol">Show solution</button>
+          <button class="btn ghost desk-only" id="vim" aria-pressed="false"
+            title="Vim keybindings — motions, operators, counts, visual, undo">vim</button>
           <span class="kbd desk-only"><kbd>⌘</kbd> <kbd>↵</kbd> to run</span>
         </div>
 
@@ -559,6 +561,15 @@ function wireWork(slug, nRaw) {
     HINTS = 0;
 
     ED = WB.mountEditor(host, ex.starter, doRun);
+
+    const vimBtn = $('#vim');
+    const paintVimBtn = () => {
+      const on = ED.vim.isOn();
+      vimBtn.classList.toggle('on', on);
+      vimBtn.setAttribute('aria-pressed', String(on));
+    };
+    paintVimBtn();
+    vimBtn.addEventListener('click', () => { ED.vim.toggle(); paintVimBtn(); ED.focus(); });
 
     $('#reset').addEventListener('click', () => { ED.reset(); $('#out').innerHTML = ''; });
     $('#run').addEventListener('click', doRun);

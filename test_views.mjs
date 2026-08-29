@@ -61,6 +61,7 @@ globalThis.fetch = async (url) => {
 };
 
 // --- load the real files ----------------------------------------------
+globalThis.Vim = eval(fs.readFileSync('assets/vim.js', 'utf8') + '\nVim');
 const WB = eval(fs.readFileSync('assets/workbench.js', 'utf8') + '\nWB');
 globalThis.WB = WB;
 globalThis.Companion = { cheer: noop, say: noop, hide: noop };
@@ -113,7 +114,7 @@ check('viewUnit', await ctx.viewUnit('05-ownership'),
       ['class="readercol"', 'class="rail"', 'Open the workbench',
        'class="memory"', 'class="term"', 'class="callout gotcha"', 'class="codeblock bad"']);
 check('viewWork ex1', await ctx.viewWork('05-ownership', 1),
-      ['The function ate your string', 'id="ed"', 'Run']);
+      ['The function ate your string', 'id="ed"', 'Run', 'id="vim"', 'aria-pressed']);
 check('viewWork ex8', await ctx.viewWork('05-ownership', 8), ['Drop runs in reverse']);
 check('viewDrills', await ctx.viewDrills('05-ownership'), ['drills', 'class="opt"']);
 // term COUNT is content that grows; assert the shape, not the number

@@ -44,6 +44,37 @@ to rustc's text plus a link into the error index.
 That is the whole differentiator, and it is why the exercises are per-error
 rather than per-topic.
 
+## Vim mode
+
+The `vim` button in the workbench toolbar turns on Vim keybindings. The setting
+lives in this browser's local storage, so it stays on across exercises, reloads
+and sessions until you turn it off.
+
+Hand-written, because this project ships no JavaScript libraries and pulling in
+CodeMirror to get `@codemirror/vim` would have meant replacing the editor. What
+it covers:
+
+| | |
+|---|---|
+| motions | `h j k l` · `w W b B e E` · `0 ^ $` · `gg G` · `{ }` · `f F t T` |
+| operators | `d c y > <` with any motion, doubled for linewise (`dd cc yy >> <<`) |
+| shortcuts | `x X D C Y s S r ~ J` |
+| insert | `i I a A o O`, `Esc` back to normal |
+| visual | `v` charwise, `V` linewise, then any operator |
+| put | `p P`, charwise and linewise |
+| undo | `u`, `Ctrl-r` — one insert session is one undo step, as in Vim |
+| counts | `3j`, `2dd`, `d3w` |
+| commands | `:w` and `:x` run the code |
+
+Deliberately not covered: named registers, macros, marks, `.` repeat, and ex
+commands beyond `:w`. Those matter in a real editing session; here the longest
+starter is 53 lines, and they would double the size of the file.
+
+The mode shows in a badge at the editor's bottom-right, and the normal-mode
+cursor is a block in the accent colour so it can never be mistaken for a visual
+selection. `node test_vim.mjs` covers the motions and operators as pure
+functions — 86 cases in a `buffer|with|cursor` notation.
+
 ## Validation — the content has a test suite
 
 ```sh
@@ -77,6 +108,7 @@ Tests:
 ```sh
 node test_workbench.mjs   # tokenizer, playground client, diagnostics parser (hits the network)
 node test_views.mjs       # every view renders, balanced HTML, no missing fields, output rendering
+node test_vim.mjs         # vim motions, operators, counts, undo, the : command line
 python3 build.py --validate                        # every exercise, cached by content hash
 python3 build.py --check content/ex/<slug>.md      # one unit, writes nothing, safe in parallel
 ```
@@ -112,6 +144,7 @@ index.html            the shell
 assets/app.css        design tokens and components
 assets/app.js         hash router, views, search, glossary, progress
 assets/workbench.js   Rust tokenizer, editor, playground client, diagnostics parser
+assets/vim.js         Vim keybindings for the editor, toggled and remembered
 assets/gate.js        the lock screen (off by default)
 assets/companion.js   Ferris's two voices
 data/                 generated

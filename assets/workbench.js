@@ -235,11 +235,13 @@ function mountEditor(host, starter, onRun) {
     `<div class="gutter"></div>` +
     `<div class="stack"><pre class="hl" aria-hidden="true"></pre>` +
     `<textarea spellcheck="false" autocapitalize="off" autocomplete="off" ` +
-    `autocorrect="off" wrap="off" aria-label="Rust source"></textarea></div>`;
+    `autocorrect="off" wrap="off" aria-label="Rust source"></textarea></div>` +
+    `<div class="vimbadge" hidden></div>`;
 
   const gutter = host.querySelector('.gutter');
   const pre = host.querySelector('pre.hl');
   const ta = host.querySelector('textarea');
+  const badge = host.querySelector('.vimbadge');
   let errLines = [];
   let lastLines = -1;
   let lastErrs = '';
@@ -271,6 +273,11 @@ function mountEditor(host, starter, onRun) {
     // layout; deferring it keeps that off the keystroke's critical path.
     requestAnimationFrame(() => { ta.style.width = pre.scrollWidth + 'px'; });
   }
+
+  /* Vim mode, if the reader has it on. It intercepts keys before the handlers
+     below, so Tab and Enter behave normally in insert mode and are Vim's in
+     normal mode. The preference is per-browser and survives navigation. */
+  const vim = Vim.attach(ta, { paint, onRun, badge });
 
   ta.addEventListener('input', paint);
   ta.addEventListener('scroll', () => { pre.parentElement.scrollLeft = ta.scrollLeft; });
@@ -308,13 +315,15 @@ function mountEditor(host, starter, onRun) {
   });
 
   paint();
+  if (Vim.isOn()) vim.enable();
 
   return {
     value: () => ta.value,
-    set(v) { ta.value = v; errLines = []; paint(); },
+    set(v) { ta.value = v; errLines = []; paint(); vim.sync(); },
     reset() { this.set(starter); },
     focus() { ta.focus(); },
     mark(ls) { errLines = ls || []; paint(); },
+    vim,
   };
 }
 

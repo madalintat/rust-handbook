@@ -207,6 +207,27 @@ identifiers. The same function highlights the code blocks in the prose, so there
 is one tokenizer and two callers. No CodeMirror, no Monaco, no CDN — the medicine
 app ships zero JavaScript libraries and that stays true.
 
+## Vim mode
+
+`assets/vim.js`. A hand-written Vim layer over the same textarea, because the
+zero-dependency rule rules out `@codemirror/vim` and that package would require
+replacing the editor wholesale.
+
+The motion and operator logic is pure — `(text, index) -> index` — so it is
+tested without a DOM. Only `attach` touches the textarea. Normal mode keeps its
+own cursor index and renders it as a one-character selection, which is what
+gives it a block cursor; the accent colour distinguishes it from a visual
+selection, and the two mean very different things about what the next key does.
+
+Scope is the subset used while fixing a twenty-line exercise: motions,
+operators with counts, visual mode, registers, undo, and `:w` to run. Named
+registers, macros, marks and `.` repeat are out, and `Vim.UNSUPPORTED` names
+them so the UI never pretends otherwise.
+
+The preference is `localStorage['rh-vim']`, read when the editor mounts, so it
+persists across exercises and sessions. Every access is wrapped: a browser that
+refuses storage means the preference does not stick, not that the editor breaks.
+
 ## Validation
 
 `python3 build.py --validate` sends every exercise's `starter` and `solution` to
