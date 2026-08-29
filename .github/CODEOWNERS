@@ -1,0 +1,3 @@
+# Everything needs a review from the maintainer before it lands on main.
+# This is what makes a fork's pull request wait for approval rather than merge.
+*       @madalintat

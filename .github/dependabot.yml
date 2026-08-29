@@ -1,0 +1,11 @@
+# The project has no application dependencies. What it does have is pinned
+# GitHub Actions, and those are the supply chain that runs with a token.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"

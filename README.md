@@ -96,6 +96,19 @@ git push origin main --follow-tags
 Builds, tests, compiles every exercise, writes the changelog, tags. The tag
 triggers the release workflow, so nothing ships that has not already passed here.
 
+## Contributing
+
+Fork it, branch, run the checks, open a pull request. Every change lands on
+`main` through review, and CI has to be green first.
+
+Corrections to the content are the most useful contributions: if an explanation
+of a diagnostic is wrong, open an issue with the code you ran and what rustc
+actually said. The compiler settles most arguments.
+
+**[CONTRIBUTING.md](CONTRIBUTING.md)** has the detail.
+**[docs/AUTHORING.md](docs/AUTHORING.md)** is the contract for writing a unit or
+a project.
+
 ## Licence
 
 MIT. Ferris is CC0 from [rustacean.net](https://rustacean.net). The Rust logo is

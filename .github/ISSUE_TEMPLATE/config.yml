@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or idea
+    url: https://github.com/madalintat/rust-handbook/discussions
+    about: Ask about the content, or suggest a unit or project.
+  - name: Security report
+    url: https://github.com/madalintat/rust-handbook/security/advisories/new
+    about: Report a vulnerability privately.
