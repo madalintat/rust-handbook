@@ -1,6 +1,8 @@
 name: Something in the content is wrong
 description: A unit, exercise, drill, project or glossary term that is incorrect or misleading.
-labels: [content]
+title: "[content] "
+labels:
+  - content
 body:
   - type: input
     id: where
@@ -8,13 +10,15 @@ body:
       label: Where
       description: The unit, project or exercise, and the section if you can name it.
       placeholder: 05-ownership, exercise 4, the E0382 explanation
-    validations: { required: true }
+    validations:
+      required: true
   - type: textarea
     id: wrong
     attributes:
       label: What is wrong
-      description: What it says now, and what it should say.
-    validations: { required: true }
+      description: What it says now, and what it should say instead.
+    validations:
+      required: true
   - type: textarea
     id: evidence
     attributes:
@@ -23,3 +27,5 @@ body:
         If this is about an exercise or a diagnostic, paste the code you ran and
         rustc's actual output. The compiler settles most of these.
       render: text
+    validations:
+      required: false

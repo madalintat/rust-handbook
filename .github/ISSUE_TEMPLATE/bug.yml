@@ -1,31 +1,41 @@
 name: The site misbehaves
 description: Something in the reader, the workbench or the editor does not work.
-labels: [bug]
+title: "[bug] "
+labels:
+  - bug
 body:
   - type: textarea
     id: what
     attributes:
       label: What happened
       description: What you did, what you expected, and what happened instead.
-    validations: { required: true }
+    validations:
+      required: true
   - type: input
     id: where
     attributes:
       label: Where
       placeholder: https://the-rust-handbook.com/#/work/05-ownership/4
+    validations:
+      required: false
   - type: input
     id: browser
     attributes:
-      label: Browser and OS
+      label: Browser and operating system
       placeholder: Firefox 141 on macOS 27
+    validations:
+      required: false
   - type: checkboxes
     id: vim
     attributes:
       label: Vim mode
       options:
         - label: Vim mode was on when this happened
+          required: false
   - type: textarea
     id: console
     attributes:
       label: Anything in the browser console
       render: text
+    validations:
+      required: false
