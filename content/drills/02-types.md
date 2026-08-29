@@ -21,7 +21,7 @@ An unsuffixed integer literal with nothing else to constrain it falls back to
 wide enough for almost every counter, so the default is rarely the wrong answer.
 
 D is the tempting one, because "64-bit machine" suggests 64-bit integers. The
-fallback does not vary by target — that would make the same source produce
+fallback does not vary by target. That would make the same source produce
 different overflow behaviour on different machines. Only `usize` and `isize`
 change width with the target, and they do it because they are pointer-sized.
 
@@ -35,9 +35,9 @@ let i: u32 = 1;
 let x = v[i];
 ```
 
-- A. Yes — `u32` is an unsigned integer, so it is a valid index
-- *B. No — a slice can only be indexed by `usize`
-- C. No — you cannot index a `Vec` at all, only a slice
+- A. Yes, `u32` is an unsigned integer, so it is a valid index
+- *B. No, a slice can only be indexed by `usize`
+- C. No, you cannot index a `Vec` at all, only a slice
 - D. Yes, but only in a release build
 
 @why
@@ -65,7 +65,7 @@ irrelevant and catching the bug is worth everything, so the check is on. In a
 release build it is off, and the operation is *defined* to wrap two's-complement
 style.
 
-B and D are each half right, which is what makes them plausible — most people
+B and D are each half right, which is what makes them plausible. Most people
 have only ever seen one of the two builds. The important consequence is that a
 program can pass its tests in debug and compute silently wrong numbers in
 release, which is exactly why `wrapping_add`, `checked_add` and `saturating_add`
@@ -80,8 +80,8 @@ let big: i32 = 300;
 let small = big as u8;
 ```
 
-- A. 255 — it saturates at the maximum
-- *B. 44 — the low eight bits, and the rest are discarded
+- A. 255; it saturates at the maximum
+- *B. 44; the low eight bits, and the rest are discarded
 - C. It does not compile; `i32` to `u8` needs `try_into`
 - D. It panics in a debug build
 
@@ -90,7 +90,7 @@ let small = big as u8;
 44. `as` between integers is a bit-level operation: it keeps what fits and
 discards the rest, with no check, no warning and no panic in any build.
 
-A is the trap, because float-to-integer casts *do* saturate — `300.0f64 as u8` is
+A is the trap, because float-to-integer casts *do* saturate: `300.0f64 as u8` is
 255. Integer-to-integer casts do not. Two different rules living behind one
 keyword is a good argument for reaching for `try_into` when the value came from
 outside your program.
@@ -156,8 +156,8 @@ Why does `values.sort()` not compile when `values` is a `Vec<f64>`?
 @why
 A correct sort needs a total order: every pair comparable, and the comparison
 transitive. A slice containing a NaN has neither, because NaN is incomparable to
-everything. So `f64` gets `PartialOrd` and stops there, and `sort` — which
-requires `Ord` — is unavailable.
+everything. So `f64` gets `PartialOrd` and stops there, and `sort`, which
+requires `Ord`, is unavailable.
 
 The fix is `sort_by(|a, b| a.partial_cmp(b).unwrap())`, which will panic on a NaN
 rather than silently producing garbage. The same sort in C++ is undefined
@@ -184,8 +184,8 @@ let s = "héllo";
 
 That is also why `s[0]` does not compile: byte 1 of this string is half of a
 letter, and Rust will not hand you an object that is half a character. Slicing by
-byte range works — `&s[0..1]` is `"h"` — and panics if the range would split a
-character, which is the loudest possible way to be told your index arithmetic
+byte range works, so `&s[0..1]` is `"h"`, and it panics if the range would split
+a character, which is the loudest possible way to be told your index arithmetic
 assumed ASCII.
 
 ## 9
@@ -218,10 +218,10 @@ let xs: [i32; 3] = [1, 2, 3];
 takes(xs);
 ```
 
-- A. Yes — both are arrays of `i32`
-- *B. No — `[i32; 3]` and `[i32; 4]` are different types
+- A. Yes, both are arrays of `i32`
+- *B. No, `[i32; 3]` and `[i32; 4]` are different types
 - C. Yes, and the missing element is zero-filled
-- D. No — arrays cannot be passed to functions
+- D. No, arrays cannot be passed to functions
 
 @why
 The length is part of the type. `[i32; 3]` and `[i32; 4]` are as unrelated as
@@ -230,8 +230,8 @@ no length field and no bounds check on a constant index.
 
 The fix in real code is to take a **slice**: `fn takes(a: &[i32]) -> i32` accepts
 any length, because a slice carries its length alongside the pointer at run time.
-That is the trade — the array knows its length at compile time and cannot be
-flexible, the slice is flexible and costs an extra word.
+That is the trade. The array knows its length at compile time and gives up
+flexibility; the slice is flexible and costs an extra word.
 
 ## 11
 
@@ -264,13 +264,13 @@ let last = names[names.len() - 1];
 
 - A. `last` is an empty string
 - B. It does not compile
-- *C. It panics — `0usize - 1` overflows before the index is even used
+- *C. It panics; `0usize - 1` overflows before the index is even used
 - D. It panics with an index-out-of-bounds error
 
 @why
 `len()` returns `usize`, which has no negative half, so `0 - 1` overflows
 immediately. In a debug build that panics with `attempt to subtract with
-overflow` — before any indexing happens.
+overflow`, before any indexing happens.
 
 D is the tempting answer and it is the wrong panic. In a release build the
 subtraction wraps to `usize::MAX` and *then* the index panics, so the same line
@@ -303,7 +303,7 @@ C is the one worth naming: `parse<u32>()` without the `::` does not parse as a
 generic call, because `<` there is ambiguous with a comparison. The `::<>` form
 is the **turbofish**, and the extra colons exist purely to resolve that.
 
-D does not compile at all — `as` works between primitives, and `&str` is not one.
+D does not compile at all. `as` works between primitives, and `&str` is not one.
 
 ## 14
 
@@ -322,9 +322,9 @@ and makes you decide what a bad packet does.
 
 C does not exist: there is no infallible `From<u64> for usize`, precisely because
 `usize` is not guaranteed to be 64 bits. The standard library refuses to write
-the impl rather than write one that could lose data — which is the useful
-signal. If `From` is missing between two integer types, the conversion can fail,
-and `as` will hide that.
+the impl rather than write one that could lose data, and that refusal is the
+useful signal. If `From` is missing between two integer types, the conversion can
+fail, and `as` will hide that.
 
 A compiles and is the classic setup for a heap overflow: a truncated length
 passes a size check that the real length would have failed.

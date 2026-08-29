@@ -1,5 +1,5 @@
 {"terms": [
 {"t": "associated function", "x": "no self, called with ::", "p": "A function defined in an impl block that takes no self parameter, so it is called through the type rather than through a value, as in Config::new."},
-{"t": "receiver", "x": "the self parameter", "p": "The self parameter of a method, whose form — &self, &mut self or self — decides whether calling it reads the value, writes to it, or consumes it."},
+{"t": "receiver", "x": "the self parameter", "p": "The self parameter of a method. Its form (&self, &mut self or self) decides whether calling the method reads the value, writes to it, or consumes it."},
 {"t": "struct update syntax", "x": "..other", "p": "Writing ..other at the end of a struct literal to take every field you did not list from another value of the same type, moving each one that is not Copy."}
 ]}

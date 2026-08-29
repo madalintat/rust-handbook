@@ -1,8 +1,8 @@
 # Rust Handbook
 
 Learn Rust by fighting the compiler. Every exercise here compiles for real on
-`play.rust-lang.org` — not a simulation, not a quiz — and when rustc rejects your
-code you get its actual diagnostic with a plain-English reading of what the
+`play.rust-lang.org`. Not a simulation, not a quiz. When rustc rejects your code
+you get its actual diagnostic, and beside it a plain-English reading of what the
 borrow checker saw and why it cared.
 
 Static site, no framework, no build step at deploy time. `build.py` turns
@@ -13,22 +13,42 @@ authored markdown into JSON once, and the browser fetches one unit at a time.
 | | |
 |---|---|
 | **28 units** | A single ordered path through the official books, each unit needing only what came before it |
-| **49,835 words** | 1,400–2,000 per unit, dense rather than long. Every rule attached to the reason it exists — what the compiler is protecting, what the memory looks like, which bug the rule prevents |
-| **224 compiled exercises** | Broken code you fix, verified by hidden tests against real `rustc`. Every likely error is pre-written with an explanation of that specific diagnostic |
-| **420 drills** | Fast multiple choice — does this compile, and if not, which error — each with a worked answer |
-| **211 glossed terms** | Every bolded term carries one plain sentence saying what it means, on hover and on its own page |
+| **72,572 words** | 1,400 to 2,000 per unit, dense rather than long. Every rule attached to the reason it exists, what the compiler is protecting, what the memory looks like, which bug the rule prevents |
+| **316 compiled items** | Broken code you fix, verified by hidden tests against real `rustc`. Every likely error is pre-written with an explanation of that specific diagnostic |
+| **420 drills** | Fast multiple choice, does this compile, and if not, which error, each with a worked answer |
+| **218 glossed terms** | Every bolded term carries one plain sentence saying what it means, on hover and on its own page |
 
-Units 00–24 walk the language. Three more exist in no single book and are the
+Units 00 to 24 walk the language. Three more exist in no single book and are the
 reason this is not just a re-skin of the docs:
 
-- **25 · Reading the compiler** — the thirty error codes you will actually meet,
+- **25 · Reading the compiler**, the thirty error codes you will actually meet,
   what each is really saying, and how to read a diagnostic you have never seen
-- **26 · Ship it** — a real command-line tool end to end: cargo, clap, anyhow,
+- **26 · Ship it**, a real command-line tool end to end: cargo, clap, anyhow,
   tests, docs, release. Everything so far, used at once
-- **27 · No_std and embedded** — what the standard library actually is, what
+- **27 · No_std and embedded**, what the standard library actually is, what
   survives without it, and how the same language runs on a microcontroller
 
 The track page is honest about which units are written; the rest say "soon".
+
+## Projects
+
+A unit teaches a concept and drills it. A project spends eight stages building
+one real program, and the last stage leaves you something that runs.
+
+| | |
+|---|---|
+| **A BPE tokenizer** | The algorithm GPT and Llama actually use to turn text into token IDs. Byte alphabet, pair counting, learned merges, encode, decode, round trip. Ends at 1.73 bytes per token on a real paragraph. |
+| **Backprop from scratch** | A reverse-mode autodiff engine and a tiny MLP trained on XOR. The machinery under PyTorch: a graph that builds itself as a side effect of arithmetic, a topological sort, and the chain rule in three lines. |
+| **A JSON parser** | Recursive descent over an enum, with real error positions. The canonical argument for sum types, made concrete. |
+| **A bytecode VM** | A stack machine with a compiler front end. How Python, Lua and the JVM actually run code. |
+
+Thirteen of them, in three sizes: **mini** is four stages and about twenty
+minutes, **core** is eight stages and a real program, **deep** is twelve stages
+and a weekend. 13h 55m of building in total.
+
+Stages accumulate: stage N starts from stage N-1's finished code, so you are
+editing one growing program rather than a set of unrelated snippets. Every stage
+is compiled and tested exactly the way every exercise is.
 
 ## The point of the thing
 
@@ -62,7 +82,7 @@ it covers:
 | insert | `i I a A o O`, `Esc` back to normal |
 | visual | `v` charwise, `V` linewise, then any operator |
 | put | `p P`, charwise and linewise |
-| undo | `u`, `Ctrl-r` — one insert session is one undo step, as in Vim |
+| undo | `u`, `Ctrl-r`, one insert session is one undo step, as in Vim |
 | counts | `3j`, `2dd`, `d3w` |
 | commands | `:w` and `:x` run the code |
 
@@ -73,9 +93,9 @@ starter is 53 lines, and they would double the size of the file.
 The mode shows in a badge at the editor's bottom-right, and the normal-mode
 cursor is a block in the accent colour so it can never be mistaken for a visual
 selection. `node test_vim.mjs` covers the motions and operators as pure
-functions — 86 cases in a `buffer|with|cursor` notation.
+functions, 86 cases in a `buffer|with|cursor` notation.
 
-## Validation — the content has a test suite
+## Validation: the content has a test suite
 
 ```sh
 python3 build.py --validate
@@ -100,8 +120,8 @@ python3 build.py                 # regenerate data/ from content/
 python3 -m http.server 8901      # any static server will do
 ```
 
-Then open <http://localhost:8901>. `build.py` needs nothing but Python 3 — no
-pip, no npm — and the site itself ships zero JavaScript libraries.
+Then open <http://localhost:8901>. `build.py` needs nothing but Python 3: no pip,
+no npm, and the site itself ships zero JavaScript libraries.
 
 Tests:
 
@@ -118,7 +138,7 @@ python3 build.py --check content/ex/<slug>.md      # one unit, writes nothing, s
 The structure is lifted from the Medical Student Handbook, which lifted its
 palette from PostHog. What changes is temperature: PostHog's tan `#EEEFE9` is
 faintly green, and next to rust orange a green-grey ground goes muddy, so every
-neutral is rotated warm — light ground `#EFEBE4`, dark `#1C1917` rather than a
+neutral is rotated warm, light ground `#EFEBE4`, dark `#1C1917` rather than a
 cool `#1e1f23`. The button keeps PostHog's shape, a solid fill sitting on a hard
 shadow that it moves down onto when pressed, with Ferris's orange in it
 (`#F7681F` fill, `#A8380F` border, `#C04A12` shadow).
@@ -149,14 +169,14 @@ assets/gate.js        the lock screen (off by default)
 assets/companion.js   Ferris's two voices
 data/                 generated
   manifest.json       the index; loads on every page view, so it stays small
-  search.json         section titles and concepts — only search reads these
+  search.json         section titles and concepts, only search reads these
   unit/ ex/ drills/   one file per unit, fetched on demand
   glossary.json  audit.json
 ```
 
 ## Writing a unit
 
-`docs/AUTHORING.md` is the contract — voice, structure, block syntax, the
+`docs/AUTHORING.md` is the contract: voice, structure, block syntax, the
 exercise format and the definition of done. Read it before writing anything, and
 read the three `05-ownership` files as the reference standard.
 
@@ -164,16 +184,16 @@ read the three `05-ownership` files as the reference standard.
 
 Three files, all markdown, all optional except the first:
 
-`content/units/09-enums.md` — front matter (`num`, `slug`, `title`, `accent`,
+`content/units/09-enums.md`, front matter (`num`, `slug`, `title`, `accent`,
 `concepts`, `blurb`), then prose. `##` starts a part, `###` a sub-topic. Fences
 `:::note`, `:::gotcha`, `:::compare` and `:::memory <title>` give you the
 callouts; ` ```rust,bad ` marks code that is not supposed to compile.
 
-`content/ex/09-enums.md` — `## N. Title`, then `@kind` / `@concept` / `@expect`,
+`content/ex/09-enums.md`, `## N. Title`, then `@kind` / `@concept` / `@expect`,
 prose, then fenced ` ```starter `, ` ```tests `, ` ```solution `, then `@hint`
 lines, `@diagnose EXXXX` blocks and an `@after` block.
 
-`content/drills/09-enums.md` — `## N`, the stem, `- A.` options with `*` marking
+`content/drills/09-enums.md`, `## N`, the stem, `- A.` options with `*` marking
 correct ones, then `@why`.
 
 Then `python3 build.py --check content/ex/<slug>.md` and iterate until it says
@@ -182,9 +202,9 @@ Then `python3 build.py --check content/ex/<slug>.md` and iterate until it says
 
 ## Not yet
 
-The reference library — the Reference, the Nomicon, the Cargo, rustdoc and rustc
+The reference library, the Reference, the Nomicon, the Cargo, rustdoc and rustc
 books, the ~500-code error index, the CLI book, the Embedded book and the
-Unstable book — is phase two. The workbench already links out to the error index
+Unstable book, is phase two. The workbench already links out to the error index
 for every code it shows, so that is the seam it will slot into.
 
 Study notes. The official books remain the authority.

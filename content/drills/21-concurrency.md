@@ -15,9 +15,9 @@ fn main() {
 }
 ```
 
-- A. Yes — `join` on the next line proves the thread ends first
-- *B. No — the closure borrows `name` and `spawn` requires `'static`
-- C. No — `println!` cannot be used off the main thread
+- A. Yes, because `join` on the next line proves the thread ends first
+- *B. No, because the closure borrows `name` and `spawn` requires `'static`
+- C. No, because `println!` cannot be used off the main thread
 - D. Yes, but the output order is unspecified
 
 @why
@@ -26,7 +26,7 @@ fn main() {
 A is the tempting one and it is a correct observation about the *program*. It is
 not a fact about the *types*, and the borrow checker works from signatures alone.
 `thread::spawn` is declared `F: Send + 'static`, so it accepts nothing that
-borrows a caller's frame — regardless of what the caller happens to do next. If
+borrows a caller's frame, regardless of what the caller happens to do next. If
 you want the compiler to use that knowledge, you have to give it a type that
 carries it, which is `thread::scope`.
 
@@ -43,17 +43,17 @@ println!("{count} {inner}");
 
 - A. `1 1`
 - *B. `0 1`
-- C. It does not compile — `count` was moved
+- C. It does not compile, because `count` was moved
 - D. `1 0`
 
 @why
-`move` applies to every capture, including `Copy` ones — and for a `Copy` type
-"moving" is copying. The closure got its own `i32`, incremented that, and
+`move` applies to every capture, including `Copy` ones, and for a `Copy` type
+"moving" means copying. The closure got its own `i32`, incremented that, and
 returned 1. The original is untouched, so `0 1`.
 
 C is the trap. Because `i32` is `Copy`, `move` does not retire the original
 binding the way it would for a `String`; both stay usable. If you need a thread's
-mutation to be visible to the spawner, `move` is never enough — you need
+mutation to be visible to the spawner, `move` is never enough. You need
 `Arc<Mutex<T>>`, an atomic, or the thread's return value.
 
 ## 3
@@ -68,7 +68,7 @@ Why is `Rc<T>` not `Send`?
 @why
 `Rc::clone` is a load, an add and a store on a plain `usize`. Two threads doing
 it simultaneously can both read 1 and both write 2, so a count that should be 3
-is 2 — and the second drop frees a value the third holder is still using.
+is 2, and the second drop frees a value the third holder is still using.
 
 C is a real condition but not the reason: `Rc<T>` is not `Send` even when `T` is
 `Send`, because the failure is in `Rc`'s own bookkeeping. `Arc` is the identical
@@ -86,10 +86,10 @@ type with `fetch_add`, which is exactly one instruction different.
 @why
 That is the definition, not a consequence: a type is `Sync` when a shared
 reference to it can be sent to another thread. The compiler prints it in the
-error — `required for &RefCell<i32> to implement Send`.
+error: `required for &RefCell<i32> to implement Send`.
 
 D is a good distractor because `&mut T: Send` sounds stronger, but it follows
-from `T: Send`, not from `Sync` — a unique reference is exclusive access, which
+from `T: Send`, not from `Sync`. A unique reference is exclusive access, which
 is the same situation as moving the value.
 
 ## 5
@@ -103,8 +103,8 @@ Which of these are `Send`? Choose all that apply.
 - E. `MutexGuard<'_, i32>`
 
 @why
-C and D surprise people. `RefCell<i32>` is `Send` — moving it to another thread
-is fine, because only one thread has it afterwards. What it is not is `Sync`: two
+C and D surprise people. `RefCell<i32>` is `Send`, because moving it to another
+thread is fine when only one thread has it afterwards. What it is not is `Sync`: two
 threads sharing a `&RefCell` can both pass its non-atomic borrow check. Auto
 traits propagate structurally, so a `Vec` of them is `Send` too.
 
@@ -123,15 +123,16 @@ let c = Arc::clone(&v);
 c.push(4);
 ```
 
-- A. Yes — `Arc` is for sharing, and sharing includes writing
-- *B. No — `Arc<T>` implements `Deref` but not `DerefMut`
-- C. No — `Vec::push` requires the vector to be declared `mut`
+- A. Yes, because `Arc` is for sharing and sharing includes writing
+- *B. No, because `Arc<T>` implements `Deref` but not `DerefMut`
+- C. No, because `Vec::push` requires the vector to be declared `mut`
 - D. Yes, but only because `v` and `c` point at the same allocation
 
 @why
 `error[E0596]`. `Arc` cannot implement `DerefMut`: its whole purpose is that
 several owners exist at once, so handing out a `&mut` would be handing out two
-unique references to one value — `E0499` laundered through a smart pointer.
+unique references to one value, which is `E0499` laundered through a smart
+pointer.
 
 C is close enough to be tempting, and adding `mut` to the bindings changes
 nothing: the problem is not the binding's mutability but the type's. Mutation
@@ -153,7 +154,7 @@ counter without the lock, and nothing warns you when someone does.
 
 `Mutex<i32>` has no field you can reach except through `lock()`, which returns
 the guard. "Forgot to take the lock" stops being a class of bug and becomes a
-type error — the same trick as putting ownership in the type system rather than
+type error, the same trick as putting ownership in the type system rather than
 in a convention.
 
 ## 8
@@ -178,7 +179,7 @@ unlocks in its `Drop`. That means `do_slow_io()` runs with the lock held, and
 every other thread is serialised behind your slowest operation.
 
 The idiom that avoids it is to make the guard a temporary:
-`*counter.lock().unwrap() += 1;` — the guard is dropped at the end of that
+`*counter.lock().unwrap() += 1;`, where the guard is dropped at the end of that
 statement. Or bind it inside a `{ }` around only the lines that need it.
 
 ## 9
@@ -187,7 +188,7 @@ What happens with `let _ = counter.lock().unwrap();`?
 
 - A. The lock is held to the end of the scope
 - *B. The lock is taken and released on that line
-- C. It does not compile — the guard must be bound
+- C. It does not compile, because the guard must be bound
 - D. The lock is never taken because the value is unused
 
 @why
@@ -196,15 +197,15 @@ therefore a temporary with no owner and is dropped at the end of the statement,
 so the mutex is locked and unlocked immediately and every following line runs
 unprotected.
 
-`let _guard = ...` — a real name, even one starting with an underscore — holds it
-to end of scope. One character apart, and the wrong one silently removes the
+`let _guard = ...` is a real name, even with the leading underscore, and holds
+it to end of scope. One character apart, and the wrong one silently removes the
 protection rather than failing.
 
 ## 10
 
 Two threads take `m1` then `m2`; a third takes `m2` then `m1`. What does Rust do?
 
-- A. Rejects it at compile time — this is a data race
+- A. Rejects it at compile time, since this is a data race
 - B. Panics at runtime with "deadlock detected"
 - *C. Compiles and runs, and may deadlock
 - D. Reorders the locks automatically
@@ -232,9 +233,9 @@ tx.send(msg).unwrap();
 println!("{msg}");
 ```
 
-- A. Yes — `send` copies the message into the channel
-- *B. No — `send` takes the value by value, so `msg` was moved
-- C. No — a channel needs at least two threads
+- A. Yes, because `send` copies the message into the channel
+- *B. No, because `send` takes the value by value, so `msg` was moved
+- C. No, because a channel needs at least two threads
 - D. Yes, but the receiver would get an empty string
 
 @why
@@ -242,8 +243,8 @@ println!("{msg}");
 channel.
 
 That is the entire safety argument for channels, not an implementation detail:
-after the send, the producer holds no reference to the message, so there is
-nothing for the consumer to race with and no lock is required. In a C queue of
+after the send, the producer holds no reference to the message, so the consumer
+has nothing to race against and no lock is required. In a C queue of
 pointers the same rule exists as a comment; here it is a compile error.
 
 ## 12
@@ -281,7 +282,7 @@ What is the cost difference between `Rc::clone` and `Arc::clone`?
 - A. `Arc::clone` allocates; `Rc::clone` does not
 - B. `Arc::clone` deep-copies the value
 - *C. `Arc::clone` uses an atomic increment instead of a plain one
-- D. None — they compile to the same instructions
+- D. None; they compile to the same instructions
 
 @why
 Both copy a pointer and bump a count. The only difference is that `Arc` uses
@@ -304,8 +305,8 @@ Which of these need `Arc`? Choose all that apply.
 
 @why
 B is the one worth remembering. `thread::scope` joins every thread before it
-returns, so the compiler knows the borrows cannot outlive the local — plain `&`
-and `&mut` are allowed, no `Arc`, no clone. Before this stabilised in 1.63 people
+returns, so the compiler knows the borrows cannot outlive the local. Plain `&`
+and `&mut` are allowed, with nothing cloned and no `Arc` in sight. Before this stabilised in 1.63 people
 reached for `Arc` because there was nothing else, and a lot of code still carries
 that habit.
 
@@ -322,12 +323,12 @@ cheapest correct choice?
 - D. `Rc<Cell<u64>>`
 
 @why
-An atomic add is one instruction with no blocking and no guard. A `Mutex` is
+An atomic add is one instruction that never blocks and leaves no guard. A `Mutex` is
 correct but adds a lock, a guard, an unlock and potential contention for an
 operation the hardware already does atomically.
 
 `Relaxed` is sufficient precisely because of the "never read until the end"
 condition: nothing branches on the intermediate value, so no ordering with
 respect to other memory is needed. The moment another thread uses the counter to
-decide something, you need `Acquire`/`Release` — and if you have to think about
+decide something, you need `Acquire`/`Release`. And if you have to think about
 which, a `Mutex` is usually the better trade.

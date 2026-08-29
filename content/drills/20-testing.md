@@ -13,7 +13,7 @@ What does `#[cfg(test)]` on a module do?
 
 @why
 It is conditional compilation, not a label. Under `cargo build` the item is
-removed before name resolution — so test fixtures, sample data and
+removed before name resolution, so test fixtures, sample data and
 `dev-dependencies` never reach the release binary.
 
 That is also the trap: `#[cfg(test)]` on a helper that non-test code calls
@@ -35,7 +35,8 @@ them. `super` is the parent, and because a child module may see its parent's
 private items, the glob pulls in things no outside user could reach.
 
 That access is the whole reason unit tests live in a child module rather than a
-separate file. Without it, `cannot find function ...` — `error[E0425]`.
+separate file. Without it you get `cannot find function ...`, which is
+`error[E0425]`.
 
 ## 3
 
@@ -51,8 +52,8 @@ fn t() {
 ```
 
 - A. Yes
-- *B. No — `Point` implements neither `PartialEq` nor `Debug`
-- C. No — `#[test]` functions cannot construct structs
+- *B. No, `Point` implements neither `PartialEq` nor `Debug`
+- C. No, `#[test]` functions cannot construct structs
 - D. Yes, but the comparison is by address
 
 @why
@@ -61,7 +62,7 @@ values with `{:?}`. So it needs `PartialEq` for `==` and `Debug` to print. The
 first error is `E0369: binary operation == cannot be applied`, and fixing only
 that reveals `E0277: Point doesn't implement Debug`.
 
-D is the Java/Python intuition. Rust has no default equality at all — comparing
+D is the Java/Python intuition. Rust has no default equality at all. Comparing
 two structs is a trait method or it is a compile error.
 
 ## 4
@@ -74,7 +75,7 @@ A test is marked `#[should_panic]` with no `expected`. When does it pass?
 - D. When the test body panics or returns `Err`
 
 @why
-Any panic satisfies a bare `#[should_panic]` — an index out of bounds, an
+Any panic satisfies a bare `#[should_panic]`: an index out of bounds, an
 `unwrap` on `None`, an overflow in debug, a panic inside something three calls
 down.
 
@@ -94,8 +95,8 @@ treating as mandatory rather than optional.
 
 @why
 Substring, against the message after formatting. So a short distinctive fragment
-is more robust than the whole sentence — a reworded message keeps passing if you
-matched only the part that carries the meaning.
+survives a reword and the whole sentence does not: match only the part that
+carries the meaning and the test keeps passing.
 
 The corollary is that a paraphrase never matches. `expected = "total must be > 0"`
 does not match a panic saying `total must be non-zero`, even though they mean the
@@ -131,8 +132,8 @@ A helper shared by two integration tests goes where?
 
 @why
 Every *top-level* file in `tests/` is compiled as a test crate of its own, so
-`tests/common.rs` would be built and run as one — producing a pointless test
-binary with zero tests and an empty summary line.
+`tests/common.rs` would be built and run as one, and you would get a pointless
+test binary with zero tests and an empty summary line.
 
 A subdirectory is not treated that way, so `tests/common/mod.rs` is a plain
 module that other test files reach with `mod common;`. It is the one place the
@@ -167,13 +168,13 @@ Tests run in parallel by default. Which of these is a real consequence? Choose a
 
 @why
 Each test gets its own thread and they overlap, so any shared mutable state
-outside the process's control — files, environment variables, a database, a
-fixed network port — is a race.
+outside the process's control (files, environment variables, a database, a fixed
+network port) is a race.
 
 C and D are both false and both tempting because they would be convenient. There
 is no grouping guarantee and no ordering guarantee; the order changes between
 runs. The fix is to remove the sharing (unique temp paths per test), not to
-schedule around it — though `-- --test-threads=1` exists for the cases where you
+schedule around it, though `-- --test-threads=1` exists for the cases where you
 genuinely cannot.
 
 ## 10
@@ -187,8 +188,8 @@ What is the difference between `///` and `//!`?
 
 @why
 Direction. `///` attaches downwards to the next item; `//!` attaches outwards to
-whatever it is inside, which is why it appears at the very top of `lib.rs` — that
-is the crate's own documentation — or at the top of a module file.
+whatever it is inside, which is why it appears at the very top of `lib.rs`, where
+it is the crate's own documentation, or at the top of a module file.
 
 Both are Markdown and both are rendered by rustdoc. Neither is more private than
 the other; `#[doc(hidden)]` is the attribute for hiding an item from the rendered
@@ -198,7 +199,7 @@ page while leaving it `pub`.
 
 What happens to a fenced code block inside a `///` comment when you run `cargo test`?
 
-- A. Nothing — it is rendered by `cargo doc` only
+- A. Nothing, it is rendered by `cargo doc` only
 - *B. It is extracted, compiled as a separate crate against your library, and run
 - C. It is type-checked but not executed
 - D. It is run only if annotated with `#[test]`
@@ -225,7 +226,7 @@ A doctest example calls `parse_port` but your crate is `my_tool`. Why does the e
 
 @why
 A doctest is a small integration test. It lives outside your crate, links
-against it, and therefore sees exactly what a user sees — public items only,
+against it, and therefore sees exactly what a user sees: public items only,
 reached by their public paths.
 
 Which makes doctests quietly useful beyond documentation: an example that needs
@@ -242,13 +243,13 @@ Which fence annotation compiles the example but does not run it?
 - D. ```` ```compile_fail ````
 
 @why
-`no_run` is for examples that are correct but should not execute here — opening
+`no_run` is for examples that are correct but should not execute here: opening
 a socket, writing a file, starting a server. They are still compiled, so they
 still break when your API changes, which is most of the value.
 
 `ignore` is the one that skips compilation entirely, and it is a last resort: an
 ignored example is back to being ordinary prose that can rot. If you use it, say
-why in a comment. `compile_fail` is the inverse and is a real test — it asserts
+why in a comment. `compile_fail` is the inverse and is a real test: it asserts
 that some misuse does *not* compile.
 
 ## 14
@@ -265,8 +266,8 @@ An ignored test is still compiled, so it keeps up with refactors instead of
 quietly rotting the way commented-out code does, and it appears in the summary
 as `ignored` so nobody forgets it exists.
 
-It is the honest home for the slow ones — an end-to-end run against staging, a
-fuzz loop — with the reason written in: `#[ignore = "hits the staging API"]`.
+It is the honest home for the slow ones, an end-to-end run against staging or a
+fuzz loop, with the reason written in: `#[ignore = "hits the staging API"]`.
 Run them with `cargo test -- --include-ignored`.
 
 ## 15
@@ -284,7 +285,7 @@ hundreds of inputs looking for a counterexample, and when it finds one it
 *shrinks* it to the smallest failing case before showing you.
 
 Round trips, ordering invariants and parser/printer pairs are where it earns its
-place — it finds the empty string, the lone newline and the four-byte emoji, the
+place. It finds the empty string, the lone newline and the four-byte emoji, the
 cases you were never going to write by hand.
 
 C is the other tool worth naming: `#[bench]` is still unstable after a decade, so

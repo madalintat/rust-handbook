@@ -8,7 +8,7 @@ needs: 09-enums, 10-option
 blurb: A recoverable error is a value you return; a bug is a panic. Choosing wrong is the actual mistake, and everything else follows from getting it right.
 ---
 
-%% Rust has two mechanisms and one decision. The mechanisms are `Result`, a value you return, and `panic!`, which tears the thread down. The decision is which of the two a given failure is — and getting that wrong is the real error-handling bug, more than any amount of plumbing.
+%% Rust has two mechanisms and one decision. The mechanisms are `Result`, a value you return, and `panic!`, which tears the thread down. The decision is which of the two a given failure is. Getting that wrong is the real error-handling bug, and it costs more than any amount of plumbing.
 
 The rule is short. A **recoverable** error is a thing that will happen in normal operation to a correct program: the file is missing, the port is taken, the user typed "seven". A **bug** is a thing that cannot happen unless the code is wrong: an index past the end, an invariant broken, a `None` you had already proven was `Some`.
 
@@ -29,7 +29,7 @@ Ask: *could a caller do something sensible about this?*
 
 The asymmetry that matters: **a `Result` you should have panicked on is
 annoying; a panic you should have returned is an outage.** A parser that panics
-on bad input is a denial-of-service hole. Bad input is not a bug — it is the
+on bad input is a denial-of-service hole. Bad input is not a bug. It is the
 job.
 
 :::note
@@ -41,12 +41,12 @@ designed for.
 :::
 
 :::compare
-**Java / Python** — exceptions collapse both cases into one mechanism, so the
+**Java / Python**: exceptions collapse both cases into one mechanism, so the
 distinction lives in a convention (`RuntimeException` vs checked) that nothing
 enforces. The practical result is that a signature tells you nothing about what
 can go wrong.
 
-**Go** — `if err != nil` is the same idea as `Result`, without the type system
+**Go**: `if err != nil` is the same idea as `Result`, without the type system
 forcing you to look. Ignoring a Rust `Result` is a warning; ignoring a Go
 `error` is a blank line.
 :::
@@ -62,8 +62,8 @@ enum Result<T, E> {
 }
 ```
 
-Because it is a value, an unread one is a warning — `#[must_use]` — and because
-it is an enum, `match` forces you to name both arms.
+Because it is a value, an unread one is a warning: that is what `#[must_use]`
+buys. Because it is an enum, `match` forces you to name both arms.
 
 ### What ? actually does
 
@@ -97,8 +97,8 @@ composes.
 ### Why the From conversion is everything
 
 A function that opens a file *and* parses a number has two error types. Without
-conversion, `?` could not be used on both — the return type can only be one of
-them.
+conversion, `?` could not be used on both, since the return type can only be one
+of them.
 
 ```rust
 #[derive(Debug)]
@@ -121,12 +121,12 @@ fn port(path: &str) -> Result<u16, ConfigError> {
 }
 ```
 
-Two different error types, one return type, no visible conversion. Write the
-`From` impls once and every `?` in the crate widens for free.
+Two error types go in, one comes out, and the conversion never appears in the
+code. Write the `From` impls once and every `?` in the crate widens for free.
 
 :::gotcha
 When `?` will not compile, the message is `error[E0277]: the trait bound
-From<X> is not satisfied` — or the older phrasing, `? couldn't convert the
+From<X> is not satisfied`, or in the older phrasing, `? couldn't convert the
 error to Y`.
 
 It is not complaining about `?`. It is telling you the conversion from the
@@ -135,7 +135,8 @@ the `impl From<X> for Y`, or widen the return type to something that already
 accepts everything (`Box<dyn Error>`).
 :::
 
-`?` also works on `Option`, returning `None` early — same shape, no conversion.
+`?` also works on `Option`, returning `None` early. Same shape, minus the
+conversion.
 The two do not mix: `?` on an `Option` inside a `Result` function is an error,
 and `.ok_or(...)` is how you cross over.
 
@@ -167,9 +168,9 @@ is a comment the compiler puts in the crash log.
 
 ### When it is defensible
 
-Tests, prototypes, examples, and the genuine cannot-happen cases — a literal parsed at startup, a `Mutex` lock you would
-rather die than continue past. Indefensible: anything driven by input, in
-anything that has to stay up.
+Tests, prototypes, examples, and the genuine cannot-happen cases: a literal
+parsed at startup, or a `Mutex` lock you would rather die than continue past.
+Indefensible: anything driven by input, inside anything that has to stay up.
 
 ## Your own error type
 
@@ -205,9 +206,9 @@ impl std::error::Error for ConfigError {
 }
 ```
 
-- `Debug` is for you — `{:?}`, the panic message, the test output.
-- `Display` is for the user — one lowercase line, no trailing full stop, no
-  "Error:" prefix, because the caller adds those.
+- `Debug` is for you: `{:?}`, the panic message, the test output.
+- `Display` is for the user: one lowercase line, with no trailing full stop and
+  no "Error:" prefix, because the caller adds those.
 - `Error` is the interface everything else keys off, and `source()` is the
   chain: "reading config" → "permission denied".
 
@@ -230,7 +231,7 @@ boilerplate.
 
 ## The two-crate split
 
-Two crates dominate, and the split between them is not fashion — it follows
+Two crates dominate, and the split between them is not fashion. It follows
 directly from who reads the error.
 
 | | `thiserror` | `anyhow` |
@@ -245,8 +246,8 @@ directly from who reads the error.
 human reading a message.**
 
 That single sentence decides it. A library that returns `anyhow::Error` has
-taken away its user's ability to handle anything specifically — they are left
-matching on strings.
+taken away its user's ability to handle anything specifically. All that is left
+is matching on strings.
 :::
 
 ```rust
@@ -261,8 +262,8 @@ pub enum ParseError {
 ```
 
 `thiserror` generates the `Display` and `Error` impls, and `#[from]` on a field
-generates the `From` too. It is pure code generation — the type you ship is a
-plain enum with no dependency visible in its public API.
+generates the `From` too. It is pure code generation. The type you ship is a plain
+enum, and the dependency never appears in its public API.
 
 ### Context is the product
 
@@ -308,9 +309,9 @@ print the whole context chain nicely.
 ### Unwind, then abort
 
 A panic **unwinds** the stack by default: it walks back through every frame,
-running the destructor of every live value, and stops the thread. Locks are
-released, files are closed, buffers are flushed. RAII holds under panic — that
-is why Rust needs no `finally`.
+running the destructor of every live value, and stops the thread. Locks
+release, files close, buffers flush. RAII holds under panic, which is why Rust
+has no need for `finally`.
 
 The alternative is in `Cargo.toml`:
 
@@ -320,14 +321,14 @@ panic = "abort"
 ```
 
 which stops the process immediately, runs no destructors, and lets the compiler
-delete all the landing-pad code. Smaller binary, slightly faster, and no
-cleanup. Standard for embedded targets and for anything where a panic means
-the process is dead anyway.
+delete all the landing-pad code. You get a smaller and slightly faster binary,
+and no cleanup whatsoever. That is the standard choice for embedded targets, and
+for anything where a panic means the process is finished anyway.
 
 :::gotcha
 `std::panic::catch_unwind` exists and is not exception handling.
 
-It is for thread and FFI boundaries — a panic crossing into C is undefined
+It is for thread and FFI boundaries: a panic crossing into C is undefined
 behaviour, so a Rust callback catches it at the edge. Using it as
 try/catch fails on three counts: it does not work under `panic = "abort"`, it
 cannot catch an abort, and the value it gives you is a `Box<dyn Any>` you must
@@ -340,8 +341,8 @@ should have been a `Result`.
 ### Panics in destructors
 
 A panic during unwinding, from a `Drop` impl, aborts the process. There is no
-second stack to unwind onto. So a destructor must not panic — no `unwrap` in
-`Drop`, and no assertions.
+second stack to unwind onto. So a destructor must not panic. Keep `unwrap`
+and assertions out of `Drop`.
 
 :::note
 **The habit.** Every time you write `unwrap`, say out loud why it cannot fail.

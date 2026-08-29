@@ -9,7 +9,7 @@ unit: 23-unsafe
 
 @expect E0133
 
-Building a raw pointer from a borrow is perfectly safe — it is just an address,
+Building a raw pointer from a borrow is perfectly safe. It is just an address,
 and an address on its own cannot hurt anybody. Reading through it is the
 operation the compiler cannot check, so that is the one it refuses.
 
@@ -45,7 +45,7 @@ pub fn run() -> i32 {
 ```
 
 @hint Two of these three lines are already legal. Only one operation in the whole function is on the list of five.
-@hint Wrap the dereference — not the whole function — in an `unsafe` block.
+@hint Wrap the dereference in an `unsafe` block, rather than the whole function.
 @hint `unsafe { *p + 1 }` as the tail expression, with a `// SAFETY:` comment above it naming why `p` is valid.
 
 @diagnose E0133
@@ -58,7 +58,7 @@ whether anything else is writing to it. `&value` had all of those guarantees;
 `*const i32` has none of them. So the compiler cannot prove `*p` reads a live,
 aligned, initialised `i32`, and it will not guess.
 
-Note what it did *not* complain about — creating `p`, or printing it. Only the
+Note what it did *not* complain about: creating `p`, or printing it. Only the
 dereference is gated, because only the dereference can be wrong.
 
 @after
@@ -132,7 +132,7 @@ pub fn run() -> Config {
 
 @hint The `unsafe` block changes nothing about this error. Delete it and solve the real problem.
 @hint The two borrows want two different fields, but they both ask for the whole struct.
-@hint Borrow the fields directly — `&mut config.retries` and `&mut config.timeout` are disjoint paths, so both may be unique at once.
+@hint Borrow the fields directly. `&mut config.retries` and `&mut config.timeout` are disjoint paths, so both may be unique at once.
 
 @diagnose E0499
 `cannot borrow config as mutable more than once at a time`, raised inside an
@@ -154,7 +154,7 @@ The rule to carry: **an error whose code starts E04 or E05 is never fixed by
 them. If you have typed `unsafe` in response to one, the message was a question
 about ownership that you have not answered yet.
 
-There is a genuine version of this — `split_at_mut` really does use raw pointers
+There is a genuine version of this. `split_at_mut` really does use raw pointers
 to hand out two disjoint `&mut` into one slice, because the checker cannot reason
 about indices. That is exercise 8, and it looks nothing like this.
 
@@ -166,8 +166,8 @@ about indices. That is exercise 8, and it looks nothing like this.
 @expect E0308
 
 The intent is to bump a counter through a raw pointer. The `unsafe` block is
-already there and the arithmetic is fine — the pointer itself is built wrong,
-and the mistake happens one line earlier than people expect.
+already there and the arithmetic is fine. The pointer itself is built wrong, and
+the mistake happens one line earlier than people expect.
 
 ```starter
 pub fn run() -> u32 {
@@ -213,8 +213,8 @@ pub fn run() -> u32 {
 `*const T` and no further; there is no path from a shared borrow to a mutable
 raw pointer, and the compiler will not invent one.
 
-That refusal is doing real work. Provenance — where a pointer came from — is
-part of what a pointer is. A pointer derived from `&count` carries a permission
+That refusal is doing real work. Provenance, meaning where a pointer came from,
+is part of what a pointer is. A pointer derived from `&count` carries a permission
 to read and nothing more, and writing through it is undefined behaviour even
 after an `as *mut u32` cast that silences the type error. The write would look
 fine, run fine in a debug build, and be miscompiled the day the optimiser decides
@@ -228,9 +228,9 @@ dereference of a raw pointer needs to be inside one, including the compound
 assignment `*p += 1`, which is a read and a write.
 
 @after
-`as` casts between pointer types compile very freely — `*const T` to `*mut T` to
-`*const U` to `usize` and back — and almost none of that is checked. This is the
-part of unsafe Rust where the type system stops helping and the only thing
+`as` casts between pointer types compile very freely: `*const T` to `*mut T` to
+`*const U` to `usize` and back, and almost none of that is checked. This is the
+part of unsafe Rust where the type system stops helping, and the only thing
 keeping you honest is knowing where the pointer came from.
 
 The rule of thumb: **derive the pointer from a borrow with the permission you
@@ -248,7 +248,7 @@ as *mut T` compiles and is a bug.
 index is in bounds. `get` is meant to be the safe wrapper around it, and it
 currently does not check anything.
 
-Making it compile is easy. Making it *sound* is the exercise — read the tests
+Making it compile is easy. Making it *sound* is the exercise, so read the tests
 before you decide where the `unsafe` goes.
 
 ```starter
@@ -334,7 +334,7 @@ in the standard library.
 
 Notice who pays. The bounds check is one comparison and a predictable branch, in
 the wrapper, once. `get_unchecked` exists for the loops where the compiler
-already proved the index and the check would be pure waste — not as a general
+already proved the index and the check would be pure waste. It is not a general
 speed-up. Reach for it when a profile says so, never before.
 
 ## 5. An unsafe trait needs an unsafe impl
@@ -411,7 +411,7 @@ pub fn run() -> (u32, bool) {
 }
 ```
 
-@hint The trait declaration already tells you what is missing — read the first word of it.
+@hint The trait declaration already tells you what is missing. Read the first word of it.
 @hint Implementing an unsafe trait is one of the five operations, so the `impl` has to be marked.
 @hint `unsafe impl Zeroed for u32 { ... }`, with a `// SAFETY:` comment above each one.
 
@@ -443,7 +443,7 @@ reverse of an `unsafe fn`.
 
 `Send` and `Sync` are auto-implemented for you by the compiler whenever it can
 prove them structurally. You only write `unsafe impl Send for T {}` by hand when
-you have a raw pointer inside and you know something the compiler does not —
+you have a raw pointer inside and you know something the compiler does not,
 which is exactly the situation where you should write down what that is.
 
 ## 6. The wrong repr
@@ -515,14 +515,14 @@ pub fn run() -> usize {
 field underlined as evidence.
 
 `#[repr(transparent)]` is a promise that the struct is layout-identical to its
-single field — same size, same alignment, same ABI — which is what makes a
-newtype free to pass across an FFI boundary. Three fields cannot all be the one
+single field: same size, same alignment, same ABI. That is what makes a newtype
+free to pass across an FFI boundary. Three fields cannot all be the one
 the struct is a disguise for, so the promise is unmeetable and the compiler says
 so.
 
 What was wanted is `#[repr(C)]`: fields in source order, C's alignment and
 padding rules, no reordering. Without any `repr` the struct is `repr(Rust)`,
-which guarantees nothing at all — the compiler may sort fields by alignment to
+which guarantees nothing at all. The compiler may sort fields by alignment to
 shrink padding, and may change that decision between releases. Handing a
 `repr(Rust)` struct to C is undefined behaviour that will appear to work until
 it does not.
@@ -536,7 +536,7 @@ layout, which is the entire point of the attribute.
 
 The `repr` family, briefly: `C` for interop, `transparent` for a newtype that
 must be indistinguishable from its single field, `packed` for wire formats with
-no padding — and misaligned fields, which is its own hazard — and `u8`/`u16`/`i32`
+no padding (and misaligned fields, which is its own hazard), and `u8`/`u16`/`i32`
 to fix an enum's discriminant type. Applying that last group to a struct is a
 different error, and a common one: a struct has no discriminant to size.
 
@@ -548,9 +548,9 @@ different error, and a common one: a struct has no discriminant to size.
 @expect E0133
 
 A global counter, written the way it would be in C. Touching a `static mut` is
-one of the five operations, so this does not compile — but adding `unsafe` is
-the wrong repair, because the underlying problem is that two threads calling
-`record` would be a data race and therefore instant undefined behaviour.
+one of the five operations, so this does not compile. But adding `unsafe` is the
+wrong repair. The underlying problem is that two threads calling `record` would
+be a data race, and therefore instant undefined behaviour.
 
 Rewrite it so no `unsafe` appears anywhere.
 
@@ -607,7 +607,7 @@ the note `mutable statics can be mutated by multiple threads`.
 
 The note is the whole reason. A `static mut` is a global with no synchronisation
 of any kind, so two threads incrementing it race, and a data race in Rust is
-immediate undefined behaviour — not a lost count, but a program the optimiser is
+immediate undefined behaviour. Not a lost count: a program the optimiser is
 entitled to compile into anything.
 
 Adding `unsafe` would compile. It would also be you certifying that no two
@@ -615,14 +615,14 @@ threads can ever reach `record` at once, in a library where you do not control
 the callers. That is not a promise you are in a position to make.
 
 @diagnose E0796
-Since edition 2024 it is a hard error to create a reference to a `static mut` —
-`&HITS` or `&mut HITS` — because that reference would claim aliasing guarantees
-nothing can enforce for a global. This is another sign that the type is wrong
+Since edition 2024 it is a hard error to create a reference to a `static mut`,
+whether `&HITS` or `&mut HITS`, because that reference would claim aliasing
+guarantees nothing can enforce for a global. This is another sign that the type is wrong
 rather than the syntax.
 
 @after
-`AtomicU64` costs one instruction with `Relaxed` ordering on x86 — a `lock xadd`
-— and it is correct under threads, which `static mut` never is. The interior
+`AtomicU64` costs one instruction with `Relaxed` ordering on x86, a `lock xadd`,
+and it is correct under threads, which `static mut` never is. The interior
 mutability lives inside `UnsafeCell`, the compiler knows about it, and the
 `unsafe` is somebody else's, already written and already audited.
 
@@ -643,7 +643,7 @@ slice. The borrow checker cannot prove two index ranges are disjoint, so the
 standard library builds this with raw pointers and wraps it in a safe signature.
 
 The body is written. Add the `unsafe`, and add whatever else is needed to make
-the safe signature honest — the second test is the specification.
+the safe signature honest. The second test is the specification.
 
 ```starter
 pub fn split_mut(v: &mut [i32], mid: usize) -> (&mut [i32], &mut [i32]) {
@@ -733,7 +733,7 @@ pub fn run() -> Vec<i32> {
 
 Both have preconditions the compiler cannot check. `from_raw_parts_mut` requires
 that the pointer is non-null and aligned, that `len` elements starting there are
-initialised and inside one allocation, and — the hard one — that nothing else
+initialised and inside one allocation, and, the hard one, that nothing else
 accesses them for the lifetime it invents for the result. `add` requires that
 the resulting pointer stays within, or exactly one past the end of, the same
 allocation.
@@ -760,7 +760,7 @@ underflow to about 18 quintillion, and a safe caller has triggered UB.
 is the actual proof.
 
 **The elided lifetimes** do the rest. With one input reference and two output
-references, elision gives both outputs the lifetime of `v` — so `v` stays
+references, elision gives both outputs the lifetime of `v`, so `v` stays
 borrowed until both halves are dead, and neither can dangle. Had you written
 `&'static mut [i32]`, everything would still compile and the function would be
 catastrophically unsound.

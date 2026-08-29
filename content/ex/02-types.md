@@ -49,26 +49,26 @@ pub fn run() -> i32 {
 ```
 
 @hint The error names the only type a slice can be indexed by. Use it in the signature.
-@hint `usize` — as wide as a pointer on the target, and unable to go negative.
+@hint `usize` is as wide as a pointer on the target, and it has no negative half.
 @hint `pub fn nth(values: &[i32], index: usize) -> i32`. The literal `2` at the call site will infer as `usize` on its own.
 
 @diagnose E0277
 `the type [i32] cannot be indexed by i32` is a trait error wearing a familiar
 coat. Indexing desugars to `Index::index`, and `[i32]` implements `Index<usize>`
-and `Index<Range<usize>>` — and nothing else. `i32` is not in the list, so the
+and `Index<Range<usize>>`, and nothing else. `i32` is not in the list, so the
 trait bound is unsatisfied.
 
 The reason is not style. An index is an offset added to a base address, so the
 largest index that can be meaningful is the largest address, which is what
-`usize` is defined to be — 8 bytes on x86-64, 4 on a 32-bit target. It is also
+`usize` is defined to be: 8 bytes on x86-64, 4 on a 32-bit target. It is also
 unsigned, because an offset before the start of the slice is not a thing you can
 ask for. Making the index type match the address type removes a whole class of
 "it worked on my laptop" bugs on 32-bit hardware.
 
 @after
 `usize` is the type of every count of things in memory: `len()`, `capacity()`,
-slice ranges, `size_of::<T>()`. The habit worth forming is the reverse one —
-*not* using `usize` for quantities in your problem domain. A retry count is a
+slice ranges, `size_of::<T>()`. The habit worth forming runs the other way:
+keep `usize` away from quantities in your problem domain. A retry count is a
 `u8`, a port is a `u16`, a user id is whatever your database says. Reaching for
 `usize` because it is "the integer that indexes" gives every number in your
 program the same type, and then nothing catches the day you pass a user id where
@@ -112,7 +112,7 @@ pub fn total_bytes(header: u32, body: &[u8]) -> u64 {
 ```
 
 @hint The return type is `u64`. Get both operands there before adding, not after.
-@hint A `u32` always fits in a `u64`, so that conversion cannot fail — `u64::from` says so in the type. A `usize` might be wider than `u64` on some exotic target, so that one needs `as`.
+@hint A `u32` always fits in a `u64`, so that conversion cannot fail, and `u64::from` says so in the type. A `usize` might be wider than `u64` on some exotic target, so that one needs `as`.
 @hint `u64::from(header) + body.len() as u64`.
 
 @diagnose E0308
@@ -134,7 +134,7 @@ Two conversion tools, and the distinction is worth keeping straight.
 
 `From`/`Into` is for conversions that **cannot** fail: `u64::from(x)` where `x`
 is a `u32` compiles because the standard library has proved every `u32` fits.
-There is no `u32::from(some_u64)` — the impl does not exist, because it would be
+There is no `u32::from(some_u64)`. The impl does not exist, because it would be
 a lie.
 
 `as` is for everything else, and it never fails, which is exactly the problem: it
@@ -186,12 +186,12 @@ pub fn run() -> String {
 ```
 
 @hint `char` has no `Add` implementation. Get to a numeric type, do the arithmetic there, and come back.
-@hint `c as u8` gives the byte value for an ASCII character, and `as char` converts a `u8` back. Only `u8` may be cast to `char` — no other integer type can.
+@hint `c as u8` gives the byte value for an ASCII character, and `as char` converts a `u8` back. Only `u8` may be cast to `char`; every other integer type is refused.
 @hint `(c as u8 + 1) as char`.
 
 @diagnose E0369
 `cannot add {integer} to char`. The `+` operator is the `Add` trait, and `char`
-does not implement it — deliberately, not by oversight.
+does not implement it, and that is deliberate rather than an oversight.
 
 A `char` is a **Unicode scalar value**, not a number. The code points are not a
 contiguous, uniformly meaningful sequence: adding one to `'z'` gives `'{'`,
@@ -273,11 +273,11 @@ overflow do" has four legitimate answers:
 
 - `checked_add` → `None`. Handle it explicitly.
 - `saturating_add` → clamps to `u8::MAX`. For quantities with a natural ceiling.
-- `wrapping_add` → 4. Correct when wrapping *is* the algorithm — hashes, PRNGs.
+- `wrapping_add` → 4. Correct when wrapping *is* the algorithm: hashes, PRNGs.
 - `overflowing_add` → `(4, true)`. The wrapped value plus a carry flag.
 
 Plain `+` is a fifth: panic in a debug build, wrap in a release build. That split
-is why the explicit family exists at all — `+` behaves differently depending on
+is why the explicit family exists at all. `+` behaves differently depending on
 how you compiled, so anywhere overflow is a real possibility you should be saying
 which of the four you meant.
 
@@ -286,7 +286,7 @@ which of the four you meant.
 the difference is what a reader learns from the line. The `checked_add` version
 shows the decision; the `saturating_add` version states it. In real code, reach
 for `saturating_*` when the clamp is the whole intent, and `checked_*` when the
-`None` deserves different handling — a log line, an error, an early return.
+`None` deserves different handling: a log line, an error, an early return.
 
 The habit worth building: a `+` on a value that came from outside the program is
 a decision you have not made yet.
@@ -339,7 +339,7 @@ pub fn mean(values: &[f32]) -> f64 {
 }
 ```
 
-@hint `sum` has no annotation, so inference picks its type from the first thing that constrains it — the `+=` against an `f32`.
+@hint `sum` has no annotation, so inference picks its type from the first thing that constrains it: the `+=` against an `f32`.
 @hint Pin `sum` to `f64` with a suffix, then widen each element as it comes in.
 @hint `let mut sum = 0.0f64;` and `sum += *v as f64;`. The `*` is because iterating a slice yields references.
 
@@ -358,7 +358,7 @@ error is introduced.
 
 @diagnose E0614
 You have written `sum += v` where `v` is a `&f32`, then tried to dereference
-something that is not a reference — or the reverse. Iterating `&[f32]` with
+something that is not a reference, or the reverse. Iterating `&[f32]` with
 `for v in values` yields `&f32`, one reference per element. `*v` gets the `f32`
 out. If you iterate with `for &v in values` instead, the pattern does the
 dereference and `v` is already an `f32`.
@@ -366,14 +366,14 @@ dereference and `v` is already an `f32`.
 @after
 Note what the tests do not do: compare floats with `==`. `0.1 + 0.2 == 0.3` is
 `false`, because neither operand is exactly representable in binary and the
-rounding errors do not cancel. A tolerance — `(a - b).abs() < 1e-12` — asks the
+rounding errors do not cancel. A tolerance, `(a - b).abs() < 1e-12`, asks the
 question you actually meant.
 
 The type system carries a trace of this. `f64` implements `PartialEq` and
 `PartialOrd` but not `Eq` and not `Ord`, because `NaN != NaN` and a total order
 cannot survive that. It is why `vec_of_floats.sort()` does not compile and you
-need `sort_by(|a, b| a.partial_cmp(b).unwrap())` — the compiler making you
-acknowledge the case it cannot order.
+need `sort_by(|a, b| a.partial_cmp(b).unwrap())`, which is the compiler making
+you acknowledge the case it cannot order.
 
 ## 6. `as` is only for primitives
 
@@ -410,20 +410,20 @@ pub fn parse_port(s: &str) -> u16 {
 }
 ```
 
-@hint `as` reinterprets bits between primitive types. Text to a number is not a reinterpretation of bits — it is parsing, and it can fail.
+@hint `as` reinterprets bits between primitive types. Turning text into a number is not a reinterpretation of bits. It is parsing, and it can fail.
 @hint `str::parse` returns a `Result`, and the type it parses into comes from context or from a turbofish.
 @hint `s.parse::<u16>().unwrap()`, or `let n: u16 = s.parse().unwrap();`.
 
 @diagnose E0606
-`casting &str as u16 is invalid`. `as` is defined only between primitive types —
-the integers, the floats, `bool`, `char`, and raw pointers — plus a couple of
+`casting &str as u16 is invalid`. `as` is defined only between primitive types:
+the integers, the floats, `bool`, `char`, and raw pointers, plus a couple of
 coercions. It is a bit-level operation, and there is no arrangement of the bits
 of a `&str` (a pointer and a length) that is a sensible `u16`. The `help: cast
 through a raw pointer first` at the bottom is rustc telling you the only route
 that exists, and it is not one you want here.
 
 What `"8080"` → `8080` needs is *parsing*: reading decimal digits and building a
-number, which allocates no memory but can absolutely fail — on `"abc"`, on
+number. That allocates nothing and can absolutely fail: on `"abc"`, on
 `"70000"`, on `""`. So it lives on `FromStr` and returns a `Result`, and you have
 to say what happens when the config file is wrong.
 
@@ -434,7 +434,7 @@ silently producing the wrong number is acceptable.
 @diagnose E0605
 `non-primitive cast: String as u16`. Same rule, sharper wording: you cast from an
 owned `String` rather than a `&str`, and `String` is not a primitive at all, so
-rustc rejects it one step earlier. Either way the answer is the same — text
+rustc rejects it one step earlier. Either way the answer is the same. Text
 becomes a number by parsing, not by casting.
 
 @after
@@ -442,7 +442,7 @@ The turbofish is worth a second look: `s.parse::<u16>()`. `parse` is generic ove
 its output type, so without either a turbofish or an annotation on the binding
 there is nothing to infer from and you get `error[E0284]` or `E0282`. Here the
 `-> u16` on the function would in fact have been enough, because the `unwrap()`
-result flows straight into the return position — the explicit form is for the
+result flows straight into the return position. The explicit form is for the
 reader.
 
 In real code, `unwrap()` on config parsing is a placeholder. `parse::<u16>()`
@@ -457,7 +457,7 @@ lets you propagate it in one character.
 @expect E0308
 
 `to_port` narrows an `i64` from an external source down to a `u16`. Most of the
-time it fits. Sometimes it does not, and the signature already says so — it
+time it fits. Sometimes it does not, and the signature already says so: it
 returns `Option<u16>`, not `u16`.
 
 Wire the conversion up so an out-of-range number becomes `None` rather than a
@@ -496,7 +496,7 @@ pub fn run() -> (Option<u16>, Option<u16>, Option<u16>) {
 
 @hint `try_into` already returns a fallible type. Wrapping it in `Some` claims it always succeeded.
 @hint `Result<T, E>` has a method that throws the error away and gives you `Option<T>`.
-@hint `n.try_into().ok()`. No `Some` needed — `.ok()` produces the `Option` for you.
+@hint `n.try_into().ok()`. Leave the `Some` off; `.ok()` produces the `Option` for you.
 
 @diagnose E0308
 `expected u16, found Result<u16, TryFromIntError>`. `Some(...)` promised an
@@ -514,7 +514,7 @@ shortest handling: discard *why* it failed and keep *whether* it did.
 @diagnose E0277
 `the trait bound u16: From<i64> is not satisfied` means you reached for `into()`
 or `u16::from(n)`. Those are the infallible conversions, and they only exist
-where every input value fits in the output type — `u16::from(some_u8)` is fine,
+where every input value fits in the output type. `u16::from(some_u8)` is fine.
 `u16::from(some_i64)` cannot be, because most `i64` values have nowhere to go.
 The fallible cousins are `TryFrom` and `try_into`, and they return a `Result`
 precisely because the impl above could not be written honestly.
@@ -525,12 +525,12 @@ every time:
 
 | | fails how | use when |
 |---|---|---|
-| `u16::from(x)` | cannot fail — no impl exists if it could | widening, always |
+| `u16::from(x)` | cannot fail; no impl exists if it could | widening, always |
 | `x.try_into()` | `Result` | the value came from a file, a socket, a user |
 | `x as u16` | silently, by truncating | you proved it fits, or truncation is the intent |
 
 The third row is where CVEs come from. A length that arrives as a `u64`, gets
-cast to a `u32` for a buffer calculation, and wraps — that is a heap overflow
+cast to a `u32` for a buffer calculation, and wraps. That is a heap overflow
 with a compile-clean cast in the middle of it.
 
 ## 8. The compiler will not guess the width
@@ -544,8 +544,8 @@ with a compile-clean cast in the middle of it.
 Nothing in the function says what kind of number a field parses into, and the
 compiler refuses to pick one for you.
 
-Say what you mean. Note the values in the test before you choose — the obvious
-first guess does not survive them.
+Say what you mean. Note the values in the test before you choose, because the
+obvious first guess does not survive them.
 
 ```starter
 pub fn widest(raw: &str) -> String {
@@ -585,7 +585,7 @@ pub fn widest(raw: &str) -> String {
 ```
 
 @hint Trace what could pin the type of the parsed value. `max()` only needs `Ord`, and `format!` accepts anything that can be displayed. Nothing in that chain names a type.
-@hint Give `parse` a type with the turbofish — `parse::<T>()` — or annotate the binding and let inference flow backwards from there.
+@hint Give `parse` a type with the turbofish, `parse::<T>()`, or annotate the binding and let inference flow backwards from there.
 @hint `65536` does not fit in a `u16`, so that guess compiles and then fails its test at run time. `u32` holds it comfortably.
 
 @diagnose E0284
@@ -596,7 +596,7 @@ something in this function to pick one.
 Follow what it had to work with. `parse()` produces an unknown `F`. `unwrap()`
 keeps it unknown. `max()` requires only that `F: Ord`, which narrows nothing.
 `format!("{best}")` accepts any `Display` type. At no point does anything commit
-to a concrete type, and the integer fallback to `i32` cannot rescue it — that
+to a concrete type, and the integer fallback to `i32` cannot rescue it. That
 fallback settles unconstrained integer *literals*, and there is no literal here,
 only an unresolved trait obligation.
 
@@ -607,7 +607,7 @@ whole body, so both reach the same place.
 @diagnose E0282
 Same situation, stated more bluntly: `type annotations needed`. Something in the
 function has no type and nothing later in the body settles it. The error's arrow
-points at where rustc gave up, not necessarily at where the fix belongs — Rust
+points at where rustc gave up, not necessarily at where the fix belongs. Rust
 infers across the whole body, so annotating the binding, the `parse` call, or the
 closure's return type all work equally.
 
@@ -622,8 +622,8 @@ choosing what the program refuses to represent.
 The interesting part of this exercise is not the annotation, it is that you had
 to choose a width. `u16` compiles perfectly and then panics on `65536`, because
 `parse` correctly reports that the number does not fit and `unwrap` turns that
-into a panic. The compiler could not have caught it — the data is only known at
-run time.
+into a panic. The compiler could not have caught it, because the data is only
+known at run time.
 
 That is the real content of this unit. A type is a claim about a range of
 values, and choosing it is choosing what your program refuses to represent. Get

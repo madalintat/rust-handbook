@@ -19,7 +19,7 @@ are on it.
 
 B and E are the tempting ones and they are the whole misconception. Aliasing
 rules and move rules are checked identically inside and outside an `unsafe`
-block — E0499 and E0505 fire either way. `unsafe` is not a borrow-checker
+block, so E0499 and E0505 fire either way. `unsafe` is not a borrow-checker
 override, and typing it in response to one of those errors means the message has
 not been read yet.
 
@@ -33,9 +33,9 @@ let p = &x as *const i32;
 println!("{p:?}");
 ```
 
-- *A. Yes — creating and printing a raw pointer is safe
-- B. No — any use of a raw pointer needs `unsafe`
-- C. No — `*const i32` does not implement `Debug`
+- *A. Yes, because creating and printing a raw pointer is safe
+- B. No, because any use of a raw pointer needs `unsafe`
+- C. No, because `*const i32` does not implement `Debug`
 - D. Yes, but only because `x` is `Copy`
 
 @why
@@ -51,7 +51,7 @@ where to look when auditing unsafe code: at the `*p`, never at the cast.
 What is the runtime cost of an `unsafe` block?
 
 - A. A bounds check is skipped, so it is faster
-- *B. None — it is a compile-time permission and emits no code
+- *B. None; it is a compile-time permission and emits no code
 - C. A small check that the block did not violate any invariants
 - D. It disables optimisations inside the block
 
@@ -59,9 +59,9 @@ What is the runtime cost of an `unsafe` block?
 `unsafe` generates nothing. It changes which operations the compiler will accept
 in that region and nothing else.
 
-A is the seductive wrong answer. Unsafe code can be faster — `get_unchecked`
-really does skip a comparison — but that is the *function you chose to call*,
-not the keyword. Wrapping ordinary code in `unsafe` makes it exactly as fast as
+A is the seductive wrong answer. Unsafe code can be faster, and `get_unchecked`
+really does skip a comparison, but that is the *function you chose to call*
+rather than the keyword. Wrapping ordinary code in `unsafe` makes it exactly as fast as
 it was.
 
 ## 4
@@ -87,7 +87,7 @@ is allowed to assume about them.
 
 Why is undefined behaviour worse than a crash?
 
-- A. It is not — a crash is worse because the program stops
+- A. It is not; a crash is worse because the program stops
 - *B. The optimiser may assume UB cannot happen and rewrite unrelated code on that assumption
 - C. It always corrupts the heap
 - D. It can only be found with a debugger
@@ -95,7 +95,7 @@ Why is undefined behaviour worse than a crash?
 @why
 UB is not a behaviour, it is the absence of a specification. The compiler
 optimises on the assumption that your program has none, so a null dereference
-does not merely fault — it licenses the optimiser to delete the null check three
+does not merely fault. It licenses the optimiser to delete the null check three
 lines later as unreachable, and the crash then surfaces somewhere with no
 `unsafe` anywhere near it.
 
@@ -112,9 +112,9 @@ pub fn get(v: &[i32], i: usize) -> i32 {
 }
 ```
 
-- A. It does not compile — `get_unchecked` needs a bounds check
+- A. It does not compile, because `get_unchecked` needs a bounds check
 - B. Compiles, and is sound because the `unsafe` block is explicit
-- *C. Compiles, and is unsound — a safe caller can pass any index
+- *C. Compiles, and is unsound, because a safe caller can pass any index
 - D. Compiles, and is sound because `i32` has no invalid bit patterns
 
 @why
@@ -142,7 +142,7 @@ which is why the promise belongs in a `/// # Safety` section.
 
 A is the near-miss, and the distinction matters. A function full of unsafe
 operations that checks all its own preconditions should have a **safe**
-signature — that is what a safe abstraction is. `Vec::push` is stuffed with
+signature, which is what a safe abstraction is. `Vec::push` is stuffed with
 unsafe code and is not an `unsafe fn`.
 
 ## 8
@@ -172,7 +172,7 @@ Which types in the standard library are implemented with `unsafe` inside? Choose
 - *B. `String`
 - *C. `RefCell<T>`
 - *D. `Rc<T>`
-- E. None — the standard library is entirely safe Rust
+- E. None; the standard library is entirely safe Rust
 
 @why
 All four, and many more. `Vec` manages a raw allocation, `String` maintains a
@@ -194,17 +194,17 @@ let p: *mut u32 = &x;
 unsafe { *p = 6; }
 ```
 
-- A. Yes — `as` casts make any pointer conversion legal
-- *B. No — `&x` is a shared borrow and coerces only to `*const u32`
-- C. No — `x` is not declared `mut`
+- A. Yes, because `as` casts make any pointer conversion legal
+- *B. No, because `&x` is a shared borrow and coerces only to `*const u32`
+- C. No, because `x` is not declared `mut`
 - D. Yes, and it is sound
 
 @why
 `error[E0308]: expected raw pointer *mut u32, found reference &u32`. A `&T`
 coerces to `*const T` and stops there.
 
-C is a genuinely tempting reading, because `x` not being `mut` *is* also wrong —
-but the error you get is the type mismatch, and it would still be a type
+C is a genuinely tempting reading, because `x` not being `mut` *is* also wrong.
+But the error you get is the type mismatch, and it would still be a type
 mismatch with `let mut x`. The deeper point is **provenance**: a pointer derived
 from a shared borrow carries permission to read only, so writing through it is
 undefined behaviour even after an `as *mut u32` cast has silenced the compiler.
@@ -223,8 +223,8 @@ Default `repr(Rust)` layout guarantees nothing: the compiler may reorder fields
 to shrink padding and may change that decision between releases. `#[repr(C)]`
 fixes the layout so a C header and a Rust struct describe the same bytes.
 
-D is `#[repr(packed)]`, which is a different attribute with a different hazard —
-it produces misaligned fields, and taking a reference to one is a hard error
+D is `#[repr(packed)]`, a different attribute with a different hazard. It
+produces misaligned fields, and taking a reference to one is a hard error
 because a reference promises alignment.
 
 ## 12
@@ -239,7 +239,7 @@ Why is `static mut` almost always the wrong tool?
 @why
 There is no synchronisation of any kind, so any concurrent access is a data
 race, and a data race is UB rather than a merely wrong number. Writing `unsafe`
-around it is you certifying that no two threads can ever reach that line — a
+around it is you certifying that no two threads can ever reach that line, a
 promise you usually cannot make about your own library's callers.
 
 B is backwards: `static mut` is nominally faster, which is exactly what makes it
@@ -263,8 +263,8 @@ are reinterpreted, and for some types that produces a value the language says
 cannot exist.
 
 The Rust answer to the same problem is an `enum`, which stores a discriminant so
-the compiler can check. Unions exist for C layouts and for `MaybeUninit` — cases
-where the discriminant is somewhere else or is not wanted at all.
+the compiler can check. Unions exist for C layouts and for `MaybeUninit`, cases
+where the discriminant lives somewhere else or is not wanted at all.
 
 ## 14
 
@@ -281,8 +281,8 @@ B, C and D are the real cases, and the last two come with obligations: a safe
 wrapper, a `// SAFETY:` comment, and Miri.
 
 A and E are the same mistake twice. Borrow and lifetime errors are questions
-about ownership and about time, and `unsafe` cannot answer either — it does not
-even apply to them. The exception proves the rule: `split_at_mut` uses raw
+about ownership and about time, and `unsafe` answers neither. It does not even
+apply to them. The exception proves the rule: `split_at_mut` uses raw
 pointers precisely because the checker cannot reason about index ranges, but the
 result is a *safe* function that asserts `mid <= len` first.
 
@@ -298,7 +298,7 @@ What does Miri do?
 @why
 Miri runs the program at the MIR level and detects out-of-bounds pointer
 arithmetic, use-after-free, misaligned reads, aliasing violations, uninitialised
-reads and data races — things a normal test run will happily let past.
+reads and data races, all of which a normal test run will happily let past.
 
 A overstates it, and the overstatement is worth naming: Miri only sees the code
 paths your tests take, so a clean run is evidence, not proof. It is still the

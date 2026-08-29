@@ -7,7 +7,7 @@ unit: 19-modules
 What is a crate?
 
 - A. A directory containing a `Cargo.toml`
-- *B. One unit of compilation — what `rustc` is invoked on, once
+- *B. One unit of compilation: what `rustc` is invoked on, once
 - C. Any `.rs` file
 - D. A published package on crates.io
 
@@ -16,7 +16,7 @@ A crate is one compilation. `rustc` is run once per crate, and that is why the
 crate is the unit of so much else: `use` paths, `pub(crate)`, trait coherence,
 semver, and incremental rebuilds.
 
-A is a **package** — one `Cargo.toml`, which may contain one library crate and
+A is a **package**: one `Cargo.toml`, which may contain one library crate and
 any number of binary crates. C is tempting because in Python a file is a module,
 but a `.rs` file that no `mod` declaration names is not compiled at all.
 
@@ -27,7 +27,7 @@ but a `.rs` file that no `mod` declaration names is not compiled at all.
 - *A. `src/parse.rs`
 - *B. `src/parse/mod.rs`
 - C. `src/modules/parse.rs`
-- D. Anywhere — Cargo searches the whole `src` tree
+- D. Anywhere: Cargo searches the whole `src` tree
 
 @why
 Exactly two locations, and having both is an error. `src/parse.rs` is the modern
@@ -38,7 +38,7 @@ children, so the module's own code and its submodules sort next to each other,
 instead of a project accumulating nine files all called `mod.rs`.
 
 D is the Python intuition and it is wrong in a way that bites: a file nobody
-declares is silently ignored — no error, no warning, no module.
+declares is silently ignored, with no error, no warning and no module.
 
 ## 3
 
@@ -53,9 +53,9 @@ mod store {
 }
 ```
 
-- *A. Yes — a child module can see its parent's private items
-- B. No — `secret` is private
-- C. No — `super` is only valid at the crate root
+- *A. Yes, a child module can see its parent's private items
+- B. No, `secret` is private
+- C. No, `super` is only valid at the crate root
 - D. Yes, but only because `index` is `pub`
 
 @why
@@ -71,7 +71,7 @@ A parent cannot reach down into a child.
 
 What is the difference between E0433 and E0603?
 
-- A. Nothing — they are two names for an unresolved path
+- A. Nothing, they are two names for an unresolved path
 - *B. E0433 means the name does not exist; E0603 means it exists and you may not use it
 - C. E0433 is for functions, E0603 is for modules
 - D. E0603 is a warning, E0433 is an error
@@ -83,8 +83,8 @@ nothing of that name. E0603 (`... is private`) means it found the item and
 refused.
 
 Knowing which you have tells you which fix to reach for. E0433 wants a corrected
-path or a `use`; E0603 wants a `pub` — often on a module partway along the path,
-not on the item the call names.
+path or a `use`; E0603 wants a `pub`, often on a module partway along the path
+rather than on the item the call names.
 
 ## 5
 
@@ -100,9 +100,9 @@ pub mod store {
 fn main() { store::index::lookup(); }
 ```
 
-- A. Yes — `lookup` is `pub`
-- *B. No — the module `index` is private
-- C. No — `lookup` needs to be `pub(crate)`
+- A. Yes, `lookup` is `pub`
+- *B. No, the module `index` is private
+- C. No, `lookup` needs to be `pub(crate)`
 - D. Yes, because `store` is `pub`
 
 @why
@@ -132,7 +132,7 @@ read. The item lives in `raw`, so `super` is `engine`, and the grant covers
 
 A is the trap, and it is what people usually mean when they type `pub(super)` in
 a deep tree. If you want the whole of `app`, the form is
-`pub(in crate::app)` — the path must name an ancestor module of the item.
+`pub(in crate::app)`, since the path must name an ancestor module of the item.
 
 ## 7
 
@@ -150,7 +150,7 @@ every downstream `match` that was exhaustive and now is not. D breaks every
 downstream `impl`, which no longer implements the whole trait.
 
 C is safe unless it collides with a name in a trait the caller has in scope. E
-is safe because a private module is not part of your API at all — which is the
+is safe because a private module is not part of your API at all, which is the
 argument for keeping modules private and re-exporting with `pub use`.
 
 A and B are the ones `#[non_exhaustive]` exists to prevent, and it has to be
@@ -167,7 +167,7 @@ What does `#[non_exhaustive]` on a `pub struct` do?
 
 @why
 It restricts *other* crates only. Inside the defining crate the struct behaves
-normally — you can still write a literal — so the type is not made awkward for
+normally, and you can still write a literal, so the type is not made awkward for
 its own author.
 
 C is close but wrong in a way that matters: the fields keep their own
@@ -206,9 +206,9 @@ use json::Value;
 use toml::Value;
 ```
 
-- A. Yes — the two types are distinct
-- *B. No — the name `Value` is defined twice in this module
-- C. No — you cannot `use` from a private module
+- A. Yes, the two types are distinct
+- *B. No, the name `Value` is defined twice in this module
+- C. No, you cannot `use` from a private module
 - D. Yes, and the second `use` shadows the first
 
 @why
@@ -218,7 +218,7 @@ items of the same name in the same namespace.
 
 D is the tempting one, because shadowing works for `let` bindings. It does not
 work for items: items in a module are unordered, so there is no "second" one to
-win. The fix is `as` — `use toml::Value as TomlValue;` — or importing the
+win. The fix is `as`, spelled `use toml::Value as TomlValue;`, or importing the
 modules and writing `json::Value` in full.
 
 ## 11
@@ -231,9 +231,9 @@ Why does `Option` need no `use` but `HashMap` does?
 - D. `HashMap` is in a different crate
 
 @why
-The prelude is a small list — `Option`, `Result`, `String`, `Vec`, `Box`,
-`Clone`, `Iterator`, `Drop` and a few dozen more — re-exported into every module
-automatically.
+The prelude is a small list of names re-exported into every module
+automatically: `Option`, `Result`, `String`, `Vec`, `Box`, `Clone`, `Iterator`,
+`Drop` and a few dozen more.
 
 C is wrong and worth correcting: `Option` is an ordinary `enum` defined in the
 standard library, with no compiler magic beyond the prelude entry. The prelude
@@ -255,7 +255,7 @@ of every dependency, so a workspace cannot end up with two incompatible `serde`
 versions linked into one binary. The shared `target/` means a dependency built
 for one member is not rebuilt for the next.
 
-C is not a thing — each member is its own package with its own crates. And
+C is not a thing. Each member is its own package with its own crates. And
 because crates form a DAG, two members cannot depend on each other cyclically,
 so a workspace split has to follow a real layering.
 
@@ -270,7 +270,7 @@ Why put the logic of a command-line tool in `src/lib.rs` rather than `src/main.r
 
 @why
 A binary crate has no importable name. `tests/cli.rs` is compiled as its own
-crate and can `use my_tool::...` — the library — but there is no path by which
+crate and can `use my_tool::...`, the library, but there is no path by which
 it could reach anything defined in `main.rs`.
 
 D is nearly true and worth being precise about: `#[cfg(test)]` unit tests inside
@@ -282,18 +282,19 @@ argument parsing and exit codes, and everything else lives in the library.
 
 `src/util.rs` exists in your package. `src/lib.rs` does not mention it. What happens?
 
-- A. A compile error — an undeclared file
+- A. A compile error: an undeclared file
 - B. A warning about an unused file
 - *C. Nothing at all; the file is not compiled
 - D. It is compiled and available as `crate::util`
 
 @why
 `mod` declares; the filesystem does not. A `.rs` file that no `mod` names is
-inert text as far as `rustc` is concerned — no error, no warning, no module.
+inert text as far as `rustc` is concerned, with no error, no warning and no
+module.
 
 This is the most disorienting difference from Python and JavaScript, where the
 filesystem *is* the module graph. The symptom is usually "my new function does
-not exist", and the fix is one line — `mod util;` — in the parent.
+not exist", and the fix is one line in the parent: `mod util;`.
 
 ## 15
 
@@ -307,7 +308,7 @@ You want a type defined in `crate::internal::v2` to be reachable by users as `my
 @why
 `pub use` publishes an item at a new path without moving it and without opening
 the modules above it. `internal` stays private, so it can be renamed, split, or
-rewritten, and no user is affected — nobody ever wrote that path.
+rewritten, and no user is affected, because nobody ever wrote that path.
 
 A does the opposite of what you want: it makes every module name in your
 internal tree part of your semver commitment. This is why a well-designed

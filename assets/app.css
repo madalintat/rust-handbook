@@ -1,12 +1,12 @@
-/* Rust Handbook — design tokens.
+/* Rust Handbook: design tokens.
  *
  * The structure is lifted from the Medical Student Handbook, which lifted its
  * palette from PostHog. What changes here is temperature. PostHog's tan
  * (#EEEFE9) is faintly green, and next to rust orange a green-grey ground goes
  * muddy, so every neutral is rotated warm: the light ground becomes #EFEBE4 and
  * the dark becomes #1C1917 rather than a cool #1e1f23. The button keeps
- * PostHog's shape — a solid fill on a hard shadow that it moves down onto when
- * pressed — with Ferris's orange in it.
+ * PostHog's shape, a solid fill on a hard shadow that it moves down onto when
+ * pressed, with Ferris's orange in it.
  */
 
 :root {
@@ -264,7 +264,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .iconbtn:hover { background: var(--raised); color: var(--ink); }
 
 /* ======================================================================= */
-/* buttons — sits on a hard shadow, moves down onto it when pressed        */
+/* buttons, sits on a hard shadow, moves down onto it when pressed        */
 /* ======================================================================= */
 
 .btn {
@@ -447,7 +447,12 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
 }
+/* A project card carries an icon where a unit card carries its number, so the
+   glyph has to sit on the same baseline as the digits do. */
+.unitcard .num svg { display: block; }
 .unitcard h3 { font-size: var(--t-body); font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
 .unitcard p { font-size: var(--t-tiny); color: var(--ink-2); line-height: 1.5; }
 .unitcard .foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
@@ -611,7 +616,7 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
 /* A <details> body is display:none while closed, so a transition has nothing to
    run from. An animation on the open state does run, because the element only
    starts existing in the layout at that moment. Closing snaps, which nobody
-   notices — the eye follows the thing that appears, not the thing that goes. */
+   notices: the eye follows the thing that appears, not the thing that goes. */
 .sect[open] .body { animation: sectopen 0.3s var(--ease); }
 @keyframes sectopen {
   from { opacity: 0; transform: translateY(-8px); }
@@ -821,7 +826,7 @@ code, kbd, samp, pre { font-family: var(--mono); font-variant-ligatures: none; }
 
 /* The editor: a textarea laid exactly over a highlighted <pre>. The textarea's
    text is transparent, its caret is not; the <pre> underneath does the colour.
-   Both must share every metric that affects layout or the two drift apart —
+   Both must share every metric that affects layout or the two drift apart: 
    font, size, line-height, padding, letter-spacing, tabs, wrapping. */
 .editor {
   position: relative;
@@ -842,13 +847,21 @@ code, kbd, samp, pre { font-family: var(--mono); font-variant-ligatures: none; }
 }
 /* While a run is in flight the border breathes, so a two-second wait does not
    look like a dead button. */
-.editor.running {
-  border-color: var(--accent);
+/* box-shadow is a paint property, so animating it repaints the whole editor
+   every frame for the two or three seconds a compile takes. The ring lives on a
+   pseudo-element and only its opacity animates, which the compositor handles
+   without touching paint. */
+.editor.running { border-color: var(--accent); }
+.editor.running::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: calc(var(--r-md) + 5px);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 13%, transparent);
+  pointer-events: none;
   animation: breathe 1.5s ease-in-out infinite;
 }
-@keyframes breathe {
-  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 13%, transparent); }
-}
+@keyframes breathe { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 
 .editor .gutter {
   padding: 12px 10px 12px 14px;
@@ -861,6 +874,14 @@ code, kbd, samp, pre { font-family: var(--mono); font-variant-ligatures: none; }
   white-space: pre;
 }
 .editor .gutter .gl.err { color: var(--bad); font-weight: 700; }
+/* relativenumber leaves the cursor's own line showing its absolute number, so
+   it needs to read as the anchor the others are measured from. */
+.editor .gutter .gl.cur {
+  color: var(--accent);
+  font-weight: 700;
+  text-align: left;
+  padding-left: 2px;
+}
 
 .editor .stack { position: relative; overflow: auto; }
 .editor pre.hl,
@@ -939,6 +960,75 @@ kbd {
   font-size: 0.9em; padding: 1px 5px;
   border: 1px solid var(--border); border-bottom-width: 2px;
   border-radius: var(--r-sm); background: var(--raised);
+}
+
+/* --- running -------------------------------------------------------------
+ * A compile takes one to three seconds against a server on the other side of
+ * the internet. That is long enough that nothing happening reads as nothing
+ * working, so the wait gets its own state: the button spins, a bar runs under
+ * the editor, and the result arrives rather than appearing.
+ */
+
+#run .ic { display: grid; place-items: center; }
+#run.running .ic { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#run.running { background: var(--btn-bg); opacity: 1; }
+
+/* An indeterminate bar, because we cannot know how far along a remote compile
+   is. It sweeps rather than fills, which is the honest shape for that. */
+.runbar {
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  margin-top: -6px;
+}
+.runbar::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 34%;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: sweep 1.05s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+@keyframes sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(330%); }
+}
+
+/* The verdict of a run, felt rather than read. A pass sweeps green across the
+   editor once; a failure shakes the verdict card a single time. Both are one
+   shot and neither blocks reading. */
+/* Same reason: a green wash over the editor, as an overlay whose opacity fades,
+   rather than an inset box-shadow repainting the interior 54 times. */
+.editor.passed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--ok) 22%, transparent);
+  pointer-events: none;
+  z-index: 2;
+  animation: passsweep 0.9s var(--ease) forwards;
+}
+@keyframes passsweep { from { opacity: 1; } to { opacity: 0; } }
+
+.verdict.fail { animation: landin 0.34s var(--ease) both, shake 0.34s var(--ease) 0.1s; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  22% { transform: translateX(-5px); }
+  55% { transform: translateX(4px); }
+  80% { transform: translateX(-2px); }
+}
+
+/* The exercise's dot in the sidebar filling in is the reward that persists, so
+   it gets a real transition rather than a swap. */
+.exlist a.passed .st { animation: stamp 0.42s var(--ease); }
+@keyframes stamp {
+  0%  { transform: scale(0.4); }
+  55% { transform: scale(1.18); }
+  100%{ transform: scale(1); }
 }
 
 /* --- the output panel -------------------------------------------------- */
@@ -1146,6 +1236,25 @@ kbd {
 }
 .letters button:hover { background: var(--raised); }
 .letters button.on { background: var(--btn-bg); border-color: var(--btn-border); color: var(--btn-fg); }
+
+/* Domain pills on the projects page. Same shape as the glossary's letter row,
+   but they are links rather than buttons because each one is a real route. */
+.pill {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  font-size: var(--t-tiny);
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
+}
+.pill:hover { background: var(--raised); color: var(--ink); }
+.pill.on {
+  background: var(--btn-bg);
+  border-color: var(--btn-border);
+  color: var(--btn-fg);
+}
 
 .gcard { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--r-md); padding: 13px 15px; }
 .gcard .t { font-weight: 700; font-size: var(--t-sm); letter-spacing: -0.01em; }
@@ -1388,4 +1497,19 @@ footer.site .wrap { display: flex; gap: 8px; align-items: center; flex-wrap: wra
    inherits the footer's ink so it reads in both themes. */
 footer.site .rustmark { opacity: 0.55; display: block; }
 footer.site a { text-decoration: underline; text-underline-offset: 2px; }
+#toolchain a { font-family: var(--mono); text-decoration: none; }
+#toolchain a:hover { color: var(--ink); }
+/* The exercises were validated on one rustc and another is answering now. Not an
+   error, but worth a mark: this is the window a diagnostic can shift in. */
+#toolchain .drift {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--warn);
+  color: var(--bg);
+  font-size: 9px; font-weight: 800;
+  text-align: center; line-height: 13px;
+  vertical-align: 1px;
+}
+#toolchain-wb { font-family: var(--mono); color: var(--ink-4); margin-left: auto; }
 @media (max-width: 900px) { footer.site { padding-bottom: 20px; } }

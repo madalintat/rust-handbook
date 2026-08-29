@@ -55,17 +55,17 @@ let names: Vec<String> = Vec::new();
 ```
 
 Rust infers a binding's type from its initialiser *and* from how it is used
-later in the function — a Hindley-Milner style inference, not C++'s `auto`,
+later in the function. That is Hindley-Milner style inference, not C++'s `auto`,
 which only looks rightwards. `let mut v = Vec::new();` followed by
 `v.push("hi")` compiles fine: the `push` fixed the element type. The annotation
 is only needed when nothing in the function pins it down.
 
 :::compare
-**Python** — `x = 5` creates or rebinds a name in a mutable namespace, and
+**Python.** `x = 5` creates or rebinds a name in a mutable namespace, and
 `x = "five"` on the next line is ordinary. In Rust the second line is either an
 error or a new binding; see shadowing below.
 
-**C++** — `auto x = 5;` is mutable; you write `const auto` for the common case.
+**C++.** `auto x = 5;` is mutable; you write `const auto` for the common case.
 Rust's `let` is closer to `const auto`, and `let mut` is `auto`.
 :::
 
@@ -121,8 +121,8 @@ let spaces = spaces.len();     // now a usize. Legal.
 ```
 
 This is not mutation. It is a **new binding** that happens to reuse the name.
-The old one still exists — it is what the right-hand side just read — it is
-merely no longer reachable by that name.
+The old one still exists; it is what the right-hand side just read. It is merely
+no longer reachable by that name.
 
 :::memory two bindings, one name
         STACK  (frame)
@@ -190,16 +190,16 @@ static BANNER: &str = "myapp v0.1";      // a place, one address, whole program
 :::
 
 That difference decides which to use. A `const` may be duplicated freely, so it
-is right for numbers, limits, and small strings. A `static` has an identity —
-`&BANNER` is a real `&'static` reference to one location — so it is right when
-you need an address, or a large table you do not want copied into fifty call
-sites.
+is right for numbers, limits, and small strings. A `static` has an identity:
+`&BANNER` is a real `&'static` reference to one location. That makes it right
+when you need an address, or a large table you do not want copied into fifty
+call sites.
 
 :::gotcha
-`static mut` is a global mutable — the one thing Rust's whole model exists to
+`static mut` is a global mutable, the one thing Rust's whole model exists to
 prevent. Touching one is `error[E0133]`, unsafe, because nothing stops two
 threads writing it at once. The stable answer is a `static` of an atomic or a
-`Mutex`, both of which are `Sync` and need no `unsafe`:
+`Mutex`. Both are `Sync`, so ordinary safe code can reach them:
 
 ```rust
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -231,12 +231,12 @@ const PAD: usize = width();   // error[E0015]: cannot call non-const function
 
 ```rust,good
 const fn width() -> usize { 4 }
-const PAD: usize = width();   // fine — and `width()` still works at runtime
+const PAD: usize = width();   // fine, and `width()` still works at runtime
 ```
 
 `const fn` marks a function the interpreter is allowed to run. It is not a
-promise that it *will* be — the same `const fn` called in ordinary code is an
-ordinary call.
+promise that it *will* be run. The same `const fn` called in ordinary code is
+an ordinary call.
 
 A const that cannot be evaluated is a hard error, not a runtime panic:
 
@@ -245,8 +245,8 @@ const SLICE: i32 = 10 / 0;   // error[E0080]: attempt to divide by zero
 ```
 
 That failure happens during `cargo check`. Arithmetic that would panic at
-runtime becomes a build failure when it is in a const — the compiler is
-running the code, and refusing to bake in a result it could not compute.
+runtime becomes a build failure when it sits in a const, because the compiler is
+running the code and refuses to bake in a result it could not compute.
 
 ## Scopes, blocks and deferred initialisation
 
@@ -277,12 +277,13 @@ println!("{label}");
 
 Drop the `else` and it becomes `error[E0381]: used binding is
 possibly-uninitialized`, naming the path where nothing was assigned. Note what
-this is not: there is no default value, no null, no zeroing. A binding that has
-not been written on some path simply cannot be read on that path.
+this is not: the compiler does not supply a default value, a null, or zeroed
+memory. A binding that has not been written on some path simply cannot be read
+on that path.
 
 :::gotcha
 Deferred initialisation still assigns exactly once. `label = "x"` on two
-branches is fine — only one runs. `label = "x"` twice on the *same* path is
+branches is fine, since only one runs. `label = "x"` twice on the *same* path is
 `E0384` again, because the binding was not declared `mut`.
 :::
 
@@ -311,7 +312,7 @@ let _guard = mutex.lock();   // held to the end of the scope. What you meant.
 
 One underscore, one character apart, and the difference between a critical
 section and no critical section. It has ended real production incidents. The
-same shape catches people with file handles, spans, and profiling timers —
+same shape catches people with file handles, spans, and profiling timers:
 anything whose value is its `Drop`.
 :::
 

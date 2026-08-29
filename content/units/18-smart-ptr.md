@@ -5,7 +5,7 @@ title: Smart pointers
 accent: plum
 concepts: Box, Deref, deref coercion, Drop, Rc, Arc, RefCell, interior mutability, Weak, reference cycle, Cell
 needs: 05-ownership, 06-borrowing, 14-traits
-blurb: Box, Rc, RefCell and Weak — each buys one exemption from the ownership rules, and each states its price on the label.
+blurb: Box, Rc, RefCell and Weak. Each buys one exemption from the ownership rules, and each states its price on the label.
 ---
 
 %% A smart pointer is a struct that owns something, points at it, and does something extra when it is dropped. `String` and `Vec<T>` already are ones. This unit is about the handful you reach for deliberately, and every one of them exists because a default from unit 05 is occasionally wrong: the value must live on the heap, or it genuinely has two owners, or it must be mutated through a shared reference.
@@ -29,9 +29,9 @@ println!("{}", *n + 1);
      8 bytes                        freed when n drops. That is all.
 :::
 
-One pointer, one owner, dropped like any other value. `Box<T>` adds nothing to
-`T` but an indirection — no count, no flag, no header. It is the cheapest
-possible way to say *this lives on the heap*.
+One pointer, one owner, dropped like any other value. `Box<T>` adds one
+indirection to `T` and nothing else: no count, no flag, no header word. It is the
+cheapest possible way to say *this lives on the heap*.
 
 Boxing an `i32` is pointless. Two situations make it necessary.
 
@@ -65,7 +65,7 @@ linked list, tree and syntax node in Rust has this shape somewhere.
 let shapes: Vec<Box<dyn Draw>> = vec![Box::new(Circle::new()), Box::new(Square::new())];
 ```
 
-`dyn Draw` is unsized — a `Circle` and a `Square` are different sizes and both
+`dyn Draw` is unsized. A `Circle` and a `Square` are different sizes and both
 are `dyn Draw`, so no single number describes it. `Box<dyn Draw>` is a **fat
 pointer**: data pointer plus **vtable** pointer, two words, known at compile
 time. `Vec<dyn Draw>` is rejected with `E0277`, because `Vec` needs to know how
@@ -78,7 +78,8 @@ optimiser usually removes the copy; in a debug build with a megabyte-sized array
 it will overflow the stack instead.
 
 There is no stable way to construct directly into a box. The fix is to build
-incrementally — `Vec::with_capacity` and push, or a builder that writes in place.
+incrementally, with `Vec::with_capacity` and push, or with a builder that writes
+in place.
 :::
 
 ## Deref and coercion
@@ -93,8 +94,8 @@ impl<T> Deref for Box<T> {
 ```
 
 `*b` compiles to `*(b.deref())`. Implementing `Deref` is exactly what makes a
-struct behave like a pointer to its target — the `*` operator, method lookup,
-and the coercion below.
+struct behave like a pointer to its target. It drives the `*` operator, method
+lookup, and the coercion below.
 
 ### `&String` becomes `&str` for free
 
@@ -118,7 +119,7 @@ reason "take `&str`, not `&String`" costs the caller nothing. They are also why
 tries `Vec<T>`, fails, derefs to `[T]`, and finds it.
 
 :::compare
-**C++** — `operator*` and `operator->` are two separate overloads you write by
+**C++**: `operator*` and `operator->` are two separate overloads you write by
 hand, and there is no automatic chaining at a call site. Rust has one trait and
 applies it transitively, which is why `&Rc<RefCell<Vec<u8>>>` can be handed to
 something wanting `&[u8]` with no ceremony.
@@ -144,7 +145,7 @@ impl Drop for Conn {
 }
 ```
 
-The signature is `&mut self`, not `self` — the value is mid-destruction and its
+The signature is `&mut self`, not `self`. The value is mid-destruction and its
 fields are dropped after your code returns, so you get a borrow of it rather than
 ownership.
 
@@ -166,7 +167,7 @@ falls out of scope on the closing brace. Ownership was already sufficient.
 ## Rc: shared ownership by count
 
 Sometimes a value really does have several owners and no static answer to which
-one outlives the others — a node reachable by two paths in a graph, a parsed
+one outlives the others: a node reachable by two paths in a graph, or a parsed
 config held by ten subsystems.
 
 ```rust
@@ -210,9 +211,9 @@ type with atomic increments, and you pay for them.
 
 ### RefCell: the borrow check, moved to run time
 
-`Rc` hands out `&T`, and eventually you need to write through one — a cache
-behind a read-only API, a node whose children change. A `&self` method that
-mutates needs **interior mutability**.
+`Rc` hands out `&T`, and eventually you need to write through one. Think of a
+cache behind a read-only API, or a node whose children change. A `&self` method
+that mutates needs **interior mutability**.
 
 ```rust
 use std::cell::RefCell;
@@ -224,7 +225,7 @@ println!("{}", log.borrow().len());
 
 `borrow()` returns a `Ref<T>` and `borrow_mut()` a `RefMut<T>`; the cell keeps a
 counter, and the guards decrement it in their `Drop`. The rule enforced is the
-same rule as always — any number of shared, or exactly one unique — but it is
+same rule as always (any number of shared, or exactly one unique), but it is
 checked while the program runs.
 
 :::gotcha
@@ -251,7 +252,7 @@ Bind the lookup result first, let the `Ref` drop, then take the `borrow_mut`.
 
 The honest trade: `RefCell` converts a question the compiler could not answer
 into one your test suite has to. That is the right deal when the aliasing pattern
-is genuinely dynamic and a bad deal when it is a way to avoid restructuring —
+is genuinely dynamic. It is a bad deal when it is a way to dodge restructuring,
 because the failure mode is a panic on a path nobody exercised.
 
 ### `Rc<RefCell<T>>`
@@ -270,9 +271,9 @@ with the checks made atomic and the failure made blocking rather than panicking.
 
 It is the right answer for an observer list, a graph with edges in both
 directions, a widget tree, an interpreter's environment. It is a smell when it
-appears because a function needed to reach a value two frames up the stack —
-that is usually a `&mut` parameter nobody wanted to thread through, and threading
-it through is the cheaper fix.
+appears because a function needed to reach a value two frames up the stack. That
+is usually a `&mut` parameter nobody wanted to thread through, and threading it
+through is the cheaper fix.
 
 ## Cycles: the one leak in safe Rust
 
@@ -301,7 +302,7 @@ should not. `mem::forget` is a safe function for the same reason.
 :::note
 `Weak<T>` is a handle that does not own. It bumps the weak count, which keeps the
 allocation's header alive but not the value inside it, and `upgrade()` returns
-`Option<Rc<T>>` — `None` once the last strong handle has gone.
+`Option<Rc<T>>`, giving `None` once the last strong handle has gone.
 :::
 
 The rule for any parent-child structure: **strong down, weak up.** A parent holds
@@ -322,9 +323,9 @@ impl Counter {
 }
 ```
 
-`Cell<T>` has no borrow flags and never hands out a reference to its interior —
-only `get` (a copy out) and `set` (a whole value in). Nothing can alias what is
-never lent, so there is nothing to check. Zero overhead, cannot panic, limited to
+`Cell<T>` has no borrow flags and never hands out a reference to its interior.
+You get `get`, which copies a value out, and `set`, which puts a whole value in.
+Nothing can alias what is never lent, so there is nothing to check. Zero overhead, cannot panic, limited to
 `Copy` types plus whole-value `replace` and `take`. For a counter or a flag
 behind `&self` it beats `RefCell` on every axis.
 

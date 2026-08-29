@@ -1,7 +1,7 @@
 /* Ferris, occasionally.
  *
  * Two voices, deliberately. The coach turns up when something went right and
- * says why it mattered — a bare "well done" is worth nothing, so every line
+ * says why it mattered. A bare "well done" is worth nothing, so every line
  * names the thing that was actually learned. The realist turns up when you have
  * been at it a while, and its job is to tell you to stop, because the failure
  * mode of a study tool is a person grinding at 2am and remembering none of it.
@@ -20,23 +20,23 @@ let node = null;
 /* Keyed by exercise number so the line can be specific about where you are in
    the unit rather than generic about effort. */
 const FIRST = [
-  'First one down. The compiler is not your adversary here — it is the only reviewer that reads every line.',
+  'First one down. The compiler is not your adversary here. It is the only reviewer that reads every line.',
   'That is one. Notice you did not have to run it to find the bug: it was a compile error, so it could never have shipped.',
 ];
 
 const MID = [
   'Halfway. The errors should be starting to look like sentences rather than noise.',
-  'Still going. If a fix felt obvious that time, that is the model forming — not luck.',
+  'Still going. If a fix felt obvious that time, that is the model forming, not luck.',
   'Good. The ones that take three attempts are the ones you will still remember next month.',
 ];
 
 const LAST = [
   'Unit finished. Every one of those compiled on real rustc, so you know it works rather than hoping.',
-  'That is the unit. Worth going back and deliberately breaking one — reading an error you caused on purpose teaches more than reading one you did not.',
+  'That is the unit. Worth going back and deliberately breaking one, reading an error you caused on purpose teaches more than reading one you did not.',
 ];
 
 const REST = [
-  'You have been at this a while. Reading a borrow error at hour two is a different skill from writing one at hour one — a break is not a loss.',
+  'You have been at this a while. Reading a borrow error at hour two is a different skill from writing one at hour one. A break is not a loss.',
   'Long session. The compiler will still be here. Sleep is where the model actually consolidates.',
 ];
 

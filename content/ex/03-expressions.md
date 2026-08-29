@@ -44,7 +44,7 @@ pub fn line_count(text: &str) -> usize {
 
 @diagnose E0308
 `expected usize, found ()`. Read the two underlines together. The caret is on
-`usize` in the signature — that is the claim being checked — and the note beneath
+`usize` in the signature, which is the claim being checked, and the note beneath
 the function name says `implicitly returns () as its body has no tail
 expression`.
 
@@ -63,7 +63,7 @@ last line means "this function produces nothing".**
 
 Which is why it is not always wrong. A function declared with no `->` returns
 `()`, and every line of its body, including the last, should end in a semicolon.
-The semicolon is not punctuation for the end of a line — it is an operator that
+The semicolon is not punctuation for the end of a line. It is an operator that
 discards a value, and you use it deliberately.
 
 ## 2. The branch that lost its value
@@ -117,7 +117,7 @@ pub fn label(n: i32) -> &'static str {
 
 @diagnose E0308
 `if and else have incompatible types: expected (), found &str`. Note the
-direction — rustc typed the *first* branch, got `()` because of the semicolon,
+direction. rustc typed the *first* branch, got `()` because of the semicolon,
 and then complained that the `else` disagreed. The error points at the innocent
 branch, which is why this one takes longer to spot than a bare tail semicolon.
 
@@ -126,7 +126,7 @@ compiler has to know that type without running the program. It cannot be `&str`
 on Tuesdays and `()` on Wednesdays, so both branches have to agree.
 
 Once they agree, the `if` is the tail expression of the function body and its
-value is the function's value — no `return` needed anywhere.
+value is the function's value, with no `return` written anywhere.
 
 @diagnose E0317
 `if may be missing an else clause`. You removed the `else` rather than the
@@ -136,7 +136,7 @@ Every branch that can be taken must produce a value of the same type; that
 includes the invisible empty branch you get by leaving `else` out.
 
 @after
-Because `if` is an expression, Rust has no ternary operator and needs none —
+Because `if` is an expression, Rust gets by without a ternary operator.
 `if c { a } else { b }` occupies the same slot as `c ? a : b` and reads better in
 the multi-line case. And because every branch must produce a value, the compiler
 catches the missing case rather than silently leaving a variable unset.
@@ -195,14 +195,14 @@ pub fn describe(n: i32) -> String {
 
 @diagnose E0308
 `if and else have incompatible types: expected &str, found String`. The literal
-`"zero"` is a `&'static str` — a pointer and a length aimed at bytes stored in
+`"zero"` is a `&'static str`: a pointer and a length aimed at bytes stored in
 the executable itself. `format!` allocates and gives you a `String`. Both are
 text; neither is the other.
 
 Rust will not silently convert one branch to match the other, because doing so
-would mean picking an allocation on your behalf. The conversion has a cost — one
-trip to the allocator and a copy of five bytes — and the language's habit is to
-make you write the line where the cost happens.
+would mean picking an allocation on your behalf. The conversion costs one trip to
+the allocator and a copy of five bytes, and the language's habit is to make you
+write the line where the cost happens.
 
 `String::from("zero")` and `"zero".to_string()` are identical in effect. The
 first says what it does slightly more plainly.
@@ -271,7 +271,7 @@ This is the same rule as exercise 2 seen from the other side: every path through
 an expression must produce a value of the expression's type, and "fall off the
 end without deciding" is a path.
 
-An `else`-less `if` is still perfectly legal — as a *statement*, where the value
+An `else`-less `if` is still perfectly legal as a *statement*, where the value
 `()` is what you wanted:
 
 ```rust
@@ -302,7 +302,7 @@ binds it immutably, and makes the compiler check that every case was considered.
 Every arm of a `match` is a branch of one expression, so every arm has to produce
 the same type. Three of these produce a `u8`. The fourth produces something else.
 
-An unknown level is a programming error here — the caller should never reach it.
+An unknown level is a programming error here. The caller should never reach it.
 
 ```starter
 pub fn level(name: &str) -> u8 {
@@ -341,7 +341,7 @@ pub fn level(name: &str) -> u8 {
 
 @hint `println!` produces `()`. The other three arms produce a `u8`.
 @hint The brief says an unknown level is a bug, not a value. There is a macro for "control does not continue past here", and it type-checks as anything.
-@hint `other => panic!("unknown level: {other}")`. Its type is `!`, the never type, which coerces to `u8` — or to any other type.
+@hint `other => panic!("unknown level: {other}")`. Its type is `!`, the never type, which coerces to `u8`, or to any other type you like.
 
 @diagnose E0308
 `match arms have incompatible types: expected u8, found ()`. rustc types the
@@ -349,7 +349,7 @@ first arm, gets `u8`, and holds every later arm to it. `println!` writes to
 stdout and evaluates to `()`, so the last arm produces nothing.
 
 The interesting part is why `panic!` is allowed where `println!` is not, when
-neither of them produces a `u8`. `panic!` has type `!` — the **never type** — the
+neither of them produces a `u8`. `panic!` has type `!`, the **never type**, the
 type of an expression that does not return control at all. Since no value of
 type `!` can ever exist, letting it coerce to any type cannot produce a
 contradiction: there is no value that could turn up and disagree.
@@ -360,9 +360,9 @@ That is also why `todo!()`, `unreachable!()`, `return`, `break` and
 @after
 Three honest endings for that arm, and they say different things:
 
-- `panic!("unknown level: {other}")` — this cannot happen; if it does, the program is wrong.
-- `_ => 1` — anything unrecognised is a warning. A policy decision, made visible.
-- change the return type to `Option<u8>` and return `None` — unknown input is expected, and the caller decides.
+- `panic!("unknown level: {other}")` says this cannot happen; if it does, the program is wrong.
+- `_ => 1` says anything unrecognised is a warning. A policy decision, made visible.
+- changing the return type to `Option<u8>` and returning `None` says unknown input is expected, and the caller decides.
 
 The third is what real code usually wants, and the second is what real code
 usually ships. What you should not do is print and continue, which is what the
@@ -430,14 +430,13 @@ expression is `()`, so `found` is `()`, so the last line does not match the
 signature.
 
 `break n` is the fix and it is worth understanding rather than memorising. A
-`while` or a `for` can end in two ways — the body broke out, or the condition
-failed — and only one of those has a value to offer, so those loops are always
-`()`. A `loop` has exactly one exit, `break`, so every exit can carry a value and
+`while` or a `for` can end in two ways: the body broke out, or the condition
+failed. Only one of those has a value to offer, so those loops are always `()`. A `loop` has exactly one exit, `break`, so every exit can carry a value and
 the loop as a whole can have a type.
 
 This is the idiomatic retry shape in Rust. The alternative is an `Option`
-declared before the loop, assigned inside it, and unwrapped afterwards — an
-`unwrap` that can never fire, which is a small lie in the code.
+declared before the loop, assigned inside it, and unwrapped afterwards. That
+leaves an `unwrap` that can never fire, which is a small lie in the code.
 
 @diagnose E0317
 You converted the `loop` into an `if`-driven shape without an `else`, and now
@@ -452,7 +451,7 @@ from inside a nested one, with a value. That is the clean version of the `found`
 flag that a nested search would otherwise need.
 
 And `loop` is the only loop the compiler treats as certainly-running, so `let x =
-loop {}` type-checks as any type at all — an infinite loop with no `break` has
+loop {}` type-checks as any type at all. An infinite loop with no `break` has
 type `!`, exactly like `panic!`.
 
 ## 7. A block that forgot to produce anything
@@ -462,7 +461,7 @@ type `!`, exactly like `panic!`.
 
 @expect E0308
 
-The block is doing the right work — it walks the lines and tracks the longest —
+The block is doing the right work. It walks the lines and tracks the longest,
 and then keeps the answer to itself.
 
 ```starter
@@ -515,7 +514,7 @@ pub fn summary(text: &str) -> String {
 
 @diagnose E0308
 `expected &str, found ()`. The annotation on `longest` is what makes this error
-readable — it states the claim, so rustc can point at the block and say the block
+readable. It states the claim, so rustc can point at the block and say the block
 does not meet it.
 
 The block's last item is a `for` loop. `for` and `while` always evaluate to `()`,
@@ -523,8 +522,8 @@ because a loop that finishes by running out of items has no value to hand back.
 So the block has no tail expression, and a block with no tail expression is `()`.
 
 Adding `best` on its own line, with no semicolon, makes it the tail. `best` is
-still in scope at that point — the block has not closed yet — and the value flows
-out while the binding itself is dropped at the brace.
+still in scope at that point, because the block has not closed yet, and the value
+flows out while the binding itself is dropped at the brace.
 
 @after
 This shape is worth keeping. A block expression lets you compute something with
@@ -606,12 +605,13 @@ pub fn grade(score: u32) -> String {
 
 @hint Ask what `letter` holds when `score` is 10. Both branches were skipped.
 @hint You could add a final `else` that assigns `"C"`. Better: make the whole `if` chain one expression and bind its value directly.
-@hint `let letter = if score >= 90 { "A" } else if score >= 80 { "B" } else { "C" };` — note the semicolon at the end, because this is a `let` statement.
+@hint `let letter = if score >= 90 { "A" } else if score >= 80 { "B" } else { "C" };`. Note the semicolon at the end, because this is a `let` statement.
 
 @diagnose E0381
 `used binding letter is possibly-uninitialized`. `let letter;` with no value is
-legal — Rust allows deferred initialisation — but the compiler then tracks every
-path to make sure exactly one assignment has happened before the binding is read.
+legal, because Rust allows deferred initialisation. The compiler then tracks
+every path to make sure exactly one assignment has happened before the binding
+is read.
 
 Walk the paths. `score >= 90` assigns. `score >= 80` assigns. And the third,
 invisible path, where neither condition holds, assigns nothing and falls straight
@@ -633,7 +633,7 @@ semicolon produces `()` instead.
 Both fixes compile. Only one of them makes the next bug impossible.
 
 With `let letter;` and four assignments, adding a fifth branch next year and
-forgetting to assign gives you the same E0381 — the compiler catches it, but only
+forgetting to assign gives you the same E0381. The compiler catches it, but only
 because it does this whole-path analysis. With `let letter = if ... else ...`,
 the missing branch is not a thing you can express: an `if` used as a value
 without an `else` is `error[E0317]` on the spot.
@@ -641,5 +641,5 @@ without an `else` is `error[E0317]` on the spot.
 That is the general argument for expression-oriented code, and it is not
 aesthetic. **Prefer the form where the invalid state has no syntax.** Deferred
 initialisation exists for the cases where a value genuinely has to be built
-across several statements — a loop that accumulates, a branch that opens a file —
-and for a simple conditional it is a habit imported from a weaker language.
+across several statements: a loop that accumulates, a branch that opens a file.
+For a simple conditional it is a habit imported from a weaker language.

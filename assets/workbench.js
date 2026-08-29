@@ -22,7 +22,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 /* the tokenizer                                                         */
 /* ===================================================================== */
 
-/* Two keyword classes rather than one. The first is structure — the words that
+/* Two keyword classes rather than one. The first is structure, the words that
    tell you what kind of thing you are looking at. The second is the modifiers,
    which in Rust carry most of the meaning a newcomer misses: `mut`, `ref`,
    `move`, `dyn`. Colouring them apart makes `&mut` visibly different from `&`,
@@ -84,6 +84,26 @@ function hlRust(src) {
 /* ===================================================================== */
 
 const PLAY = 'https://play.rust-lang.org/execute';
+const VERSIONS = 'https://play.rust-lang.org/meta/versions';
+
+/* Which rustc is answering right now. Fetched once, lazily, and never blocking
+   a run: if it fails you simply do not get a version badge. */
+let _tc = null;
+function toolchain() {
+  // The promise is cached, not the result. Caching the result meant two callers
+  // in flight before it resolved (the footer and the workbench) each fetched.
+  if (!_tc) {
+    _tc = fetch(VERSIONS)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return null;
+        const v = d.stable.rustc;
+        return { version: v.version, date: v.date, hash: String(v.hash).slice(0, 9) };
+      })
+      .catch(() => { _tc = null; return null; });
+  }
+  return _tc;
+}
 
 /* Hidden tests are appended, never prepended, so that every line number rustc
    reports about the reader's own code still points at the line they are
@@ -227,7 +247,7 @@ const TAB = '    ';
 /* A textarea with transparent text laid exactly over a highlighted <pre>. The
    caret and the selection are the textarea's; every visible glyph is the pre's.
    They stay aligned only while they agree on font, size, line-height, padding,
-   tab-size and wrapping — all of which is asserted in the stylesheet, not here.
+   tab-size and wrapping, all of which is asserted in the stylesheet, not here.
    The one metric CSS cannot settle is width, because the textarea cannot size
    itself to its longest line, so that gets pushed across after each paint. */
 function mountEditor(host, starter, onRun) {
@@ -245,24 +265,37 @@ function mountEditor(host, starter, onRun) {
   let errLines = [];
   let lastLines = -1;
   let lastErrs = '';
+  let relTo = null;   // cursor line for relative numbering, or null for absolute
 
   ta.value = starter;
 
+  let lastHl = null;
+
   function paint() {
     const v = ta.value;
-    // A trailing newline collapses in a <pre>, so the last line loses its row
-    // and everything below the caret drifts up by one. One space fixes it.
-    pre.innerHTML = hlRust(v) + (v.endsWith('\n') ? ' ' : '');
+    // Only re-highlight when the text actually changed. paint() runs on every
+    // keystroke AND on every consumed vim key, and most vim keys are motions
+    // that change nothing. On the largest project stage the highlight is 1.4 ms
+    // of JS plus a 62 KB innerHTML parse and ~4000 nodes rebuilt, per key.
+    if (v !== lastHl) {
+      // A trailing newline collapses in a <pre>, so the last line loses its row
+      // and everything below the caret drifts up by one. One space fixes it.
+      pre.innerHTML = hlRust(v) + (v.endsWith('\n') ? ' ' : '');
+      lastHl = v;
+    }
 
     // The gutter depends only on the line count and the error set, neither of
     // which changes on the overwhelming majority of keystrokes. Rebuilding up to
     // 53 <div>s per character typed was pure waste.
     const n = v.split('\n').length;
-    const errs = errLines.join(',');
+    const errs = errLines.join(',') + '|' + relTo;
     if (n !== lastLines || errs !== lastErrs) {
       let g = '';
       for (let i = 1; i <= n; i++) {
-        g += `<div class="gl${errLines.includes(i) ? ' err' : ''}">${i}</div>`;
+        const cls = (errLines.includes(i) ? ' err' : '')
+          + (relTo !== null && i === relTo + 1 ? ' cur' : '');
+        const label = relTo === null || i === relTo + 1 ? i : Math.abs(i - 1 - relTo);
+        g += `<div class="gl${cls}">${label}</div>`;
       }
       gutter.innerHTML = g;
       lastLines = n;
@@ -277,7 +310,10 @@ function mountEditor(host, starter, onRun) {
   /* Vim mode, if the reader has it on. It intercepts keys before the handlers
      below, so Tab and Enter behave normally in insert mode and are Vim's in
      normal mode. The preference is per-browser and survives navigation. */
-  const vim = Vim.attach(ta, { paint, onRun, badge });
+  const vim = Vim.attach(ta, {
+    paint, onRun, badge,
+    gutter(line) { relTo = line; },
+  });
 
   ta.addEventListener('input', paint);
   ta.addEventListener('scroll', () => { pre.parentElement.scrollLeft = ta.scrollLeft; });
@@ -319,7 +355,7 @@ function mountEditor(host, starter, onRun) {
 
   return {
     value: () => ta.value,
-    set(v) { ta.value = v; errLines = []; paint(); vim.sync(); },
+    set(v) { ta.value = v; errLines = []; lastHl = null; paint(); vim.sync(); },
     reset() { this.set(starter); },
     focus() { ta.focus(); },
     mark(ls) { errLines = ls || []; paint(); },
@@ -327,5 +363,5 @@ function mountEditor(host, starter, onRun) {
   };
 }
 
-return { hlRust, run, parse, snippet, mountEditor, esc };
+return { hlRust, run, parse, snippet, mountEditor, toolchain, esc };
 })();

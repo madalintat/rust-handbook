@@ -10,7 +10,7 @@ unit: 21-concurrency
 @expect E0308
 
 `thread::spawn` does not give you the thread's result. It gives you a receipt for
-it — a `JoinHandle<u32>` — and the thread may not even have started yet. Turn the
+it, a `JoinHandle<u32>`, and the thread may not even have started yet. Turn the
 receipt into the number.
 
 ```starter
@@ -44,7 +44,7 @@ pub fn run() -> u32 {
 
 @hint The function promises a `u32`. Read the type rustc says it actually found.
 @hint A `JoinHandle` has one method that waits for the thread and hands back what its closure returned.
-@hint `handle.join()` gives a `Result` — the `Err` case is a panic in that thread. `handle.join().unwrap()`.
+@hint `handle.join()` gives a `Result`, whose `Err` case is a panic in that thread. `handle.join().unwrap()`.
 
 @diagnose E0308
 `expected u32, found JoinHandle<u32>`. The signature promised a number and the
@@ -52,17 +52,17 @@ last expression is the handle itself.
 
 That mismatch is telling you something about the model, not just about a missing
 method call. `spawn` returns *immediately*, before the closure has necessarily
-run a single instruction, so it cannot possibly return a `u32` — the value does
-not exist yet. What it can return is a way to wait: `join()` blocks the calling
+run a single instruction, so it cannot possibly return a `u32`, because the
+value does not exist yet. What it can return is a way to wait: `join()` blocks the calling
 thread until the spawned one finishes, then yields
 `Result<u32, Box<dyn Any + Send>>`. The `Err` arm exists because a panic in a
 worker thread does not kill the process; it is delivered here.
 
 @after
-Nothing forces you to call `join`. Drop the handle and the thread keeps running —
-but when `main` returns, the process exits and every remaining thread is killed
-mid-instruction. Work you spawned and never joined is work that may simply not
-happen, with no error and no output.
+Nothing forces you to call `join`. Drop the handle and the thread keeps running.
+But when `main` returns, the process exits and every remaining thread is killed
+mid-instruction. Work you spawned and never joined may simply not happen, and
+you get neither an error nor any output to say so.
 
 That is why the shape you will write most often is: collect the handles into a
 `Vec`, then loop over them joining each one. `join` is also the only
@@ -77,8 +77,8 @@ wrote is visible to you.
 @expect E0373
 
 The closure reads `name`, which lives in `run`'s stack frame. `thread::spawn`
-will not accept that, and the error message tells you exactly which word to add
-— but work out *why* it is required before you add it.
+will not accept that, and the error message tells you exactly which word to add.
+Work out *why* it is required before you add it.
 
 ```starter
 use std::thread;
@@ -120,7 +120,7 @@ pub fn run() -> String {
 the current function`.
 
 Read "may" literally. Nothing in the program says the thread finishes before
-`run` returns — you happen to call `join` on the next line, but the compiler
+`run` returns. You happen to call `join` on the next line, but the compiler
 checks the *type*, and `spawn`'s signature says the closure must be `'static`,
 meaning it borrows nothing from any frame. If the borrow were allowed and `run`
 returned first, `name`'s buffer would be freed while the thread was printing it.
@@ -136,15 +136,15 @@ type was, so a mismatch here usually means the closure's last expression grew a
 semicolon.
 
 @after
-`move` is not a fix you apply to make an error go away — it is a statement about
-ownership, and it applies to every capture including `Copy` ones. This prints
+`move` is not a fix you apply to make an error go away. It is a statement about
+ownership, and it applies to every capture, `Copy` ones included. This prints
 `0`:
 
 ```rust
 let mut n = 0;
 let h = std::thread::spawn(move || { n += 1; });
 h.join().unwrap();
-println!("{n}");   // 0 — the closure incremented its own copy
+println!("{n}");   // 0: the closure incremented its own copy
 ```
 
 If the caller needs to see a change, `move` is not enough; you need shared state
@@ -217,13 +217,13 @@ appears within the type {closure@...}`.
 
 Follow that chain, because it is the whole mechanism. `thread::spawn` requires
 `F: Send`. Your closure captured `d`, so the closure is `Send` only if `d` is.
-`Rc` is not, and `Send` is an **auto trait** — nobody wrote `impl !Send for Rc`
-as an opinion; the compiler propagates it structurally through every field.
+`Rc` is not, and `Send` is an **auto trait**: nobody wrote `impl !Send for Rc`
+as an opinion, and the compiler propagates it structurally through every field.
 
 The reason `Rc` opts out: `Rc::clone` compiles to load the count, add one, store
 it. Two threads doing that at the same instant both read 1 and both write 2. The
-count is now one too low, so the last drop frees a value someone still holds — a
-use-after-free with no unsafe block in sight.
+count is now one too low, so the last drop frees a value someone still holds.
+That is a use-after-free, with no unsafe block in sight.
 
 `Arc` is the same type with `fetch_add` in place of `+ 1`. One atomic
 instruction, a few nanoseconds, and the whole problem is gone. Rust makes you ask
@@ -248,7 +248,7 @@ read it as "something you captured".
 @expect E0596
 
 Four threads each want to record their id. `Arc` gets the vector shared, and then
-the push is rejected. The fix is not a different pointer — it is a different
+the push is rejected. The fix is not a different pointer. It is a different
 thing inside it.
 
 ```starter
@@ -321,8 +321,8 @@ implemented for Arc<Vec<u32>>`.
 
 `Arc` deliberately implements `Deref` and not `DerefMut`. It cannot implement
 `DerefMut`: the entire point of an `Arc` is that several owners exist at once, so
-handing out a `&mut` would hand out two unique references to one value — the
-`E0499` you already know, laundered through a smart pointer. The compiler closes
+handing out a `&mut` would hand out two unique references to one value. That is
+the `E0499` you already know, laundered through a smart pointer. The compiler closes
 that door at the type level.
 
 So `Arc` gives sharing and no mutation. To get mutation back you put something
@@ -341,7 +341,7 @@ they need both:
 | | answers | if you omit it |
 |---|---|---|
 | `Arc` | who keeps this alive? | the value dies when the first owner does |
-| `Mutex` | who may touch it right now? | no mutation at all — `Arc` only lends `&T` |
+| `Mutex` | who may touch it right now? | no mutation at all, since `Arc` only lends `&T` |
 
 `Arc<Mutex<T>>` is the standard shape for shared mutable state and it is two
 layers because it is two questions. In single-threaded code the same pair is
@@ -402,23 +402,23 @@ pub fn run() -> String {
 }
 ```
 
-@hint Look up the signature of `Sender::send`. What is the receiver of the value — `&T` or `T`?
+@hint Look up the signature of `Sender::send`. Does it take the value as `&T`, or as `T`?
 @hint Sending is a move, exactly like passing to a function by value. After it, the sender has nothing left to read.
 @hint Swap the two lines: log first, then send. Cloning also works and costs an allocation you do not need.
 
 @diagnose E0382
 `borrow of moved value: msg`, with `value moved here` under `tx.send(msg)`.
 
-`send` is declared `fn send(&self, t: T) -> Result<(), SendError<T>>` — the value
-goes in **by value**. That is not an implementation detail, it is the entire
-safety argument for channels: after the send, the producing thread holds no
-reference to the message, so there is nothing for the consuming thread to race
-with. No lock is needed because no aliasing exists.
+`send` is declared `fn send(&self, t: T) -> Result<(), SendError<T>>`, so the
+value goes in **by value**. That is not an implementation detail, it is the
+entire safety argument for channels: after the send, the producing thread holds
+no reference to the message, so the consuming thread has nothing to race
+against. Aliasing never happens, which is why no lock appears anywhere.
 
 Compare that with a queue of pointers in C, where "I sent it, so I must not touch
 it any more" is a comment. Here it is `E0382`.
 
-The cheapest fix is to reorder — read the value before you give it away.
+The cheapest fix is to reorder: read the value before you give it away.
 `tx.send(msg.clone())` also compiles and buys you an allocation you had no use
 for.
 
@@ -502,7 +502,7 @@ pub fn run() -> String {
 
 @hint `*guard` tries to take the `String` out of the mutex and leave a hole behind. Ask what the mutex would contain afterwards.
 @hint You want a copy of the contents, not the contents themselves.
-@hint `log.lock().unwrap().clone()` — the guard derefs to `String`, so `clone` clones the string inside.
+@hint `log.lock().unwrap().clone()`. The guard derefs to `String`, so `clone` clones the string inside.
 
 @diagnose E0507
 `cannot move out of dereference of MutexGuard<'_, String>`.
@@ -511,20 +511,20 @@ The guard is a borrow of what lives inside the mutex, and `*guard` in a `let`
 asks to move that value out. If it were allowed, the `Mutex` would be left
 holding nothing while every other thread still has an `Arc` to it, so the next
 `lock()` would hand out a `String` that had already been moved away. The guard
-implements `Deref` and `DerefMut`, never `Into` — you may read through it and
-write through it, but you may not empty it.
+implements `Deref` and `DerefMut`, never `Into`, so you may read through it and
+write through it but never empty it.
 
 `clone()` is the answer here: it goes through the deref, copies the bytes, and
 leaves the original in place. Note the borrow of the mutex ends at the end of
-that statement, so the lock is released immediately — which is what you want.
+that statement, so the lock is released immediately, which is what you want.
 
 @after
 Two related exits worth knowing.
 
 `Mutex::into_inner(self)` *does* give you the value by value, and it is safe
-precisely because it consumes the `Mutex` — if you own the mutex outright, no
-other thread can have a reference to it, so there is nothing to break. It does
-not work through an `Arc`, for exactly the reason above.
+precisely because it consumes the `Mutex`. If you own the mutex outright, no
+other thread can hold a reference to it, so there is nothing left to break. It
+does not work through an `Arc`, for exactly the reason above.
 
 `std::mem::take(&mut *guard)` swaps the contents for `Default::default()` and
 hands you what was there. That leaves an empty `String` behind rather than a
@@ -606,8 +606,8 @@ must be sendable is `&RefCell<i32>`, which requires `RefCell<i32>: Sync`.
 `RefCell` opts out for the same reason `Rc` opts out of `Send`. Its borrow flag
 is a plain `Cell<isize>`, read and written non-atomically. Two threads calling
 `borrow_mut()` at the same instant both see "unborrowed", both succeed, and you
-have two `&mut` to one `i32` — the exact thing `RefCell` exists to prevent,
-defeated by the fact that its check is not atomic.
+have two `&mut` to one `i32`, the exact thing `RefCell` exists to prevent,
+defeated because its check is not atomic.
 
 `Mutex<T>` is `RefCell<T>` with a real lock: the same interior mutability, the
 same "get `&mut` from `&self`", made thread-safe. `Mutex` is `Sync` whenever `T`
@@ -716,9 +716,8 @@ pub fn run() -> Vec<i32> {
 @diagnose E0499
 `cannot borrow data as mutable more than once at a time`.
 
-Nothing about threads is involved yet — this is the same error you would get
-writing these two lines in a single-threaded function, which is the point of the
-unit. A data race needs aliasing plus mutation, and `&mut` already forbids
+Nothing about threads is involved yet. This is the same error you would get from
+those two lines in a single-threaded function, which is the point of the unit. A data race needs aliasing plus mutation, and `&mut` already forbids
 aliasing, so the thread version and the single-threaded version are one rule.
 
 The compiler is not failing to notice `take(2)` and `skip(2)`. It never looks
@@ -734,7 +733,7 @@ compiler can account for.
 @diagnose E0505
 `cannot move out of data because it is borrowed`. You produced the two halves but
 the borrow is still live when `data` is returned. A `&mut` borrow lasts until its
-last use, so put the split and the scope inside a block — the borrows end at the
+last use, so put the split and the scope inside a block. The borrows end at the
 closing brace and `data` is free to move afterwards.
 
 @diagnose E0521
@@ -754,5 +753,5 @@ callers.
 
 Before 1.63 this exercise needed `Arc<Mutex<Vec<i32>>>` and would have serialised
 the two threads through a lock they did not need. `thread::scope` removed a large
-class of pointless `Arc`s from real code — reach for it first whenever the shared
+class of pointless `Arc`s from real code. Reach for it first whenever the shared
 data is a local that outlives the threads.

@@ -9,7 +9,7 @@ unit: 15-lifetimes
 @expect E0106
 
 `longest` takes two references and gives one back. The compiler cannot work out
-which of the two the result borrows from, and it refuses to guess — so it asks
+which of the two the result borrows from, and it refuses to guess, so it asks
 you.
 
 Nothing about this function is wrong. It is missing one piece of information
@@ -55,15 +55,15 @@ pub fn run() -> String {
 @hint `pub fn longest<'a>(a: &'a str, b: &'a str) -> &'a str`. The call site needs no change at all.
 
 @diagnose E0106
-`missing lifetime specifier — expected named lifetime parameter`, with a note
-that the signature says whether it is borrowed from `a` or `b`.
+`missing lifetime specifier`, then `expected named lifetime parameter`, with a
+note that the signature says whether it is borrowed from `a` or `b`.
 
 Read that literally. The compiler is not asking how long anything lives. It is
 asking *which input the output borrows from*, because that is a fact about your
 function that the body knows and the signature does not state. Callers only ever
 see the signature, so the answer has to live there.
 
-Writing `<'a>` on all three positions answers "from either — treat them as one
+Writing `<'a>` on all three positions answers "from either; treat them as one
 region". That claim is checked: the caller must supply two references whose
 regions overlap far enough to cover the result. It does not make anything live
 longer.
@@ -76,7 +76,7 @@ same lifetime name as the return type.
 @after
 `'a` here is deliberately weaker than the truth. The result really borrows from
 `a` *or* `b`, but the type system has no "or", so both inputs are pushed into one
-region — the shorter of the two lives. That costs you nothing here and is
+region: the shorter of the two lives. That costs you nothing here and is
 occasionally too strict in real code.
 
 Notice what did not change: the call site. Lifetime parameters are inferred at
@@ -91,7 +91,7 @@ for a type long before you write one for a lifetime.
 
 A struct field of type `&str` is a reference to something the struct does not
 own. That means a value of this type is only valid while whatever it points at
-is still alive — and the type has to say so.
+is still alive, and the type has to say so.
 
 ```starter
 pub struct Excerpt {
@@ -139,8 +139,8 @@ pub fn run() -> String {
 parameter` and a suggestion to add `<'a>`.
 
 Lifetime elision only applies to function signatures. A struct field gets no
-rules at all, because there is nothing to elide *from* — a struct has no
-arguments to borrow one from.
+rules at all, because there is nothing to elide *from*. A struct has no
+arguments of its own to borrow one from.
 
 What `<'a>` adds is a constraint, not a field. It makes the type read: *an
 `Excerpt<'a>` may not outlive the `'a` its `part` came from.* The struct still
@@ -170,7 +170,7 @@ how you write the decision down.
 @expect E0515
 
 `banner` builds a new string and hands back a slice of it. The string is a local,
-so it is dropped when `banner` returns — and the slice would point at freed
+so it is dropped when `banner` returns, and the slice would point at freed
 memory.
 
 No lifetime annotation can fix this one. Change the signature so it can be true.
@@ -208,12 +208,12 @@ pub fn run() -> String {
 ```
 
 @hint Ask what the returned reference would point at once `banner`'s frame is gone.
-@hint There is nothing in the caller for this slice to borrow from — `framed` is created inside the function and belongs to it.
+@hint There is nothing in the caller for this slice to borrow from: `framed` is created inside the function and belongs to it.
 @hint Return the owned `String` itself. `format!` already allocated one; hand it over instead of pointing at it.
 
 @diagnose E0515
-`cannot return reference to local variable framed — returns a reference to data
-owned by the current function`.
+`cannot return reference to local variable framed`, alongside `returns a
+reference to data owned by the current function`.
 
 This is the exact bug the borrow checker exists to prevent, in its purest form:
 in C, returning `&framed` compiles, works in a debug build, and reads reused
@@ -227,17 +227,17 @@ neither input. The value was created here, so it must leave here by value.
 @diagnose E0106
 You removed the reference from the return type but not from the body, or the
 other way round. With no input reference to borrow from, `-> &str` has no region
-it could possibly name — which is `E0106` telling you the same thing `E0515`
-did, one step earlier.
+it could possibly name. That is `E0106` telling you the same thing `E0515` did,
+one step earlier.
 
 @after
 The rule to carry: **return owned, accept borrowed.** `fn banner(title: &str) ->
 String` is the shape almost every string-building function in the standard
-library has — `to_uppercase`, `join`, `replace`, `format!`. They all take a view
+library has: `to_uppercase`, `join`, `replace`, `format!`. They all take a view
 and produce an allocation, because there is no other honest option.
 
-The mirror image is a function like `str::trim`, which returns `&str` — it can,
-because it returns a slice *of its input*, which the caller already owns.
+The mirror image is a function like `str::trim`, which returns `&str`. It can,
+because it returns a slice *of its input*, and the caller already owns that.
 
 ## 4. Something died too early
 
@@ -300,8 +300,8 @@ pub fn run() -> usize {
 @hint The borrowed value has to outlive every use of the borrow. Move `let joined = ...` out to the function's scope.
 
 @diagnose E0597
-`joined does not live long enough — borrowed value does not live long enough`,
-with `joined dropped here while still borrowed` on the closing brace and
+`joined does not live long enough`, alongside `borrowed value does not live long
+enough`, with `joined dropped here while still borrowed` on the closing brace and
 `borrow later used here` on `best.len()`.
 
 Follow the three underlines in order and the whole argument is there: the borrow
@@ -318,7 +318,7 @@ to anything, so it is dropped at the end of its statement. Bind it to a `let`
 first, in a scope that outlives the borrow.
 
 @after
-The fix was to change where the *data* lives, not to change an annotation — and
+The fix was to change where the *data* lives, not to change an annotation, and
 that is the usual shape of an `E0597` fix. The error is a statement about scopes,
 so the repair is almost always in the scopes.
 
@@ -390,7 +390,7 @@ pub fn run() -> String {
 
 @hint The output is tied to `&'a self`, but the value returned came from `text`. Which of those two is the slice actually part of?
 @hint The returned slice comes from `text`, not from the `Matcher`. Give `text` a lifetime name and use it on the return type.
-@hint `pub fn find_in<'t>(&self, text: &'t str) -> Option<&'t str>`. Leave `&self` elided — it is genuinely unrelated.
+@hint `pub fn find_in<'t>(&self, text: &'t str) -> Option<&'t str>`. Leave `&self` elided; it is genuinely unrelated.
 
 @diagnose E0621
 `explicit lifetime required in the type of text`, with a suggestion to add
@@ -398,9 +398,9 @@ pub fn run() -> String {
 
 Apply the elision rules by hand and the complaint is obvious. Rule 1 gives every
 input reference its own parameter: `&'s self` and `text: &'t str`. Rule 3 then
-fires — a `&self` parameter is present, so every elided *output* lifetime becomes
+fires: a `&self` parameter is present, so every elided *output* lifetime becomes
 `'s`. The signature the compiler ended up with is `fn find_in<'s, 't>(&'s self,
-text: &'t str) -> Option<&'s str>` — the output tied to `self`.
+text: &'t str) -> Option<&'s str>`, with the output tied to `self`.
 
 Your body returns a slice of `text`, which is `&'t str`. Nothing relates `'t` to
 `'s`, so the claim cannot be checked, and rustc asks you to state the real one.
@@ -412,13 +412,14 @@ that is actually annotated with it.
 
 @after
 Rule 3 exists because it is right almost every time. Methods overwhelmingly
-return a piece of `self` — `as_str`, `iter`, `get`, `last`. Making that the
-default removes an annotation from nearly every method in every codebase.
+return a piece of `self`, as `as_str`, `iter`, `get` and `last` all do. Making
+that the default removes an annotation from nearly every method in every
+codebase.
 
 The price is this exercise: when a method returns something borrowed from an
 *argument*, elision quietly produces the wrong signature and you get an error
 about a lifetime you never wrote. The tell is `E0621` naming a parameter. When
-you see it, write the elided signature out longhand — the mismatch is always
+you see it, write the elided signature out longhand. The mismatch is always
 visible once it is on the page.
 
 ## 6. The bound, not the reference
@@ -428,7 +429,7 @@ visible once it is on the page.
 @expect E0310
 
 `boxed` puts any `Debug` value in a box. That box is a `Box<dyn Debug>`, which
-carries a hidden `+ 'static` — so the compiler wants a promise about `T` that the
+carries a hidden `+ 'static`, so the compiler wants a promise about `T` that the
 signature does not make.
 
 This is the second meaning of `'static`, and it is not the one about literals.
@@ -478,7 +479,7 @@ explicit lifetime bound: T: 'static`.
 
 `Box<dyn Debug>` is sugar for `Box<dyn Debug + 'static>`; a trait object gets
 `'static` by default in this position. So the return type promises the boxed
-value holds no borrow that could expire, while `T` is any type at all — possibly
+value holds no borrow that could expire, while `T` is any type at all, possibly
 `&'a str` for some caller's short `'a`.
 
 Read `T: 'static` correctly and the bound stops being frightening. It does not
@@ -488,7 +489,7 @@ contains no reference with a lifetime shorter than the program**. `String`,
 does not.
 
 @diagnose E0277
-`T doesn't implement Debug` — you removed the `Debug` bound while adding
+`T doesn't implement Debug`. You removed the `Debug` bound while adding
 `'static`. `T` needs both: `T: Debug + 'static`.
 
 @after
@@ -512,7 +513,7 @@ because the thread can outlive the frame it was spawned from. Moving an owned
 @concept lifetime
 @expect E0597
 
-`Parser<'a>` borrows a source string. `rest` returns a slice — but of *what*?
+`Parser<'a>` borrows a source string. `rest` returns a slice, but of *what*?
 Elision says "of the parser", so the slice dies when the parser does. The body
 says "of the source text", which lives much longer.
 
@@ -579,7 +580,7 @@ pub fn run() -> String {
 }
 ```
 
-@hint Do not touch `run`. The scopes there are correct — `text` outlives everything that borrows it.
+@hint Do not touch `run`. The scopes there are correct: `text` outlives everything that borrows it.
 @hint `self.src` is a `&'a str`, and slicing it gives another `&'a str`. The return type is throwing that away.
 @hint Name the lifetime on the return type: `pub fn rest(&self) -> &'a str`.
 
@@ -592,7 +593,7 @@ is the lesson. Elision rule 3 gave `rest` the signature `fn rest<'s>(&'s self) -
 &'s str`, so as far as every caller is concerned, the returned slice borrows the
 *parser*. `p` dies at the brace, so the borrow must end there too.
 
-The body was always returning a slice of `self.src`, which is `&'a str` — good
+The body was always returning a slice of `self.src`, which is `&'a str`, good
 for as long as `text` lives. `'a` outlives `'s`; the signature simply threw the
 information away. Writing `-> &'a str` puts it back.
 
@@ -607,7 +608,7 @@ The parser is a cursor: cheap to make, cheap to throw away, and the tokens it
 hands out are slices of the original input that keep working after it is gone. No
 allocation happens anywhere in the whole design.
 
-That is the shape of every fast parser in Rust — `serde_json`'s borrowed strings,
+That is the shape of every fast parser in Rust: `serde_json`'s borrowed strings,
 `nom`'s combinators, `httparse`'s headers. The `'a` on the struct is what makes
 the output outlive the machinery that produced it.
 
@@ -623,7 +624,7 @@ word, which is the whole reason to write it by hand.
 
 Two things are wrong. The `impl` header does not mention the lifetime the type
 carries, and `next` is unwritten. Take the compiler's suggested fix here with
-suspicion — it is mechanical, and it is not the one you want.
+suspicion. It is mechanical, and it is not the one you want.
 
 ```starter
 pub struct Words<'a> {
@@ -697,11 +698,11 @@ pub fn run() -> String {
 ```
 
 @hint `Words` is not a type on its own. `Words<'a>` is. The header has to name the parameter it is implementing for.
-@hint For `next`: `trim_start` the remainder, return `None` if nothing is left, then `find(' ')` to locate the end of the word — falling back to the whole string when there is no space.
+@hint For `next`: `trim_start` the remainder, return `None` if nothing is left, then `find(' ')` to locate the end of the word, falling back to the whole string when there is no space.
 @hint `impl<'a> Iterator for Words<'a>`, and `str::split_at(end)` hands you `(word, remainder)` in one step. Store the remainder back into `self.rest` and return the word.
 
 @diagnose E0726
-`implicit elided lifetime not allowed here — expected lifetime parameter`,
+`implicit elided lifetime not allowed here`, then `expected lifetime parameter`,
 pointing at `Words` in the `impl` header, with a suggestion to write `Words<'_>`.
 
 `Words` on its own is not a type. Every `Words` value is a `Words<'a>` for some
@@ -722,12 +723,12 @@ self type: `impl<'a> Iterator for Words<'a>`.
 
 @diagnose E0308
 `next` is returning the wrong shape. Every path must produce
-`Option<Self::Item>` — `None`, or `Some(slice)`. A bare `&str`, or an
+`Option<Self::Item>`: either `None` or `Some(slice)`. A bare `&str`, or an
 `Option<String>` from calling `to_string`, will both land here.
 
 @after
 Note where `Item`'s lifetime came from: the **struct**, not `&mut self`. That is
-what lets the slices outlive the iterator — you can `collect` them, sort them,
+what lets the slices outlive the iterator. You can `collect` them, sort them,
 and still be holding them long after the `Words` value is gone.
 
 An iterator whose items borrowed from `&mut self` instead could not do that, and

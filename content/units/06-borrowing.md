@@ -8,7 +8,7 @@ needs: 05-ownership
 blurb: Shared or unique, never both. The rule that makes data races a compile error rather than a Tuesday.
 ---
 
-%% Ownership answered *who frees this*. It left a question behind: how does a function read a value without taking it? Handing ownership back and forth works and reads terribly, and cloning pays the allocator to avoid a conversation. The answer is to lend — and the rules for lending are the smallest, strangest and most valuable idea in the language.
+%% Ownership answered *who frees this*. It left a question behind: how does a function read a value without taking it? Handing ownership back and forth works and reads terribly, and cloning pays the allocator to avoid a conversation. The answer is to lend, and the rules for lending are the smallest, strangest and most valuable idea in the language.
 
 One rule does all the work here, and it is worth stating before anything else.
 
@@ -27,14 +27,15 @@ println!("{doc}");             // still ours
 ```
 
 `&doc` creates a **reference**. `line_count` reads through it, and cannot drop
-it, free it, or keep it past the call — it never owned anything.
+it, free it, or keep it past the call. It never owned anything.
 
 :::note
 There are exactly two kinds.
 
-`&T` — a **shared reference**. Any number may exist at once. Read-only.
+`&T` is a **shared reference**. Any number may exist at once, and every one of
+them is read-only.
 
-`&mut T` — a **mutable reference**. Better read as *unique*: while one exists,
+`&mut T` is a **mutable reference**. Better read as *unique*: while one exists,
 it is the only way to reach the value at all.
 :::
 
@@ -56,15 +57,16 @@ let r = &doc;
      └────────────┘               │      not at the buffer
 :::
 
-Eight bytes. No allocation, no reference count, no header, no runtime check —
-the machine code is the pointer you would have written in C. Everything here
-happens in the compiler and leaves nothing behind at run time.
+Eight bytes, and the machine code is exactly the pointer you would have written
+in C. There is no allocation behind it, no reference count, no header and no
+check at run time. All of the work happens in the compiler.
 
 Because a reference owns nothing, duplicating one duplicates only an address, so
 **`&T` is `Copy`**. That is why a `&str` can be passed to five functions in a row
-without a single complaint: nothing moves.
+without a single complaint: each call copies the address and the original stays
+where it was.
 
-`&mut T` is *not* `Copy`, and it could not be — copying it would produce two
+`&mut T` is *not* `Copy`, and it could not be. Copying one would produce two
 unique references, which is a contradiction in terms.
 
 ## The rule
@@ -87,9 +89,9 @@ the race is gone.
 
 | access A | access B | is it a problem? | can the rule express it? |
 |---|---|---|---|
-| read | read | no | many `&T` — allowed |
-| read | write | yes | `&T` + `&mut T` — rejected |
-| write | write | yes | two `&mut T` — rejected |
+| read | read | no | many `&T`: allowed |
+| read | write | yes | `&T` plus `&mut T`: rejected |
+| write | write | yes | two `&mut T`: rejected |
 
 The rule permits precisely the first row. It is not an approximation of
 thread-safety that happens to work; **aliasing** plus mutation is the same
@@ -101,19 +103,19 @@ threads. The rule that stops you invalidating your own iterator is the rule that
 stops two threads writing one `Vec`.
 
 :::compare
-**C++** — `const T&` looks like `&T` and is a different promise entirely. It says
+**C++.** `const T&` looks like `&T` and is a different promise entirely. It says
 *I will not write through this handle*; it says nothing about anyone else. A
 `const std::string&` parameter can be modified during the call by any other
 reference to the same string, and the language considers this fine.
 
-**Go, Java, Python** — every reference is shared and mutable, so both bad rows
+**Go, Java, Python.** Every reference is shared and mutable, so both bad rows
 are ordinary and permitted. Safety is bought back at run time: a collector, a
 `ConcurrentModificationException`, a global interpreter lock.
 :::
 
 ## Where the rule bites
 
-### E0502 — a shared borrow, then a write
+### E0502: a shared borrow, then a write
 
 ```rust,bad
 let mut log = vec![String::from("boot")];
@@ -125,7 +127,7 @@ println!("{first}");              // shared borrow still in use
 `error[E0502]: cannot borrow log as mutable because it is also borrowed as
 immutable`. This is not pedantry about who wrote what. `push` may find the
 vector full, ask the allocator for a bigger buffer, copy the elements across and
-free the old one — and `first` points into the old one.
+free the old one. `first` points into the old one.
 
 :::memory what push can do to a live reference
      BEFORE                         AFTER a reallocating push
@@ -146,17 +148,18 @@ std::cout << first;                // undefined behaviour
 ```
 
 :::compare
-That C++ compiles without a warning, and on a small vector it usually *works* —
-until the day the capacity happens to be exhausted at that push, in production,
-under load. The bug is real, silent, load-dependent and famous enough to have a
-name: **iterator invalidation**. Every C++ container documents which operations
-invalidate which iterators, and remembering that table is the programmer's job.
+That C++ compiles without a warning, and on a small vector it usually *works*.
+Then comes the day the capacity happens to be exhausted at exactly that push, in
+production, under load. The bug is real, silent, load-dependent and famous
+enough to have a name: **iterator invalidation**. Every C++ container documents
+which operations invalidate which iterators, and remembering that table is the
+programmer's job.
 
 Rust deletes the table. `push` takes `&mut self`, `first` is a live `&`, and the
 two cannot coexist. Same program, compile error, zero run-time cost.
 :::
 
-### E0499 — two unique borrows
+### E0499: two unique borrows
 
 ```rust,bad
 let a = &mut config;
@@ -169,7 +172,7 @@ Two writers, no ordering. Even single-threaded this makes optimisation unsound:
 a `&mut` is guaranteed to be the only route to that memory, which is what lets
 the compiler keep a value in a register across a call.
 
-### E0505 — you cannot move out from under a borrow
+### E0505: you cannot move out from under a borrow
 
 ```rust,bad
 let s = String::from("ferris");
@@ -193,14 +196,14 @@ is why old tutorials show errors you will not get.
 let mut names = vec![String::from("ada")];
 
 let first = &names[0];
-println!("{first}");              // last use of `first` — the borrow ends HERE
+println!("{first}");              // last use of `first`: the borrow ends HERE
 
 names.push(String::from("grace")); // fine
 ```
 
 This is **non-lexical lifetimes**: a borrow's region runs from where it is
-created to its **last use**, not to the end of the enclosing block. `first` is still in scope on the `push` line; it is
-simply not borrowed any more.
+created to its **last use**, not to the end of the enclosing block. `first` is
+still in scope on the `push` line. It is simply not borrowed any more.
 
 :::memory the region of a borrow
      let mut names = ...;
@@ -211,7 +214,7 @@ simply not borrowed any more.
 :::
 
 Before Rust 2018 the region ran to the end of the scope, and the fix for this
-program was to wrap the borrow in `{ }` — a block that existed only to appease
+program was to wrap the borrow in `{ }`, a block that existed only to appease
 the compiler. That change removed a large fraction of everyday borrow-checker
 friction, so it is worth checking the date on any advice that tells you to add
 braces.
@@ -219,8 +222,8 @@ braces.
 :::gotcha
 "Last use" is computed on the control-flow graph, not by reading down the page.
 A borrow used inside a loop is live across the whole loop, including the jump
-back to the top — which is why a loop can complain about code that looks fine
-when it is straightened out.
+back to the top. That is why a loop can complain about code that reads perfectly
+well once it is straightened out.
 :::
 
 ## Reborrowing
@@ -231,15 +234,15 @@ fn bump(counter: &mut u32) {
 }
 
 fn bump_twice(counter: &mut u32) {
-    bump(counter);      // not a move — a reborrow
+    bump(counter);      // not a move, a reborrow
     bump(counter);      // so this still works
 }
 ```
 
 `&mut u32` is not `Copy`, so passing `counter` to `bump` ought to move it and
 break the second line. It does not, because the compiler inserts an implicit
-`&mut *counter` — a **reborrow**, a fresh and shorter unique borrow *through* the
-existing one. The original is frozen for its duration and usable again after.
+`&mut *counter`. That is a **reborrow**: a fresh, shorter unique borrow *through*
+the existing one. The original is frozen for its duration and usable again after.
 
 Uniqueness survives, because at any moment exactly one of the two is usable.
 
@@ -250,7 +253,7 @@ Push a `&mut` into a struct field or a `Vec` and it moves for real:
 ```rust,bad
 fn stash(slot: &mut Vec<&mut u32>, c: &mut u32) {
     slot.push(c);
-    *c += 1;            // error[E0499] — `c` was moved into the vector
+    *c += 1;            // error[E0499]: `c` was moved into the vector
 }
 ```
 
@@ -273,15 +276,15 @@ struct Editor {
 let mut ed = Editor { buffer: String::new(), log: Vec::new() };
 
 let b = &mut ed.buffer;
-let l = &mut ed.log;      // fine — different fields, disjoint memory
+let l = &mut ed.log;      // fine: different fields, disjoint memory
 b.push_str("hello");
 l.push("typed".into());
 ```
 
 This is a **split borrow**, and it works because the borrow checker tracks
-**paths**, not whole variables. `ed.buffer` and
-`ed.log` are disjoint, so a unique borrow of each is two unique borrows of two
-different things. No rule is broken.
+**paths** rather than whole variables. `ed.buffer` and `ed.log` are disjoint, so
+a unique borrow of each is two unique borrows of two different things. No rule
+is broken.
 
 ### Through a method, it is not
 
@@ -297,8 +300,8 @@ b.push_str("hello");
 ```
 
 Nothing about the data changed. What changed is what the compiler is allowed to
-know. A method signature says `&mut self` — the *whole* struct — and the checker
-works from signatures alone, never from bodies. As far as the second call is
+know. A method signature says `&mut self`, meaning the *whole* struct, and the
+checker works from signatures alone, never from bodies. As far as the second call is
 concerned, `buffer_mut` might have borrowed anything at all.
 
 :::memory what the checker sees
@@ -333,9 +336,9 @@ fn greeting() -> &String {
 }                   // s dropped here; the returned reference would point at nothing
 ```
 
-`error[E0106]: missing lifetime specifier`. The compiler is asking a question it
-cannot answer — *this reference borrows from what?* — and there is no answer,
-because the only candidate dies at the closing brace.
+`error[E0106]: missing lifetime specifier`. The compiler is asking a question
+with no answer: *this reference borrows from what?* The only candidate dies at
+the closing brace.
 
 The fix is to return the `String`; a caller wanting a reference can take one of
 its own value, which by construction outlives it.
@@ -347,13 +350,13 @@ Put the rules together and the guarantee is total:
 - a value cannot be freed while borrowed (drop is a move)
 - a value cannot be mutated through one path while read through another (E0502, E0499)
 
-There is no combination left that produces a dangling pointer, a use-after-free,
-or a data race — in safe Rust, without a garbage collector, and with nothing at
-all left over at run time.
+In safe Rust no combination is left that produces a dangling pointer, a
+use-after-free, or a data race. A garbage collector never enters into it, and
+none of the checking survives into the running program.
 
 :::note
 **The habit.** A borrow error is a question about *time*, not about syntax. Ask
 when each borrow starts and where it is last used. Nine times in ten the fix is
-to move a line, shorten a borrow, or reach for the field instead of the method —
-not to `clone()`, and never to `unsafe`.
+to move a line, shorten a borrow, or reach for the field instead of the method.
+`clone()` is the last resort, and `unsafe` is not a resort at all.
 :::

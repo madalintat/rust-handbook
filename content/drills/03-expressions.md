@@ -13,7 +13,7 @@ let x = {
 };
 ```
 
-- A. `()` — a block does not produce a value
+- A. `()`; a block does not produce a value
 - *B. `6`
 - C. `2`
 - D. It does not compile; a block cannot appear after `=`
@@ -37,14 +37,14 @@ fn ratio(a: f64, b: f64) -> f64 {
 ```
 
 - A. Yes
-- *B. No — the body produces `()`, not `f64`
-- C. No — you cannot divide floats without checking for zero
+- *B. No, the body produces `()`, not `f64`
+- C. No, you cannot divide floats without checking for zero
 - D. Yes, but it returns `0.0`
 
 @why
 The semicolon turns `a / b` from an expression into a statement and throws its
 value away. With nothing left as a tail expression, the block is worth `()`, and
-`()` is not an `f64` — `error[E0308]`.
+`()` is not an `f64`, which is `error[E0308]`.
 
 D is the tempting one, because plenty of languages return a zero value from a
 function that falls off the end. Rust has no such rule: the body's type must be
@@ -69,8 +69,8 @@ if ok { 1 }
 @why
 An `if` with no `else` has an implicit empty `else` branch, and an empty block is
 worth `()`. Both branches must agree, so the `if` branch is forced to `()` as
-well — which is why `if ok { 1 }` is actually a type error on the `1`, not a
-usable `i32`.
+well. That is why `if ok { 1 }` is actually a type error on the `1` rather than
+a usable `i32`.
 
 C is a reasonable guess from a language with `Maybe`, and it is what
 `if ok { Some(1) } else { None }` would give you. Rust does not insert that
@@ -93,7 +93,7 @@ let x = loop {
 - A. `()`
 - B. `4`
 - *C. `40`
-- D. It does not compile — `break` cannot take a value
+- D. It does not compile; `break` cannot take a value
 
 @why
 `loop` is the only loop that can produce a value, and `break n * 10` is what
@@ -101,8 +101,8 @@ gives it one. The value of the `break` becomes the value of the whole `loop`
 expression.
 
 The reason `while` and `for` cannot do this is structural rather than arbitrary:
-they have two ways to end — the body broke out, or the condition ran out — and
-only one of those has a value to offer. `loop` has exactly one exit, so every
+they have two ways to end, the body breaking out or the condition running out,
+and only one of those has a value to offer. `loop` has exactly one exit, so every
 exit can carry something.
 
 ## 5
@@ -115,10 +115,10 @@ let x = while count > 0 {
 };
 ```
 
-- A. Yes — `x` is `7`
-- *B. No — `break` may only carry a value out of a `loop`
-- C. Yes — `x` is `()`
-- D. No — `while` cannot contain `break` at all
+- A. Yes, `x` is `7`
+- *B. No, `break` may only carry a value out of a `loop`
+- C. Yes, `x` is `()`
+- D. No, `while` cannot contain `break` at all
 
 @why
 `error[E0571]: break with value from a while loop`. The compiler even suggests
@@ -145,7 +145,7 @@ Rust has exactly two kinds of statement: a `let` binding and an item declaration
 expression, including `match`, `if` and a bare block.
 
 That is why `let x = if c { 1 } else { 2 };` needs no ternary operator, and why
-`let a = (let b = 3);` is rejected — `let` produces no value to bind. C's
+`let a = (let b = 3);` is rejected, since `let` produces no value to bind. C's
 `a = b = 3` works because assignment is an expression there; the same rule is
 what lets `if (x = 0)` compile in C, and Rust closed it by making assignment
 evaluate to `()`.
@@ -172,7 +172,7 @@ fn port() -> u16 {
 @why
 A, B, C and E all have type `!`, the **never type**: they do not hand control
 back, so there is no value that could contradict a claim about their type. A
-value of `!` can never exist, so the compiler lets `!` coerce to anything —
+value of `!` can never exist, so the compiler lets `!` coerce to anything,
 including `u16`.
 
 D is the one that fails. `println!` returns normally and evaluates to `()`, which
@@ -200,7 +200,7 @@ the line means what it looks like.
 B is the answer in C, and it is one of C's most famous traps: there `&` binds
 below `==`, so the expression is `flags & 1` and answers a completely different
 question, silently. Rust reordered the table specifically to remove that. Every
-precedence habit carried over from C is worth checking once — the shifts also
+precedence habit carried over from C is worth checking once. The shifts also
 bind above `&` here, so `1 << n | 1` is `(1 << n) | 1`.
 
 ## 9
@@ -237,9 +237,9 @@ if x = 5 {
 }
 ```
 
-- A. Yes — it assigns 5 and the condition is true
-- *B. No — `x = 5` evaluates to `()`, and a condition must be a `bool`
-- C. No — `x` is not mutable enough
+- A. Yes, it assigns 5 and the condition is true
+- *B. No, `x = 5` evaluates to `()`, and a condition must be a `bool`
+- C. No, `x` is not mutable enough
 - D. Yes, but it warns
 
 @why
@@ -248,7 +248,7 @@ value. An `if` condition must be a `bool`, so this is `error[E0308]: expected
 bool, found ()`, and rustc suggests you meant `==`.
 
 A is the C behaviour, where assignment yields the assigned value and `if (x = 5)`
-is a legal, always-true condition — the classic typo that has cost real money.
+is a legal, always-true condition: the classic typo that has cost real money.
 Rust removed the possibility by giving assignment the one type that can never be
 a condition.
 
@@ -266,7 +266,7 @@ for i in 1..n + 1 { }
 - D. `1..n`, and the `+ 1` is ignored
 
 @why
-The range operator binds very loosely — below arithmetic, below comparison, above
+The range operator binds very loosely: below arithmetic, below comparison, above
 only assignment. So the arithmetic on either side is evaluated first and the
 range is built from the results.
 
@@ -300,7 +300,7 @@ thing that leaves the block is the value of its tail expression, `crc32(&buf)`.
 
 This is the everyday use of a block expression: several intermediate values, one
 result, and a reader who can see at a glance which is which. It also gives you
-control over when a resource is released — a `MutexGuard` created inside a block
+control over when a resource is released. A `MutexGuard` created inside a block
 unlocks at the brace rather than at the end of the function.
 
 Python readers should note the difference: there an `if` or `for` body is not a
@@ -318,7 +318,7 @@ that apply.
 - E. `{ if n > 0 { return n } }`
 
 @why
-A is the idiomatic form. C works and says nothing extra — `return` on the last
+A is the idiomatic form. C works and says nothing extra: `return` on the last
 line of a function adds a keyword and a semicolon to something the tail
 expression already did. D is a tail expression that happens to be an `if`, which
 is fine because both branches produce an `i32`.
@@ -350,8 +350,8 @@ let x = for c in &counts { };
 items has nothing to hand back, and Rust would rather give you `()` every time
 than a value that exists only on some paths.
 
-D is a fair guess — it looks like nonsense and rustc will warn about the
-pointless binding — but it is legal code with type `()`. If you want a value out
+D is a fair guess. It looks like nonsense and rustc will warn about the pointless
+binding, but it is legal code with type `()`. If you want a value out
 of an iteration, either use `loop` with `break value`, or use an iterator adapter:
 `counts.iter().max()` is the shape that actually answers questions.
 
@@ -362,13 +362,13 @@ plus a mutable variable?
 
 - A. One extra branch
 - B. A temporary on the stack
-- *C. Nothing — both compile to the same machine code
+- *C. Nothing; both compile to the same machine code
 - D. It depends on the optimisation level
 
 @why
 Expression-oriented code is a source-level shape, not a runtime mechanism. Both
 forms become the same conditional move or branch, in debug as well as release,
-because there was never a value being constructed and copied — the branches write
+because there was never a value being constructed and copied. The branches write
 into the same slot either way.
 
 What differs is what the compiler can check. `let x = if c { a } else { b };`

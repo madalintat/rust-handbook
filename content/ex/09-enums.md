@@ -71,8 +71,8 @@ pub fn run() -> Vec<&'static str> {
 @diagnose E0004
 `non-exhaustive patterns: &Signal::Amber not covered`. Under the scrutinee `s`
 rustc writes `pattern &Signal::Amber not covered`, and it points separately at
-the enum definition with `not covered` beside the `Amber` line — that second
-underline is the compiler telling you where the case it is missing came from.
+the enum definition with `not covered` beside the `Amber` line. That second
+underline tells you where the case it is missing came from.
 
 `match` is an expression: a value has to come out of it, on every possible
 input. If `s` were `Amber` there is no arm to produce one, so the match has no
@@ -85,8 +85,8 @@ too.
 @after
 This is the property worth building a habit around. Add `Signal::Flashing` to
 the enum in six months and every `match` in the codebase that must change turns
-into a compile error naming a file and a line. Nothing to grep for, nothing
-missed in review.
+into a compile error naming a file and a line. The compiler produces that list
+for you, and it does not skip any of them.
 
 The same change to a Java class hierarchy or a C `switch` is a silent success:
 existing code keeps compiling and quietly takes the default path. Exhaustiveness
@@ -102,7 +102,7 @@ your fingers crossed.
 `Reading::Sample` carries two things: a value and a timestamp. The match arm
 below destructures it as if it carried one.
 
-Fix the pattern and use both pieces — the test wants `"22 at t=5"`.
+Fix the pattern and use both pieces. The test wants `"22 at t=5"`.
 
 ```starter
 pub enum Reading {
@@ -172,8 +172,8 @@ variant holds one thing, and it holds two.
 
 Two ways to say "I only want the first": `Sample(value, _)` names the second and
 throws it away, and `Sample(value, ..)` skips however many remain. Prefer `_`
-when there is exactly one to skip — it breaks loudly if a field is added later,
-which is usually what you want. `..` stays quiet.
+when there is exactly one to skip, because it breaks loudly if a field is added
+later, which is usually what you want. `..` stays quiet.
 
 @after
 Struct-like variants destructure by name rather than position, which is worth
@@ -188,7 +188,7 @@ enum Reading {
 
 Named fields are order-independent, self-documenting at the match site, and let
 you add a field without touching patterns that used `..`. Tuple variants are for
-one or two obvious payloads — `Some(t)`, `Ok(v)`, `Voucher(id)`.
+one or two obvious payloads, like `Some(t)`, `Ok(v)` and `Voucher(id)`.
 
 ## 3. The guards that cover everything
 
@@ -196,7 +196,7 @@ one or two obvious payloads — `Some(t)`, `Ok(v)`, `Voucher(id)`.
 @concept match guard
 @expect E0004
 
-Look at these two arms. Between them they clearly handle every `i32` — one for
+Look at these two arms. Between them they clearly handle every `i32`: one for
 negatives, one for everything else. The compiler disagrees, and it has a real
 reason.
 
@@ -242,7 +242,7 @@ pub fn run() -> Vec<&'static str> {
 ```
 
 @hint The compiler ignores what a guard says. Count the arms that have no guard.
-@hint By the time control reaches the last arm, `n` is neither negative nor zero — so the guard is not carrying any weight.
+@hint By the time control reaches the last arm, `n` is neither negative nor zero, so the guard is carrying no weight.
 @hint Replace the final `x if x > 0` with an unguarded `_`.
 
 @diagnose E0004
@@ -250,7 +250,7 @@ pub fn run() -> Vec<&'static str> {
 That range list is the giveaway: rustc has thrown away both guarded arms and is
 reporting what the *unguarded* patterns cover, which is only `0`.
 
-This is deliberate. A guard is an arbitrary expression — it can call a function,
+This is deliberate. A guard is an arbitrary expression: it can call a function,
 read a global, ask the clock. Deciding whether a set of such expressions covers
 every input is undecidable in general, so rather than special-case simple
 arithmetic the rule is uniform: **an arm with a guard contributes nothing to
@@ -263,8 +263,8 @@ must not have one.
 Worth knowing that a guard applies to the whole arm, including every alternative
 in an or-pattern: `1 | 2 | 3 if flag` guards all three, not just the `3`.
 
-And a guard cannot mutate anything — bindings inside it are borrowed, not moved
-— so it stays a pure test. That restriction is what makes it safe for the
+A guard also cannot mutate anything, because the bindings inside it are borrowed
+rather than moved, so it stays a pure test. That restriction is what makes it safe for the
 compiler to evaluate arms in order and stop at the first that matches, without
 worrying that a failed guard left something changed behind it.
 
@@ -356,7 +356,7 @@ arm.
 The cause is match ergonomics. The scrutinee is `&Reply` and the pattern
 `Reply::Text(s)` is not a reference pattern, so the compiler shifts the binding
 mode to by-reference rather than rejecting the pattern. Every binding underneath
-comes out borrowed — `s: &String`, not `String`.
+comes out borrowed: `s: &String`, not `String`.
 
 That is exactly what you want almost always, because the alternative would be
 moving the string out of something you only borrowed. Here it means the arm's
@@ -364,8 +364,8 @@ value has the wrong type, and the fix is to produce an owned value from the
 borrow.
 
 @diagnose E0507
-You matched on the value rather than a reference somewhere — `match *r` or a
-signature taking `Reply` changed to something borrowed. Moving a `String` out of
+You matched on the value rather than a reference somewhere, perhaps `match *r`,
+or a signature taking `Reply` changed to something borrowed. Moving a `String` out of
 a `&Reply` would leave the caller's enum holding a freed buffer, so it is
 refused. Match on the reference and clone, or take the enum by value if you
 genuinely want to consume it.
@@ -386,8 +386,8 @@ still want their `Reply` afterwards.
 @concept pattern matching
 @expect E0308
 
-`let else` binds on the happy path and runs the block otherwise — but the block
-has one hard requirement, and this one does not meet it.
+`let else` binds on the happy path and runs the block otherwise. The block has
+one hard requirement, and this one does not meet it.
 
 Make it compile. A missing or unparseable argument means port 8080.
 
@@ -437,7 +437,7 @@ pub fn run() -> (u16, u16, u16) {
 ```
 
 @hint Ask what would happen if the `else` block finished normally. What value would `s` have?
-@hint The block has to leave the enclosing scope — `return`, `break`, `continue` or a panic. Producing a `u16` is not leaving.
+@hint The block has to leave the enclosing scope, with `return`, `break`, `continue` or a panic. Producing a `u16` is not leaving.
 @hint `return 8080;`
 
 @diagnose E0308
@@ -447,7 +447,7 @@ have type `!`.
 The reason is structural rather than stylistic. After the statement, `s` must be
 in scope and bound, and the only pattern that matched is `Some`. If the `else`
 block could fall through, control would arrive at the next line with `s`
-unbound. So the block is required to have type `!` — the never type — meaning it
+unbound. So the block is required to have type `!`, the never type, meaning it
 does not finish: `return`, `break`, `continue`, `std::process::exit`, or a
 panic.
 
@@ -534,7 +534,7 @@ pub fn run() -> (String, String) {
 
 @hint The scrutinee is `c.name`, a `String`-holding `Option` living inside something you borrowed.
 @hint Match on a reference instead of on the place itself, and the compiler will hand you a borrowed binding rather than trying to move.
-@hint `match &c.name {` — one character. `c.name.as_ref()` also works.
+@hint `match &c.name {`, one character. `c.name.as_ref()` also works.
 
 @diagnose E0507
 `cannot move out of c.name which is behind a shared reference`, with
@@ -542,7 +542,7 @@ pub fn run() -> (String, String) {
 
 Read what the pattern is asking for. `Some(n)` with a by-value scrutinee means
 "take the `String` out and call it `n`". Doing that would leave `c.name` holding
-a variant whose payload has been removed — and `c` belongs to the caller, who
+a variant whose payload has been removed, and `c` belongs to the caller, who
 would then be looking at a freed buffer.
 
 Once you match on `&c.name` instead, match ergonomics take over: the binding
@@ -554,7 +554,7 @@ You reached for `c.name.as_ref()` or `as_deref()` and the arm types no longer
 line up. `as_ref()` turns `&Option<String>` into `Option<&String>`, so `n` is a
 `&String`; `as_deref()` gives `Option<&str>`, so `n` is a `&str`. Both
 interpolate fine in `format!`. If the error names the `None` arm instead, the
-two arms are producing different types — make both produce an owned `String`.
+two arms are producing different types, so make both produce an owned `String`.
 
 @after
 `&Option<T>` and `Option<&T>` are different types, and the bridge between them
@@ -563,8 +563,8 @@ second is an enum whose payload happens to be a reference, and is the shape you
 want to pass to other functions because it is `Copy` and carries no borrow of
 the container.
 
-`as_deref` goes one step further — `Option<String>` to `Option<&str>` — and is
-the usual way to compare an optional owned string against a literal:
+`as_deref` goes one step further, from `Option<String>` to `Option<&str>`, and
+is the usual way to compare an optional owned string against a literal:
 `cfg.name.as_deref() == Some("ferris")`.
 
 ## 7. One binding, two shapes
@@ -574,7 +574,7 @@ the usual way to compare an optional owned string against a literal:
 @expect E0408
 
 An or-pattern lets two variants share an arm. There is one rule about the
-bindings, and this code breaks it — read the two alternatives carefully and spot
+bindings, and this code breaks it. Read the two alternatives carefully and spot
 the difference.
 
 `horizontal` should return the `x` of a click or a move, and `0` for a key.
@@ -648,13 +648,13 @@ alternative with `pattern doesn't bind x` and the `Click` one with
 The arm body is a single piece of code compiled once, and it names `x`. If
 control could arrive there through the `Move` alternative, `x` would not exist.
 So the rule is that every alternative in an or-pattern must bind exactly the
-same set of names, at the same types — which is also why a rename is not
+same set of names, at the same types, which is also why a rename is not
 enough: `Move { y: x, .. }` would satisfy it too, by binding the *y* field under
 the name `x`.
 
 @diagnose E0409
 `variable x is bound inconsistently across alternatives`. You bound the name in
-both alternatives but with different modes or types — one by reference and one
+both alternatives but with different modes or types: one by reference and one
 by value, or one from an `i32` field and one from something else. Or-pattern
 alternatives must agree on the type as well as the name.
 
@@ -667,7 +667,7 @@ Some(Event::Click { .. } | Event::Move { .. }) => "pointer",
 ```
 
 The alternatives sit inside the `Some`, so you write `Some` once. A guard added
-to an arm applies to the whole arm, all alternatives included — `A | B if ready`
+to an arm applies to the whole arm, all alternatives included: `A | B if ready`
 tests `ready` for both, not just `B`. That trips people up often enough to be
 worth a parenthesis in your head.
 
@@ -678,7 +678,7 @@ worth a parenthesis in your head.
 @expect E0004
 
 A state machine is a `match` over `(state, event)`. That scrutinee is a tuple of
-two enums, so the number of cases is the *product* — three states times three
+two enums, so the number of cases is the *product*: three states times three
 events is nine pairs, and the compiler wants all nine accounted for.
 
 `step` handles the three interesting transitions. Complete it so that any other
@@ -763,11 +763,11 @@ pub fn run() -> u32 {
 ```
 
 @hint Every remaining pair means the same thing: the event does not apply, so the state stays as it was.
-@hint You need one final arm that matches any pair and returns the state it was given. The state was moved into the tuple — bind it back out.
-@hint `(s, _) => s,` — binding the whole state, ignoring the event.
+@hint You need one final arm that matches any pair and returns the state it was given. The state was moved into the tuple, so bind it back out.
+@hint `(s, _) => s,` binds the whole state and ignores the event.
 
 @diagnose E0004
-`non-exhaustive patterns` followed by a long list — `(State::Idle, Event::Tick)`,
+`non-exhaustive patterns` followed by a long list: `(State::Idle, Event::Tick)`,
 `(State::Idle, Event::Stop)`, `(State::Done(_), _)` and the rest. rustc computes
 the uncovered set over the whole tuple and prints it, collapsing runs where it
 can.
@@ -779,19 +779,19 @@ modelling a state machine this way is being handed that list. `Done` receiving a
 
 Note the arm you add must bind the state back out: the tuple `(state, ev)` moved
 `state` into it, so `(s, _) => s` is how you get it back. `_ => state` will not
-compile — `state` has been moved.
+compile, because `state` has been moved.
 
 @diagnose E0382
 `use of moved value: state`. Your catch-all arm names `state` directly, but
-building the scrutinee tuple `(state, ev)` moved it in. The value is not gone —
-it is inside the tuple being matched — so bind it out of the pattern:
+building the scrutinee tuple `(state, ev)` moved it in. The value is not gone; it is
+inside the tuple being matched, so bind it out of the pattern:
 `(s, _) => s`.
 
 @after
 Taking the old state **by value** and returning the new one is the shape worth
 copying. Because `step` consumes its argument, a stale `State` cannot be used
-after a transition — the borrow checker turns "we read the old state by
-accident" into a compile error.
+after a transition. The borrow checker turns "we read the old state by accident"
+into a compile error.
 
 It also makes the fat-variant question concrete. Every `State` value is as large
 as the biggest variant, so if `Running` held a 4 KB buffer, every `Idle` would

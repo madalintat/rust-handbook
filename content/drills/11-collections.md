@@ -14,7 +14,7 @@ println!("{} {}", v.len(), v.capacity());
 - *A. `0 0`
 - B. `0 4`
 - C. `0 8`
-- D. It does not compile — the type is ambiguous
+- D. It does not compile, since the type is ambiguous
 
 @why
 An empty `Vec` does not allocate. It has no pointer to a buffer because it has
@@ -34,12 +34,12 @@ times has it reallocated?
 - A. 1,000
 - B. 500
 - *C. About 10
-- D. 0 — it grows in place
+- D. 0, it grows in place
 
 @why
 Capacity doubles: 4, 8, 16, … 1024. That is around ten reallocations to reach a
 thousand elements, and the total number of elements copied across all of them is
-about 1,000 — roughly one copy per push.
+about 1,000, or roughly one copy per push.
 
 That is what **amortised** O(1) means. It does not mean every push is cheap; it
 means the expensive ones are rare enough that the average is constant. If you
@@ -60,9 +60,9 @@ v.push(4);
 println!("{first}");
 ```
 
-- A. Yes — `push` appends at the end, so the first element does not move
-- *B. No — `push` needs `&mut v` while `first` is still borrowed
-- C. No — you cannot take a reference to a vector element at all
+- A. Yes, `push` appends at the end, so the first element does not move
+- *B. No, `push` needs `&mut v` while `first` is still borrowed
+- C. No, you cannot take a reference to a vector element at all
 - D. Yes, but `first` may print garbage
 
 @why
@@ -71,7 +71,7 @@ live at the `println!`.
 
 A is the C++ intuition and it is exactly the bug. If `push` finds
 `len == capacity` it allocates a new buffer, copies the elements over and frees
-the old one — so the first element moves, and `first` points into freed memory.
+the old one, so the first element moves and `first` points into freed memory.
 
 D describes what would happen in C++ if you got unlucky. Rust refuses to
 compile the shape at all rather than reasoning about whether this particular
@@ -85,14 +85,14 @@ removes element 0 in constant time?
 - A. `v.remove(0)`
 - *B. `v.swap_remove(0)`
 - C. `v.drain(0..1)`
-- D. `v.pop()` — it removes element 0
+- D. `v.pop()`, which removes element 0
 
 @why
 `swap_remove(0)` moves the last element into slot 0 and returns what was there.
-Two pointer-sized writes, O(1), order destroyed.
+That is two pointer-sized writes, O(1), and the order is destroyed.
 
 `remove(0)` returns the same value and shifts all 99,999 remaining elements down
-one slot — O(n). In a loop that pops from the front it is quadratic, and it is
+one slot, which is O(n). In a loop that pops from the front it is quadratic, and it is
 one of the most common accidental performance bugs in Rust.
 
 D is wrong on which end: `pop` removes the *last* element and returns
@@ -105,13 +105,13 @@ What is `"héllo".len()`?
 - A. 5
 - *B. 6
 - C. 10
-- D. It does not compile — `len` is not defined on a literal
+- D. It does not compile, since `len` is not defined on a literal
 
 @why
 `len` on a `str` is **bytes**, always, and `é` is two bytes in UTF-8. Five
 characters, six bytes.
 
-A is what you want it to be, and the way to get it is `.chars().count()` — which
+A is what you want it to be, and the way to get it is `.chars().count()`, which
 is O(n), because there is no way to know where character *n* begins without
 decoding everything before it. That cost is the reason `len` is not defined as
 the character count: a method called `len` that walks the whole string would be
@@ -135,7 +135,7 @@ let s = String::from("hello");
 A does not compile: `String` has no `Index<usize>` impl, because byte 0 may be
 part of a character rather than all of one.
 
-B does — `Index<Range<usize>>` exists and gives a `&str`. It compiles and it
+B does: `Index<Range<usize>>` exists and gives a `&str`. It compiles and it
 *panics at runtime* if either endpoint falls inside a character. Byte ranges are
 the O(1) option and the one that can blow up.
 
@@ -154,7 +154,7 @@ Why is Rust's default `HashMap` hasher not the fastest one available?
 
 @why
 SipHash is keyed with a random seed drawn at program start. Without that, an
-attacker who can choose your keys — header names, JSON fields, usernames — can
+attacker who can choose your keys (header names, JSON fields, usernames) can
 precompute a thousand keys that all hash into the same bucket, turning your O(1)
 map into an O(n) linked list and pinning a core with one request. This attack
 has been used repeatedly against real web frameworks.
@@ -173,17 +173,17 @@ let mut counts: HashMap<&str, Vec<u32>> = HashMap::new();
 counts.entry(name).or_insert(Vec::new()).push(1);
 ```
 
-- A. Nothing — this is the idiomatic form
+- A. Nothing, this is the idiomatic form
 - *B. `Vec::new()` is constructed on every call and discarded when the key exists
 - C. `or_insert` returns the value, not a reference, so `push` cannot work
-- D. It will not compile — `Vec` is not `Default`
+- D. It will not compile, since `Vec` is not `Default`
 
 @why
 It compiles and it is correct. It is also wasteful: the argument to `or_insert`
 is evaluated *before* the call, every time, whether or not the key is missing.
-An empty `Vec::new()` happens not to allocate, so this particular case is cheap
-— but `or_insert(String::from("none"))` or `or_insert(expensive())` in a loop
-over a million rows is a million wasted calls.
+An empty `Vec::new()` happens not to allocate, so this particular case is cheap.
+But `or_insert(String::from("none"))` or `or_insert(expensive())` in a loop over
+a million rows is a million wasted calls.
 
 `or_insert_with(Vec::new)` takes a closure and runs it only on a miss.
 `or_default()` is shorter still and does the same thing.
@@ -203,7 +203,7 @@ the star.
 
 @why
 `Option` because the key may be absent, and absence is a normal answer rather
-than an error. A reference because the value belongs to the map — returning it
+than an error. A reference because the value belongs to the map: returning it
 by value would be a copy the map cannot know you wanted, and would be impossible
 for a non-`Copy` `V`.
 
@@ -226,7 +226,7 @@ Which of these can `BTreeMap` do that `HashMap` cannot? Choose all that apply.
 A, B and C all follow from the same property: a `BTreeMap` stores keys sorted in
 a search tree, so position is related to value.
 
-D is the one going the other way — that is `HashMap`'s trade, and `BTreeMap`
+D is the one going the other way. That is `HashMap`'s trade, and `BTreeMap`
 costs O(log n) per lookup instead.
 
 E is backwards. `BTreeMap` *requires* `K: Ord`; it is `HashMap` that only needs
@@ -237,10 +237,10 @@ therefore `Ord` too).
 
 A test asserts on the order of `for (k, v) in &my_hashmap`. What happens?
 
-- A. It passes — insertion order is preserved
-- B. It passes — keys come out sorted
+- A. It passes, because insertion order is preserved
+- B. It passes, because keys come out sorted
 - *C. It may pass locally and fail on another run, because the order changes every run
-- D. It does not compile — `HashMap` is not iterable
+- D. It does not compile, since `HashMap` is not iterable
 
 @why
 `HashMap` iteration order is unspecified, and in Rust it is genuinely different
@@ -282,8 +282,8 @@ essentially every size.
 What does `set.insert(x)` return for a `HashSet<u32>`?
 
 - A. `()`
-- *B. `bool` — `true` if the value was not already present
-- C. `Option<u32>` — the value it replaced
+- *B. `bool`, `true` if the value was not already present
+- C. `Option<u32>`, the value it replaced
 - D. `&mut u32`
 
 @why
@@ -291,8 +291,8 @@ What does `set.insert(x)` return for a `HashSet<u32>`?
 deduplication check with no second lookup: `if !seen.insert(id) { continue; }`
 skips anything already processed, in one hash.
 
-C is `HashMap::insert`'s signature — it returns `Option<V>`, the old value if
-the key was present — and mixing the two up is common. The difference makes
+C is `HashMap::insert`'s signature, which returns `Option<V>`, the old value if
+the key was present. Mixing the two up is common. The difference makes
 sense: a map replaces the value and might have something to hand back; a set has
 nothing to hand back, only a yes or no.
 
@@ -314,7 +314,7 @@ Big-O describes the slope, not the intercept, and the crossover is somewhere
 around 30 elements.
 
 D is tempting and is the wrong lesson even though the practical difference here
-is tiny. The point is not that it does not matter — it is that the default
+is tiny. The point is not that it does not matter. It is that the default
 should be `Vec`, and moving off it should follow from naming the operation that
 is too slow.
 
@@ -332,7 +332,7 @@ B names an operation and has evidence. That is the bar: "we scan 40,000 sessions
 on every request to find one by id" is a reason; "this is lookup-heavy" is a
 feeling.
 
-A is close but incomplete — size alone says nothing if you only ever iterate.
+A is close but incomplete: size alone says nothing if you only ever iterate.
 Iterating a `Vec` is faster than iterating a `HashMap` at any size.
 
 D describes a `HashSet`, not a `HashMap`, and if the collection is small,

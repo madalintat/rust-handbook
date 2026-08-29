@@ -39,9 +39,9 @@ let red = Rgb(255, 0, 0);
 let d = Meters(9.8);
 ```
 
-Fields are `.0`, `.1`, and so on. Worth it only when the order is the meaning —
-coordinates, colour channels — or when there is exactly one field and the name
-would just repeat the type.
+Fields are `.0`, `.1`, and so on. Worth it only when the order is the meaning,
+as with coordinates or colour channels, or when there is exactly one field and
+the name would only repeat the type.
 
 ### Unit structs
 
@@ -49,9 +49,9 @@ would just repeat the type.
 struct Metric;
 ```
 
-No fields, no bytes, no runtime existence at all. It exists to hang behaviour on:
-a marker type parameter, a `struct Logger;` that implements a trait and holds no
-state.
+It has no fields and occupies no bytes at runtime. It exists to hang behaviour
+on: a marker type parameter, or a `struct Logger;` that implements a trait and
+keeps no state.
 
 | | use it when |
 |---|---|
@@ -79,8 +79,8 @@ fn transfer(amount: Cents, from: AccountId, to: AccountId) { }
 transfer(account_a, Cents(500), account_b);  // error[E0308]
 ```
 
-Same machine code — a **newtype** has exactly the layout of the thing it wraps,
-and the wrapper is gone after compilation. What you bought is a type error where
+The machine code is identical. A **newtype** has exactly the layout of the thing
+it wraps, and the wrapper is gone by the time the compiler is finished. What you bought is a type error where
 you previously had a bank transfer to the wrong account.
 
 The second use is trait implementations. You cannot implement `Display` for
@@ -115,8 +115,8 @@ is called with `::`.
 
 :::note
 `new` is a **convention**, not a keyword. Nothing in the language knows the name.
-A type may have several constructors — `Vec::new`, `Vec::with_capacity`,
-`Vec::from` — and any of them may be called something else entirely.
+A type may have several constructors (`Vec::new`, `Vec::with_capacity`,
+`Vec::from`), and any of them may be called something else entirely.
 :::
 
 ### Where the method call goes
@@ -157,15 +157,15 @@ everyone who uses it.
 
 Take `self` for exactly two reasons: you need to **move a field out**
 (`into_host` above returns the `String` without copying it), or you are
-deliberately ending the value's life — `build`, `close`, `finish`.
+deliberately ending the value's life, the way `build`, `close` and `finish` do.
 :::
 
 :::compare
-**Python** — `self` is always a reference and mutation is always allowed. Rust
+**Python**: `self` is always a reference and mutation is always allowed. Rust
 splits that one word into three, and the split is visible in the signature, so
 you know before calling whether a method can change what you passed.
 
-**C++** — `&self` is `const T&`, `&mut self` is `T&`, `self` is `T&&`. The
+**C++**: `&self` is `const T&`, `&mut self` is `T&`, `self` is `T&&`. The
 difference is that constness is transitive and enforced here, and there is no
 `const_cast`.
 :::
@@ -192,7 +192,7 @@ let dev  = Config { port: 3000, ..base };
 :::gotcha
 `..base` **moves** out of `base`, field by field, for every field it takes. After
 the line above, `base.host` is a moved-from `String` and `base` as a whole is
-unusable — `error[E0382]`.
+unusable, and the compiler says so with `error[E0382]`.
 
 If the untouched fields all happen to be `Copy`, `base` survives. If any one of
 them owns a heap allocation, it does not. Use `..base.clone()` when you need both.
@@ -213,8 +213,8 @@ let q = Query::builder("users")
 
 Each method takes `self` and returns `Self`, so the chain moves one value along
 and `build` consumes it. Taking `&mut self` and returning `&mut Self` also works
-and reads the same, right up to `build`, which needs the value and cannot get it
-out of a reference — `error[E0507]`.
+and reads the same, right up to `build`. That last step needs the value itself
+and cannot get it out of a reference, so you get `error[E0507]`.
 
 ## Derives
 
@@ -229,7 +229,7 @@ A derive writes an `impl` block for you, mechanically, from the fields.
 |---|---|---|
 | `Debug` | `{:?}` formatting: `Config { host: "x", port: 80 }` | every field `Debug` |
 | `Clone` | `clone()` calling `clone()` on each field | every field `Clone` |
-| `Copy` | nothing — a marker permitting implicit duplication | every field `Copy`, and no `Drop` |
+| `Copy` | nothing, a marker permitting implicit duplication | every field `Copy`, and no `Drop` |
 | `PartialEq` | `==` comparing field by field, in declaration order | every field `PartialEq` |
 | `Default` | `default()` with every field at *its* default: `0`, `false`, `""` | every field `Default` |
 
@@ -264,19 +264,19 @@ generic code that needs to make a value out of nothing.
 ## What it looks like in memory
 
 A struct is its fields laid out contiguously, with padding so each one lands on
-an address it can be read from. There is no header, no vtable, no type tag — a
-struct of two `u32`s is eight bytes and nothing else.
+an address it can be read from. Nothing else rides along: no header, no vtable,
+no type tag. A struct of two `u32`s is eight bytes.
 
 The compiler is free to **reorder** the fields to waste less of that padding.
 
 :::memory struct Record { id: u8, count: u32, flag: bool }
-  declared order, as C would lay it out — 12 bytes
+  declared order, as C would lay it out: 12 bytes
   ┌────┬────────────┬──────────────┬────┬───────────┐
   │ id │  padding   │    count     │flag│  padding  │
   │ 1  │     3      │      4       │ 1  │     3     │
   └────┴────────────┴──────────────┴────┴───────────┘
 
-  what rustc actually emits — 8 bytes
+  what rustc actually emits: 8 bytes
   ┌──────────────┬────┬────┬──────┐
   │    count     │ id │flag│ pad  │
   │      4       │ 1  │ 1  │  2   │
@@ -296,7 +296,7 @@ struct Header { magic: u32, version: u8 }
 ```
 
 `#[repr(C)]` switches the reordering off and pins the layout to C's rules. You
-need it exactly when the bytes are shared with something outside Rust — an FFI
+need it exactly when the bytes are shared with something outside Rust: an FFI
 call, a memory-mapped device register, a file format. Everywhere else, leave it
 off and let the compiler save you the bytes.
 

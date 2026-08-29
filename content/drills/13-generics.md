@@ -14,9 +14,9 @@ fn largest<T>(v: &[T]) -> &T {
 }
 ```
 
-- A. Yes — `>` works on any type
-- *B. No — `T` has promised nothing, so `>` is unavailable
-- C. No — you cannot return a reference into a slice parameter
+- A. Yes, `>` works on any type
+- *B. No, `T` has promised nothing, so `>` is unavailable
+- C. No, you cannot return a reference into a slice parameter
 - D. Yes, but only for numeric types
 
 @why
@@ -25,7 +25,7 @@ name. A bare `T` stands for every type in the language, including closures and
 `File`, so the body is rejected at the definition. `T: PartialOrd` fixes it.
 
 D is the tempting one, and it misreads how the check works. There is no "numeric
-types" case — rustc does not look at your call sites at all when checking the
+types" case, and rustc does not look at your call sites at all when checking the
 body. It checks once, against the bounds, and here there are none.
 
 ## 2
@@ -36,7 +36,7 @@ once. How many copies of `id` are in the binary?
 - A. 1
 - *B. 3
 - C. 4
-- D. 0 — it is resolved at runtime
+- D. 0, it is resolved at runtime
 
 @why
 Monomorphisation emits one copy per **concrete type**, not per call site. Three
@@ -50,7 +50,7 @@ calls with `i32` still produce one `id_i32`.
 
 What does Rust pay for generics being free at runtime?
 
-- A. Nothing — it is free in every dimension
+- A. Nothing, it is free in every dimension
 - *B. Compile time and binary size
 - C. A pointer indirection on every generic call
 - D. A hidden type tag on every generic value
@@ -60,8 +60,8 @@ The duplication does not disappear; it moves into the compiler. Ten types means
 ten copies to type-check, optimise, link and ship, plus ten near-identical loops
 competing for instruction cache. That is the bill.
 
-C and D describe the *other* mechanism — `dyn Trait` — which is one copy, one
-vtable pointer alongside the data, and no inlining. Both designs exist in Rust
+C and D describe the *other* mechanism, `dyn Trait`, which is one copy with a
+vtable pointer alongside the data and no inlining. Both designs exist in Rust
 because both trades are sometimes right.
 
 ## 4
@@ -85,7 +85,7 @@ in Rust are trait methods, so `==`, `+`, `<` and `[i]` are all bound-requiring
 calls in disguise.
 
 D is the odd one out and worth noticing. Putting values into a `Vec<T>`, moving
-them, returning them, storing them in a struct — none of that requires anything
+them, returning them, storing them in a struct: none of that requires anything
 of `T`. Ownership operations are available on every type; it is *behaviour* that
 must be promised.
 
@@ -112,7 +112,7 @@ generic parameter. Say it with `parse::<i64>()` or `let n: i64`.
 A Java `ArrayList<Integer>` and a Rust `Vec<i32>` both hold a million integers.
 What is the structural difference?
 
-- A. None — both erase to a list of pointers
+- A. None, both erase to a list of pointers
 - *B. Java boxes each integer as a heap object behind a pointer; Rust stores the four bytes inline
 - C. Rust boxes each integer; Java stores them inline
 - D. Both store them inline, but Rust adds a type tag
@@ -139,7 +139,7 @@ elements, and when does rustc?
 
 @why
 A C++ template is a pattern, type-checked only once a concrete type is
-substituted — so the error surfaces inside your template, on a line the caller
+substituted, so the error surfaces inside your template, on a line the caller
 never wrote, with an instantiation stack attached.
 
 Rust checks the generic body **once**, against its declared bounds. The
@@ -154,7 +154,7 @@ What can a `where` clause express that `<T: Bound>` cannot?
 - A. Multiple bounds on one parameter
 - *B. Bounds on types other than the declared parameters, such as `where Vec<T>: Debug`
 - C. Bounds involving lifetimes
-- D. Nothing — it is purely cosmetic
+- D. Nothing, it is purely cosmetic
 
 @why
 `<T: A + B>` handles multiple bounds fine, so A is not it. The real gain is that
@@ -162,7 +162,7 @@ What can a `where` clause express that `<T: Bound>` cannot?
 `where T::Item: Display`, `where for<'a> &'a T: IntoIterator`. The inline form can
 only attach bounds to the parameters as they are declared.
 
-D is the common belief and it is right about the *usual* case — most `where`
+D is the common belief and it is right about the *usual* case: most `where`
 clauses in real code are there for readability. It is wrong as a rule.
 
 ## 9
@@ -174,15 +174,15 @@ struct Cache<T: Clone> { value: T }     // A
 struct Cache<T> { value: T }            // B, with impl<T: Clone> Cache<T>
 ```
 
-- A. A — the bound is stated once, where the type is defined
-- *B. B — the bound belongs on the impl block that needs it
+- A. A, since the bound is stated once, where the type is defined
+- *B. B, since the bound belongs on the impl block that needs it
 - C. They are identical after monomorphisation, so it makes no difference
-- D. A — otherwise `Cache<File>` would be constructible
+- D. A, because otherwise `Cache<File>` would be constructible
 
 @why
 A bound on a struct propagates: every `impl`, every function signature mentioning
 `Cache`, and every other struct holding one must repeat it. It also cannot be
-relaxed later without a breaking change, and it buys no safety — the impl block
+relaxed later without a breaking change, and it buys no safety, since the impl block
 would reject a bad `T` anyway.
 
 D is the trap, because it names a real consequence and gets its sign wrong.
@@ -205,7 +205,7 @@ checksum([5, 6, 7]);
 - A. 1
 - *B. 2
 - C. 3
-- D. 0 — `N` is erased
+- D. 0, `N` is erased
 
 @why
 Const generics monomorphise like type parameters: one copy per distinct value of
@@ -233,8 +233,8 @@ ordinary traits and pattern matching.
 
 D is half a truth worth separating out. rustc *does* apply a niche optimisation
 so that `Option<&T>` and `Option<Box<T>>` are one word, using the impossible null
-value as the `None` tag — but that is a layout optimisation available to any
-enum with a niche, not a special case for `Option`.
+value as the `None` tag. That is a layout optimisation available to any enum
+with a niche, not a special case for `Option`.
 
 ## 12
 
@@ -248,9 +248,9 @@ fn main() {
 }
 ```
 
-- *A. Yes — the `push` on the next line determines the element type
-- B. No — `Vec::new()` needs a turbofish
-- C. No — `v` must be annotated at the `let`
+- *A. Yes, the `push` on the next line determines the element type
+- B. No, `Vec::new()` needs a turbofish
+- C. No, `v` must be annotated at the `let`
 - D. Yes, and `T` defaults to `i32`
 
 @why
@@ -266,7 +266,7 @@ were, `1u8` is explicit.
 What is the machine-level cost of calling `fn show<T: Display>(x: T)` versus
 `fn show(x: &dyn Display)`?
 
-- A. Identical — both are direct calls
+- A. Identical, both are direct calls
 - *B. The generic is a direct call and can inline; the `dyn` version loads an address from a vtable and calls through it
 - C. The generic allocates; the `dyn` version does not
 - D. The `dyn` version is faster because there is only one copy in cache
@@ -277,16 +277,16 @@ call and everything downstream of inlining becomes available. The `dyn` version
 compiles once; the target is unknown until runtime, so it costs one load plus one
 indirect call and cannot be inlined.
 
-D is not absurd — one shared copy really can be kinder to the instruction cache
-than thirty specialised ones — but it is not the usual outcome, and the lost
-inlining dominates.
+D is not absurd, and one shared copy really can be kinder to the instruction
+cache than thirty specialised ones. It is not the usual outcome, though, and the
+lost inlining dominates.
 
 ## 14
 
 You are storing a mixed collection of shapes: circles, rectangles and text
 boxes, decided at runtime. What do you reach for?
 
-- A. Generics — `Vec<T: Shape>`
+- A. Generics, as `Vec<T: Shape>`
 - *B. `Vec<Box<dyn Shape>>`
 - C. An enum with one variant per shape
 - *D. Either B or an enum, depending on whether the set of shapes is open
@@ -294,13 +294,13 @@ boxes, decided at runtime. What do you reach for?
 
 @why
 `Vec<T>` holds one `T`. A mixed collection has no single `T`, so generics cannot
-express it — and `Vec<impl Shape>` is not valid syntax anyway. That leaves two
+express it, and `Vec<impl Shape>` is not valid syntax anyway. That leaves two
 real designs.
 
 `Box<dyn Shape>` is right when the set is **open**: plugins, user-supplied types,
 anything a downstream crate can extend. An enum is right when the set is
-**closed**: no allocation, no vtable, and `match` becomes exhaustive so adding a
-variant makes the compiler list every site to update. Both answers are correct
+**closed**: nothing is allocated, no vtable is consulted, and `match` becomes
+exhaustive, so adding a variant makes the compiler list every site to update. Both answers are correct
 for different questions.
 
 ## 15
@@ -314,13 +314,13 @@ fn first<T>(v: &[T]) -> T {
 ```
 
 - A. Yes
-- *B. No — it moves a value out of a slice it only borrowed
-- C. No — `T` needs a `Sized` bound
+- *B. No, it moves a value out of a slice it only borrowed
+- C. No, `T` needs a `Sized` bound
 - D. Yes, but only for `Copy` types, decided at each call
 
 @why
-Returning `T` by value means producing an owned value, and `v` is only borrowed —
-taking element zero out would leave a hole in data belonging to someone else. The
+Returning `T` by value means producing an owned value, and `v` is only borrowed.
+Taking element zero out would leave a hole in data belonging to someone else. The
 error is `E0507`, *cannot move out of index of `&[T]`*.
 
 D is the C++ intuition and it is exactly what Rust refuses to do: the body is
@@ -328,5 +328,5 @@ checked once, against the bounds, not re-checked per call. Either bound `T: Copy
 and copy the bytes, bound `T: Clone` and write `v[0].clone()`, or return `&T` and
 let the caller decide.
 
-C is wrong but nearly interesting — `T: Sized` is already implied on every type
+C is wrong but nearly interesting: `T: Sized` is already implied on every type
 parameter unless you write `T: ?Sized`.

@@ -31,14 +31,14 @@ macro_rules! square { ($x:expr) => { $x * $x }; }
 println!("{}", square!(3 + 1));
 ```
 
-- A. 7 — the expansion is `3 + 1 * 3 + 1`
+- A. 7, because the expansion is `3 + 1 * 3 + 1`
 - *B. 16
-- C. It does not compile — the macro needs parentheses
+- C. It does not compile, because the macro needs parentheses
 - D. 10
 
 @why
-16. Once `3 + 1` has matched an `expr` fragment it is a parsed expression node —
-one opaque unit — so substituting it cannot change how anything around it
+16. Once `3 + 1` has matched an `expr` fragment it is a parsed expression node,
+one opaque unit, so substituting it cannot change how anything around it
 groups.
 
 A is the C answer, and it is correct *in C*: `#define SQUARE(x) x * x` really
@@ -60,7 +60,7 @@ Which of these can a macro do that a function cannot? Choose all that apply.
 A, B, C and D are the four capabilities that justify the feature, and if your
 problem is none of them you want a function or a generic.
 
-E is the trap. A generic function already does this — `fn first<T>(v: &[T]) -> &T`
+E is the trap. A generic function already does this: `fn first<T>(v: &[T]) -> &T`
 returns whatever `T` is, and `"3".parse::<u8>()` is decided by the call site.
 Returning a call-site-dependent type is exactly what generics are for, and using
 a macro to get it is choosing a worse tool.
@@ -76,10 +76,10 @@ let mut count = 0;
 bump!();
 ```
 
-- A. Yes — `count` is in scope at the call site
-- *B. No — `error[E0425]: cannot find value count in this scope`
+- A. Yes, because `count` is in scope at the call site
+- *B. No: `error[E0425]: cannot find value count in this scope`
 - C. Yes, but `count` stays 0
-- D. No — a macro cannot contain an assignment
+- D. No, because a macro cannot contain an assignment
 
 @why
 This is **hygiene**. Identifiers written inside a macro body are resolved where
@@ -87,7 +87,7 @@ the macro was *defined*, not where it was called, so the macro's `count` and
 yours are different identifiers that happen to be spelled the same.
 
 C is the tempting wrong answer because it assumes the macro quietly operates on
-some other `count`. It does not — there is no other `count`, and the compiler
+some other `count`. It does not. There is no other `count`, and the compiler
 says so rather than guessing. That refusal is the entire safety property.
 
 ## 5
@@ -100,7 +100,7 @@ Which of these does hygiene protect? Choose all that apply.
 - D. A function called by the macro body always resolves to the definition site's crate
 
 @why
-`macro_rules!` hygiene covers local variables and lifetimes — A and B.
+`macro_rules!` hygiene covers local variables and lifetimes, which is A and B.
 
 C and D are the ones people assume and they are false, which is a real hazard.
 A macro body naming `Vec` gets whatever `Vec` means at the *call* site, so a
@@ -130,7 +130,7 @@ not for what the caller happens to type.
 C is wrong for a specific and useful reason: `Vec<u8>` is not one identifier, it
 is four tokens. A is the common mistake and produces `expected type, found
 expression`, pointing at a line inside the macro that the reader never wrote.
-D would match, since `tt` matches nearly anything — but only the first token
+D would match, since `tt` matches nearly anything, but only the first token
 tree, so it would capture `Vec` and choke on `<`.
 
 ## 7
@@ -140,13 +140,13 @@ What does `$(,)?` add to a matcher like `($($x:expr),* $(,)?)`?
 - A. It makes the comma separator optional between arguments
 - *B. It allows one optional trailing comma after the last argument
 - C. It allows the macro to be called with no arguments
-- D. Nothing — it is a formatting convention
+- D. Nothing; it is a formatting convention
 
 @why
 `$( ... )?` means zero or one occurrence, so `$(,)?` permits a single trailing
 comma. Without it, `labels!["a", "b",]` is a syntax error while `labels!["a",
-"b"]` is fine — an inconsistency `rustfmt` will happily create for you when a
-list wraps onto several lines.
+"b"]` is fine. That is an inconsistency `rustfmt` will happily create for you
+when a list wraps onto several lines.
 
 C is already handled by the `*`, which allows zero repetitions. Put `$(,)?` on
 every list-shaped macro you write; `vec!` has it.
@@ -158,7 +158,7 @@ What is the difference between `$(...),*` and `$(...),+`?
 - A. `*` separates with commas, `+` separates with plus signs
 - *B. `*` allows zero repetitions, `+` requires at least one
 - C. `+` is for the transcriber, `*` for the matcher
-- D. None — they are interchangeable
+- D. None; they are interchangeable
 
 @why
 The separator is whatever you write before the `*` or `+`; the sigil itself only
@@ -178,8 +178,8 @@ macro_rules! push_all {
 ```
 
 - A. Yes
-- *B. No — `$x` is used outside a repetition
-- C. No — `ident` cannot be a receiver
+- *B. No, because `$x` is used outside a repetition
+- C. No, because `ident` cannot be a receiver
 - D. Yes, but it only pushes the first argument
 
 @why
@@ -190,20 +190,21 @@ D is the plausible-sounding guess and it is worth knowing why it is wrong. The
 compiler will not silently pick one match out of several; depth mismatches are
 errors, not defaults. The mirror-image error, wrapping something in `$( )*` that
 mentions no metavariable, is `attempted to repeat an expression containing no
-syntax variables` — the compiler would have no idea how many times to repeat it.
+syntax variables`, since the compiler would have no idea how many times to
+repeat it.
 
 ## 10
 
 A recursive macro hits `error: recursion limit reached while expanding`. What are reasonable responses? Choose all that apply.
 
 - A. Rewrite the macro as a procedural macro
-- B. Nothing — the code is wrong and cannot work
+- B. Nothing; the code is wrong and cannot work
 - *C. Ask whether the recursion should have been a `$(...)*` repetition or an ordinary loop
 - *D. Raise it with `#![recursion_limit = "256"]` if the recursion is genuinely that deep
 
 @why
 The default limit is 128 nested expansions. D is the honest fix when you really
-do need the depth — long token-munching macros hit it legitimately.
+do need the depth, since long token-munching macros hit it legitimately.
 
 C is the better first question. Expansion happens before everything else, so
 deep recursion is compile-time cost with nothing to show for it at run time, and
@@ -221,8 +222,8 @@ Where does `#[macro_export]` put a macro?
 
 @why
 It lifts the macro to the crate root, so a macro defined in `mod internal` is
-imported as `use my_crate::retry;` — the module it lives in is not part of its
-path. That surprises everybody exactly once.
+imported as `use my_crate::retry;`, because the module it lives in is not part
+of its path. That surprises everybody exactly once.
 
 B is the reasonable expectation from how `pub` works everywhere else, and it is
 wrong because macros are resolved during expansion, before the module tree
@@ -259,13 +260,13 @@ What does a procedural macro receive and return?
 - D. A string of source text
 
 @why
-Tokens in, tokens out, and no type information whatsoever — a derive macro
-cannot look up the definition of a type you named in a field.
+Tokens in, tokens out, and no type information whatsoever. A derive macro cannot
+look up the definition of a type you named in a field.
 
 A is close enough to be misleading. Nobody manipulates a raw `TokenStream` by
 hand: `syn` parses one into a syntax tree and `quote!` builds a new one from a
-template. But that tree is `syn`'s, built from tokens, not the compiler's — the
-compiler's does not exist yet.
+template. But that tree is `syn`'s, built from tokens, and not the compiler's.
+The compiler's does not exist yet.
 
 ## 14
 
@@ -282,7 +283,7 @@ and linked into the compiler, not into your program, so it has to be built
 first and separately.
 
 C is why `sqlx::query!` can check your SQL against a live database at compile
-time — and why a proc macro is code you are choosing to trust.
+time, and why a proc macro is code you are choosing to trust.
 
 D is the recurring wish and it is false. `#[derive(Serialize)]` on a struct
 sees the tokens of that struct and nothing else; it cannot find out what any
@@ -304,8 +305,8 @@ included, as ordinary readable Rust.
 
 A is the instinct and it is the slow path: reading a macro means simulating
 expansion in your head, and `syn`-based derives are thousands of lines. D cannot
-work at all — a proc macro runs in the compiler, so its output goes to the
-compiler's stdout, not your program's.
+work at all: a proc macro runs in the compiler, so its output goes to the
+compiler's stdout rather than your program's.
 
 The habit: when a macro misbehaves, do not read the macro. Read what it
 produced, fix the ordinary bug you find there, then work backwards to the line

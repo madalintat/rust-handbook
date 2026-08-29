@@ -52,8 +52,8 @@ pub fn run(retries: u32) -> &'static str {
 
 @diagnose E0308
 `expected bool, found u32`. The `if` keyword takes an expression of type `bool`
-and nothing else — no integer is truthy, no string is truthy, no collection is
-truthy, and `None` is not falsy.
+and nothing else. Integers, strings and collections have no truth value here,
+and `None` is not falsy.
 
 This looks like ceremony until you notice what it deletes. In Python,
 `if items:` and `if items is not None:` agree almost always and disagree exactly
@@ -79,7 +79,7 @@ suggestion usually writes them for you.
 
 `for` accepts exactly one kind of thing: something that can turn into an
 iterator. A `&str` is not one, and the reason is a design decision worth
-knowing — a string could reasonably yield bytes, characters, or grapheme
+knowing: a string could reasonably yield bytes, characters, or grapheme
 clusters, and Rust refuses to guess.
 
 ```starter
@@ -132,7 +132,7 @@ pub fn run() -> usize {
 @hint `for c in text.chars()`.
 
 @diagnose E0277
-`&str is not an iterator` — and then the useful half:
+`&str is not an iterator`, and then the useful half:
 `the trait IntoIterator is not implemented for &str`.
 
 `for x in thing` desugars to `IntoIterator::into_iter(thing)` followed by a
@@ -141,8 +141,8 @@ understands; it has one trait, and the error is simply that `&str` does not
 implement it.
 
 That omission is deliberate. A `Vec<T>` has one obvious element type. A string
-has at least three defensible ones — bytes, `char`s, grapheme clusters — and
-they give different answers for accented text and emoji. Rather than pick,
+has at least three defensible ones: bytes, `char`s and grapheme clusters. They
+give different answers for accented text and emoji. Rather than pick,
 `str` offers `.chars()`, `.bytes()` and `.lines()` and makes you say which.
 
 @after
@@ -152,7 +152,7 @@ Every collection has the same shape of choice, just with a more obvious default.
 
 The habit worth forming: when `for` rejects something, ask what iterator you
 wanted rather than how to make the type fit. The answer is nearly always a
-method already on the type — `.iter()`, `.chars()`, `.values()`, `.lines()`.
+method already on the type: `.iter()`, `.chars()`, `.values()`, `.lines()`.
 
 ## 3. An if used as a value needs both halves
 
@@ -160,7 +160,7 @@ method already on the type — `.iter()`, `.chars()`, `.values()`, `.lines()`.
 @concept if
 @expect E0317
 
-`if` is an expression here, not a statement — its value is being bound to
+`if` is an expression here, not a statement. Its value is being bound to
 `label`. That puts a requirement on it that a statement `if` does not have.
 
 ```starter
@@ -209,13 +209,13 @@ pub fn run() -> (&'static str, &'static str) {
 @hint Add `else { "small" }`.
 
 @diagnose E0317
-`if may be missing an else clause` — `expected &str, found ()`.
+`if may be missing an else clause`, then `expected &str, found ()`.
 
 Trace both paths. When the condition is true the block produces `"large"`, a
 `&str`. When it is false there is no block at all, so the expression produces
 `()`. A `let` needs one type, and those are two.
 
-An `if` without an `else` is perfectly legal — as a *statement*, where its value
+An `if` without an `else` is perfectly legal as a *statement*, where its value
 is discarded and both paths are `()`. The moment you bind it, pass it, or return
 it, both arms have to produce a value and they have to agree on the type.
 
@@ -231,8 +231,8 @@ would be a second spelling of something the language does already.
 The same is true of `match`, `loop` and a bare block: all of them produce values,
 which is why `let x = match .. { }` and `let x = loop { .. }` read naturally.
 Once you see the pattern, the amount of `let mut x; ... x = ..` plumbing in your
-code drops sharply — and a binding that is assigned exactly once does not need
-`mut`.
+code drops sharply, and a binding assigned exactly once can go back to being a
+plain `let`.
 
 ## 4. Only one loop can hand back a value
 
@@ -281,7 +281,7 @@ pub fn run() -> u32 {
 
 @hint Which of Rust's three loops can be used as an expression that produces a value?
 @hint A `while` can also finish because its condition went false, and on that path there is no value to hand back. A `loop` has no such path.
-@hint Replace `while n < 1000` with `loop`, and let the `break n` be the only exit — then the loop itself is the function's tail expression.
+@hint Replace `while n < 1000` with `loop`, and let the `break n` be the only exit. Then the loop itself is the function's tail expression.
 
 @diagnose E0571
 `can only break with a value inside loop or breakable block`.
@@ -291,7 +291,7 @@ A `while` has two ways to end: a `break`, or the condition testing false. If
 condition-false path, and there is nowhere to get one. So `break` in a `while` or
 a `for` takes no argument, and their type is always `()`.
 
-`loop` has exactly one way out — a `break` you wrote — so every exit can carry a
+`loop` has exactly one way out, a `break` you wrote, so every exit can carry a
 value and they all have to agree on its type. That is what makes `loop` an
 expression and the other two statements.
 
@@ -312,7 +312,7 @@ fn serve() -> ! {
 ```
 
 `while true` is not equivalent. The compiler does not evaluate the condition, so
-the loop is assumed to be able to finish and its type is `()` — the same function
+the loop is assumed to be able to finish and its type is `()`. The same function
 written with `while true` fails to type-check. This is the reason clippy nudges
 you from `while true` to `loop`, and it is not a style rule.
 
@@ -473,9 +473,9 @@ pub fn run() -> (String, String, String) {
 }
 ```
 
-@hint The third arm works because `n` is a binding pattern — it matches anything and names it. The first two match without naming.
+@hint The third arm works because `n` is a binding pattern: it matches anything and names it. The first two match without naming.
 @hint There is a sigil that does both: test the pattern, and bind what matched to a name.
-@hint Write `n @ 0..=63 => ..` — the name, the at sign, then the pattern it must match.
+@hint Write `n @ 0..=63 => ..`: the name, the at sign, then the pattern it must match.
 
 @diagnose E0425
 `cannot find value n in this scope`, pointing inside the first two `format!`
@@ -564,14 +564,14 @@ pub fn run() -> (&'static str, &'static str) {
 ```
 
 @hint The compiler is not checking your arithmetic. Ask what it *can* check.
-@hint A guard is arbitrary code — it could call a function, read a global, or return a different answer each time. The exhaustiveness checker cannot evaluate it, so it ignores guarded arms entirely.
+@hint A guard is arbitrary code. It could call a function, read a global, or return a different answer each time. The exhaustiveness checker cannot evaluate it, so it ignores guarded arms entirely.
 @hint Add a final unguarded arm, `_ => "page someone"`, which is also the honest answer for ten or more retries.
 
 @diagnose E0004
 `non-exhaustive patterns: i32::MIN..=i32::MAX not covered`.
 
 The checker works on patterns, and every one of your patterns is the bare
-binding `n`, which does cover all of `i32` — but each is qualified by an `if`.
+binding `n`, which does cover all of `i32`. Each one is qualified by an `if`.
 A guard is ordinary Rust: it can call a function, read an atomic, or return
 `false` every second Tuesday. Proving that `n <= 0`, `n < 3` and `n < 10`
 together cover the integers would mean evaluating your code at compile time, so
@@ -590,7 +590,7 @@ a `_` becomes a compile error listing exactly what you forgot.
 
 Which is also the argument for using `_` sparingly. A `_` arm is a promise that
 future variants should be handled the same way, and it is often not true. Here it
-is — anything over ten retries really is one case.
+is, because anything over ten retries really is one case.
 
 ## 8. Flatten the pyramid
 
@@ -600,7 +600,7 @@ is — anything over ten retries really is one case.
 
 Three things can go wrong parsing `server=example.com:8080`, and all three fall
 back to the same default. The author reached for `let ... else` to keep the
-happy path at the left margin, and got one detail wrong — the same detail three
+happy path at the left margin, and got one detail wrong. The same detail three
 times.
 
 ```starter
@@ -674,8 +674,8 @@ pub fn run() -> (String, u16) {
 
 Read the construct literally. `let Some(rest) = expr else { .. };` binds `rest`
 for the rest of the function when the pattern matches. When it does not match,
-there is no `rest` — so the block cannot be allowed to reach the next line,
-because that line would name a binding that was never made.
+there is no `rest`, so the block cannot be allowed to reach the next line. That
+line would name a binding that was never made.
 
 The requirement is therefore stronger than "produce the right type": the block
 must **diverge**. `return`, `break`, `continue`, or a `panic!`. Its type is `!`,

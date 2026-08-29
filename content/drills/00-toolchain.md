@@ -15,7 +15,7 @@ Which program downloads a dependency from crates.io?
 `cargo` reads `Cargo.toml`, resolves versions, and fetches anything missing into
 `~/.cargo/registry` before it invokes the compiler at all.
 
-A is the tempting answer because the error you see is a *compiler* error —
+A is the tempting answer because the error you see is a *compiler* error:
 `error[E0432]: unresolved import`. But rustc has no network access and no idea
 crates.io exists. It compiles the crates it was pointed at, and cargo decides
 which those are.
@@ -30,8 +30,8 @@ which those are.
 - D. Compiling dependencies
 
 @why
-`check` runs the whole frontend — parsing, macro expansion, name resolution,
-type checking, borrow checking — and stops before handing anything to LLVM.
+`check` runs the whole frontend (parsing, macro expansion, name resolution, type
+checking, borrow checking) and stops before handing anything to LLVM.
 Codegen and linking are where most of the wall-clock time goes, so `check` is
 often five times faster and reports the identical set of errors.
 
@@ -50,7 +50,7 @@ What is `Cargo.lock`?
 - D. A cache of compiled dependencies
 
 @why
-`Cargo.toml` is what you asked for — version *ranges* like `"1.0"`.
+`Cargo.toml` is what you asked for: version *ranges* like `"1.0"`.
 `Cargo.lock` is what you got: one concrete version per crate, transitively, with
 checksums. It is why a build is reproducible and why nothing moves under you
 until someone runs `cargo update`.
@@ -68,8 +68,8 @@ Does this compile on a stable toolchain?
 fn main() {}
 ```
 
-- A. Yes — the feature is simply ignored
-- *B. No — `#![feature]` is rejected on stable entirely
+- A. Yes, the feature is simply ignored
+- *B. No, `#![feature]` is rejected on stable entirely
 - C. Yes, with a warning
 - D. Only if the feature has been stabilised
 
@@ -78,7 +78,7 @@ fn main() {}
 attribute is refused before the compiler looks at what it names.
 
 D is the trap. A stabilised feature does not need the gate and does not accept
-it either — the gate itself is the thing stable rejects, whatever is inside the
+it either. The gate itself is the thing stable rejects, whatever is inside the
 parentheses. The refusal is what makes the promise "code that builds on stable
 today builds on stable forever" true.
 
@@ -108,7 +108,7 @@ A crate on the 2024 edition depends on a crate last published in 2016 on the
 2015 edition. What happens?
 
 - *A. It builds and links normally, at no cost
-- B. It fails — editions must match across a dependency graph
+- B. It fails, because editions must match across a dependency graph
 - C. It builds, but the old crate is recompiled under 2024 rules
 - D. Cargo inserts a compatibility shim
 
@@ -119,7 +119,7 @@ how *that crate's source* is interpreted. Once compiled, the output is ordinary
 Rust and links like anything else.
 
 C is the reasonable-sounding wrong answer, and if it were true, editions would
-be flag days — every crate in the ecosystem would have to migrate together, and
+be flag days. Every crate in the ecosystem would have to migrate together, and
 nobody could ever ship a breaking change to syntax.
 
 ## 7
@@ -133,7 +133,7 @@ Which of these did an edition change?
 
 @why
 Bare trait objects were legal in 2015 and 2018 and are `error[E0782]` from 2021
-onward — a change in how source is *read*.
+onward, which is a change in how source is *read*.
 
 An edition never changes the standard library or the semantics of a library
 function. If it did, one crate's edition could alter another crate's behaviour,
@@ -167,14 +167,14 @@ have never met.
 `rustc` compiles…
 
 - A. One `.rs` file at a time, like a C compiler
-- *B. One crate at a time — the root file plus everything reachable via `mod`
+- *B. One crate at a time: the root file plus everything reachable via `mod`
 - C. One function at a time, on demand
 - D. The whole dependency graph in a single invocation
 
 @why
 The crate is the compilation unit. That is why Rust needs no header files and no
-forward declarations — the compiler already sees the whole crate — and also why
-a one-character change recompiles the crate rather than one file.
+forward declarations, since the compiler already sees the whole crate. It is also
+why a one-character change recompiles the crate rather than one file.
 
 D describes cargo's job, and it does it with one `rustc` invocation *per crate*,
 in dependency order. This is why dependencies are cached in `target/` and only
@@ -182,7 +182,7 @@ your own crate is rebuilt on a normal edit.
 
 ## 10
 
-Why is a debug build often 10–100× slower than a release build, more than the
+Why is a debug build often 10 to 100× slower than a release build, more than the
 same ratio in C?
 
 - A. Debug builds insert a runtime type checker
@@ -208,7 +208,7 @@ What does `cargo run -- --verbose` do?
 
 - A. Runs cargo in verbose mode
 - *B. Builds and runs your program, passing `--verbose` to it
-- C. Fails — `--` is not valid syntax
+- C. Fails, because `--` is not valid syntax
 - D. Runs the program twice
 
 @why
@@ -216,7 +216,7 @@ Everything after `--` is handed to your binary rather than consumed by cargo.
 `cargo run --verbose` (no dashes) is the other one: that flag belongs to cargo
 and makes it print the full `rustc` invocations.
 
-Reading those invocations once is genuinely instructive — it is the only place
+Reading those invocations once is genuinely instructive. It is the only place
 you see how many flags cargo is filling in on your behalf.
 
 ## 12
@@ -231,9 +231,10 @@ most likely cause?
 
 @why
 Dependencies compile once and are cached in `target/`; a normal edit rebuilds
-only your crate. Repeated full rebuilds mean the cache is being thrown away —
-usually a changed feature flag, an alternating profile or target, a `build.rs`
-that reruns unconditionally, or `RUSTFLAGS` differing between invocations.
+only your crate. Repeated full rebuilds mean the cache is being thrown away.
+Usually the culprit is a changed feature flag, an alternating profile or target,
+a `build.rs` that reruns unconditionally, or `RUSTFLAGS` differing between
+invocations.
 
 A is what people conclude, and then they wait. The first build being slow is
 expected; every build being slow is a fingerprint problem worth ten minutes of
@@ -243,10 +244,10 @@ investigation.
 
 What lives in `target/`, and should it be committed?
 
-- A. Your source, compiled — commit it so deploys are fast
-- *B. Object files, incremental state and binaries — never commit it
-- C. Downloaded dependency sources — never commit it
-- D. The resolved dependency versions — commit it
+- A. Your source, compiled; commit it so deploys are fast
+- *B. Object files, incremental state and binaries; never commit it
+- C. Downloaded dependency sources; never commit it
+- D. The resolved dependency versions; commit it
 
 @why
 `target/` is everything derived: object files, fingerprints, incremental
@@ -254,7 +255,7 @@ compilation state, and the final binaries. It is disposable, it is regenerable
 from the source plus the lock file, and it is routinely a gigabyte.
 
 C describes `~/.cargo/registry`, which is outside the project entirely. D
-describes `Cargo.lock`, which *should* be committed for a binary — that is the
+describes `Cargo.lock`, which *should* be committed for a binary. That is the
 file that makes the deploy build the bytes you tested.
 
 ## 14
@@ -262,7 +263,7 @@ file that makes the deploy build the bytes you tested.
 What is `cargo clippy` for?
 
 - A. Enforcing the standard formatting
-- *B. Around 750 extra lints — needless clones, `len() == 0`, loops that wanted an iterator
+- *B. Around 750 extra lints: needless clones, `len() == 0`, loops that wanted an iterator
 - C. Checking that documentation examples compile
 - D. Auditing dependencies for security advisories
 

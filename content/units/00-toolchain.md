@@ -7,7 +7,7 @@ concepts: rustc, cargo, crate, edition, profile, semver, cargo check, clippy
 blurb: What rustc, cargo and an edition actually are, and what `cargo run` does to your file between you pressing enter and the program starting.
 ---
 
-%% Rust has a reputation for a slow, opinionated compiler and a strange set of nouns — crates, editions, channels, profiles. All of that is true and all of it is explainable. Half the frustration people report in their first month is not the language at all; it is not knowing which tool is complaining at them.
+%% Rust has a reputation for a slow, opinionated compiler and a strange set of nouns: crates, editions, channels, profiles. All of that is true and all of it is explainable. Half the frustration people report in their first month is not the language at all; it is not knowing which tool is complaining at them.
 
 Twenty minutes here buys you the rest of the book. Every error message you will ever read comes out of one of the three programs below.
 
@@ -18,11 +18,11 @@ Twenty minutes here buys you the rest of the book. Every error message you will 
 `rustc` is the compiler. You will almost never run it directly, and it is worth
 knowing exactly what it does anyway.
 
-It takes **one crate** — one root `.rs` file plus everything reachable from it
-via `mod` — and produces one output: a binary, or a `.rlib` for other crates to
+It takes **one crate** (one root `.rs` file plus everything reachable from it
+via `mod`) and produces one output: a binary, or a `.rlib` for other crates to
 link against. Not one file at a time, the way a C compiler works. The whole
-crate goes in at once, which is why Rust needs no header files and no forward
-declarations, and also why a one-character change recompiles the crate.
+crate goes in at once. That is why Rust gets by without header files and
+forward declarations, and also why a one-character change recompiles the crate.
 
 :::memory what rustc does to your source
   main.rs ──▶ ┌──────────┐   parse, expand macros, resolve names
@@ -37,8 +37,8 @@ declarations, and also why a one-character change recompiles the crate.
 :::
 
 Two things in that diagram surprise people. **Borrow checking happens in the
-frontend, before any code is generated** — which is why an ownership error
-costs you nothing at runtime; the compiler stops before it emits anything.
+frontend, before any code is generated.** An ownership error therefore costs
+you nothing at runtime; the compiler stops before it emits anything.
 And **rustc does not link**. It hands object files to your system linker, which
 is why a missing C library produces a wall of text that looks nothing like a
 Rust error: because it is not one.
@@ -56,8 +56,8 @@ When you read "the Rust build system", this is it.
 
 ### rustup manages the other two
 
-`rustup` installs and switches between *toolchains* — a matched set of rustc,
-cargo, and the standard library for a given release.
+`rustup` installs and switches between *toolchains*, meaning a matched set of
+rustc, cargo, and the standard library for a given release.
 
 | channel | what it is | when to use it |
 |---|---|---|
@@ -66,7 +66,7 @@ cargo, and the standard library for a given release.
 | `nightly` | built every night | unstable features, some tooling |
 
 Unstable language features are gated behind `#![feature(...)]` and rustc
-**refuses to compile that attribute on stable at all** — `error[E0554]`. That
+**refuses to compile that attribute on stable at all**: `error[E0554]`. That
 refusal is the whole stability promise: code that builds on today's stable will
 build on every future stable.
 
@@ -92,8 +92,8 @@ Six steps hide behind that:
 :::gotcha
 Step 3 is why the *first* build of a project takes two minutes and the next one
 takes two seconds. Dependencies are compiled once and cached. If you find
-yourself waiting two minutes repeatedly, something is invalidating that cache —
-usually a changed feature flag, a changed profile, or a `build.rs` that reruns.
+yourself waiting two minutes repeatedly, something is invalidating that cache.
+Usually a changed feature flag, a changed profile, or a `build.rs` that reruns.
 :::
 
 ### Cargo.toml versus Cargo.lock
@@ -114,7 +114,7 @@ the graph, transitively, with checksums. You write the first. Cargo writes the
 second.
 
 :::note
-Commit `Cargo.lock` for a binary — you want the deploy to build the bytes you
+Commit `Cargo.lock` for a binary: you want the deploy to build the bytes you
 tested. Historically libraries omitted it; committing it is now fine there too,
 since a downstream consumer ignores your lock file and resolves its own.
 :::
@@ -128,7 +128,7 @@ exist.
 
 Everything derived lives in `target/`: object files, incremental-compilation
 state, dependency fingerprints, final binaries. It is disposable and it is
-enormous — a gigabyte for a mid-sized project is normal. It belongs in
+enormous. A gigabyte for a mid-sized project is normal. It belongs in
 `.gitignore`, and `cargo clean` deletes it when you want the disk back rather
 than because something is broken.
 
@@ -142,12 +142,12 @@ One flag, two completely different programs.
 | debug symbols | full | none by default |
 | integer overflow | panics | wraps |
 | `debug_assert!` | runs | compiled out |
-| runtime speed | 1× | often 10–100× |
+| runtime speed | 1× | often 10 to 100× |
 | compile time | fast | slow |
 | output | `target/debug/` | `target/release/` |
 
 The speed gap is larger than in C, and the reason is structural. Rust's zero-cost
-abstractions — iterators, `Option`, generics, smart pointers — are only free
+abstractions (iterators, `Option`, generics, smart pointers) are only free
 *after* inlining. At `opt-level = 0` every `map` is a real closure call, every
 `Vec` index is a real bounds-check branch, every `Box` deref is a real load.
 The optimiser is not making your code faster; it is removing scaffolding that
@@ -161,14 +161,14 @@ common false alarm from people new to the language.
 
 Overflow behaviour differs too, and deliberately: debug panics so you find the
 bug, release wraps so you do not pay for a check in a hot loop. Both are
-defined — neither is **undefined behaviour**. That is the subject of unit 2.
+defined. Neither is **undefined behaviour**, which is the subject of unit 2.
 
 ## Editions
 
 An edition is a **dialect**, not a version. Rust ships a new one every three
-years — 2015, 2018, 2021, 2024 — and an edition is how the language makes
-changes that would otherwise break existing code: new keywords, changed
-defaults, sharper errors.
+years: 2015, 2018, 2021, 2024. An edition is how the language makes changes
+that would otherwise break existing code, such as new keywords, changed
+defaults and sharper errors.
 
 | edition | brought |
 |---|---|
@@ -185,9 +185,9 @@ a 2015 crate that has not been touched in a decade, and neither knows.
 
 That property is what makes editions work at all. There is one compiler and one
 standard library; the edition only changes how *your* source is interpreted.
-Which is why `cargo fix --edition` can usually migrate a crate mechanically —
-and why an old tutorial's code can fail on a modern project for reasons that
-have nothing to do with your logic:
+That is why `cargo fix --edition` can usually migrate a crate mechanically, and
+why an old tutorial's code can fail on a modern project for reasons that have
+nothing to do with your logic:
 
 ```rust,bad
 fn show(x: &Display) -> String {    // fine in 2015
@@ -205,39 +205,71 @@ fn show(x: &dyn Display) -> String {  // required since 2021
 **C++** has `-std=c++20`, which changes the language for a translation unit but
 demands ABI-compatible everything and can break linking. **Python** has no
 mechanism at all, which is why the 2-to-3 migration took a decade. Editions are
-per crate, opt-in, and permanently supported: no flag day, ever.
+per crate, opt-in, and permanently supported, so a flag day never arrives.
 :::
 
 ## Dependencies and versions
 
 Crates come from **crates.io**, and versions follow **semver**: `MAJOR.MINOR.PATCH`.
 
-- **patch** — bug fix, nothing new
-- **minor** — new API, existing code still compiles
-- **major** — something was removed or changed shape
+- **patch**: a bug fix, nothing new
+- **minor**: new API, existing code still compiles
+- **major**: something was removed or changed shape
 
 `serde = "1.0"` means "at least 1.0, anything below 2.0". Cargo picks the newest
 match at resolve time and pins it in `Cargo.lock`, so nothing moves under you
 until you run `cargo update`.
 
 :::gotcha
-Adding a required parameter to a public function is a **major** change — it is
+Adding a required parameter to a public function is a **major** change. It is
 `error[E0061]` at every call site. So is adding a required field to a public
 struct, or a method to a public trait without a default. Semver is a promise
 about compilation, not about intent, and beginners break it by accident when
 publishing.
 :::
 
-Two major versions of the same crate can coexist in one graph — `rand 0.8` and
-`rand 0.9` compile as separate crates. Useful, and the reason for the confusing
-class of error where a `Foo` is somehow not a `Foo`: they are from different
-copies.
+Two major versions of the same crate can coexist in one graph: `rand 0.8` and
+`rand 0.9` compile as separate crates. That is useful, and it is the reason for
+the confusing class of error where a `Foo` is somehow not a `Foo`. They are from
+different copies.
+
+## When a crate needs to run code to build
+
+Some crates cannot be described by `Cargo.toml` alone. They need to find a system
+library, generate Rust source from a schema, or compile a C file. Those crates
+ship a `build.rs` at the package root, and cargo compiles and runs it before
+compiling the crate itself.
+
+```rust
+// build.rs
+fn main() {
+    println!("cargo::rerun-if-changed=schema.sql");
+    println!("cargo::rustc-cfg=has_fast_path");
+}
+```
+
+A build script talks to cargo by printing lines on stdout. It can add a `cfg`
+your code then tests with `#[cfg(has_fast_path)]`, name a library to link, or
+declare which files it depends on.
+
+That last one matters more than it looks. Without a `rerun-if-changed` line,
+cargo assumes the script depends on everything in the package and re-runs it on
+every build, which is a common reason a project that should compile in two
+seconds takes twenty.
+
+:::gotcha
+A build script runs arbitrary code on your machine at build time, with your
+permissions, before any of your own code exists. `cargo build` on an unfamiliar
+dependency tree is not a read-only operation. `cargo vet` and `cargo auditable`
+exist because of this, and `--offline` limits what can be fetched but not what a
+script already present can do.
+:::
 
 ## The commands you actually type
 
 | command | does | run it |
 |---|---|---|
-| `cargo check` | frontend only — no codegen, no linking | **constantly** |
+| `cargo check` | frontend only: it stops before codegen and linking | **constantly** |
 | `cargo build` | full compile to a binary | when you need to run |
 | `cargo run` | build, then execute | to try it |
 | `cargo test` | build the test harness and run it | before committing |
@@ -246,9 +278,9 @@ copies.
 
 :::note
 `cargo check` is the one that changes how you work. It stops after type and
-borrow checking — skipping LLVM and linking, which is where most of the time
-goes — so it is often **five times faster** than `cargo build` and reports the
-identical set of errors. Keep `cargo check --all-targets` running in a second
+borrow checking, skipping LLVM and linking, which is where most of the time
+goes. So it is often **five times faster** than `cargo build`, and it reports
+the identical set of errors. Keep `cargo check --all-targets` running in a second
 terminal and you get the compiler as an editor rather than as a gate.
 :::
 

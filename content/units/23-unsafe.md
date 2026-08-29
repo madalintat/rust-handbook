@@ -32,14 +32,14 @@ That is the complete list. Every other rule in Rust still applies, unchanged.
 let mut config = Config { retries: 0, timeout: 0 };
 unsafe {
     let a = &mut config;
-    let b = &mut config;   // error[E0499] — exactly as it would be outside
+    let b = &mut config;   // error[E0499], exactly as it would be outside
     a.retries = 3;
 }
 ```
 
 E0382, E0499, E0502, E0106, E0308: all of them fire normally inside `unsafe`.
 **A borrow error is never fixed by adding `unsafe`.** If you found yourself
-typing it in response to one, you have misread the error — go back and ask who
+typing it in response to one, you have misread the error. Go back and ask who
 should own the value and for how long.
 
 ### What actually moves
@@ -79,7 +79,7 @@ in what the compiler is allowed to believe.
 |---|---|---|
 | may be null | no | yes |
 | may dangle | no | yes |
-| aliasing tracked | yes — shared XOR unique | not at all |
+| aliasing tracked | yes: shared XOR unique | not at all |
 | lifetime | checked | none; it carries no lifetime |
 | dereference | `*r` anywhere | only inside `unsafe` |
 | `Copy` | `&T` yes, `&mut T` no | always yes |
@@ -89,7 +89,7 @@ in what the compiler is allowed to believe.
      ┌──────────────────────┐
 count│ 7                    │◀──┐
      ├──────────────────────┤   │  r : &u32       alive, aligned, non-null,
- r   │ ●────────────────────┼───┤                 no &mut exists — all checked
+ r   │ ●────────────────────┼───┤                 no &mut exists, all checked
      ├──────────────────────┤   │
  p   │ ●────────────────────┼───┘  p : *const u32  a number. Nothing else.
      └──────────────────────┘
@@ -99,14 +99,14 @@ count│ 7                    │◀──┐
 
 ```rust
 let p = 0x1234 as *const u32;   // safe
-println!("{p:?}");              // safe — printing an address proves nothing
+println!("{p:?}");              // safe: printing an address proves nothing
 let v = unsafe { *p };          // this is the line that can be wrong
 ```
 
 Building a raw pointer, casting one, comparing two, printing one: all safe,
 because none of them can cause harm. Only the dereference can, so only the
-dereference is gated. This is not a technicality — it tells you exactly where
-to look when auditing.
+dereference is gated. That is not a technicality. It tells you exactly where to
+look when you audit someone's code.
 
 :::gotcha
 The `mut`ness has to be right at the moment you create the pointer, not later.
@@ -118,8 +118,8 @@ let p: *mut u32 = &count;   // error[E0308]: expected *mut u32, found *const u32
 
 `&count` is a shared borrow, so it coerces to `*const u32` and no further.
 Casting the const pointer to `*mut` afterwards compiles and is **undefined
-behaviour to write through** — the compiler recorded that this pointer came from
-a shared borrow. Write `&mut count`.
+behaviour to write through**, because the compiler recorded that this pointer
+came from a shared borrow. Write `&mut count`.
 :::
 
 ## Undefined behaviour
@@ -127,9 +127,9 @@ a shared borrow. Write `&mut count`.
 ### It does not mean "it crashes"
 
 A crash would be a gift. **Undefined behaviour** means the language makes no
-promise at all about the program, and — this is the part that hurts — the
-optimiser is *entitled to assume UB cannot happen* and to rewrite your code on
-that assumption.
+promise at all about the program. Then comes the part that hurts: the optimiser
+is *entitled to assume UB cannot happen* and to rewrite your code on that
+assumption.
 
 ```rust,bad
 let flag: bool = unsafe { std::mem::transmute(2u8) };
@@ -148,16 +148,16 @@ if p.is_null() { return 0; }    // deleted
 *r
 ```
 
-Creating `&*p` asserts that `p` is non-null — that is part of what a reference
-*is*. Having been told, the optimiser propagates the fact forwards and
-backwards, and deletes the null check as dead code. The segfault now appears on
+Creating `&*p` asserts that `p` is non-null, because that is part of what a
+reference *is*. Having been told, the optimiser propagates the fact forwards and
+backwards, then deletes the null check as dead code. The segfault now appears on
 a line with no `unsafe` on it, in a function that looks obviously correct.
 
 :::gotcha
 This is why "it works, I tested it" is not evidence about unsafe code. UB is not
 a behaviour, it is the absence of a specification. The same source can be correct
-in a debug build, wrong in release, and wrong differently next compiler version —
-because nothing was ever promised.
+in a debug build, wrong in release, and wrong in some new way next compiler
+version. Nothing was ever promised.
 :::
 
 ## The safe abstraction
@@ -194,7 +194,7 @@ argument.
 can cause undefined behaviour, no matter how wrong the caller is.**
 
 If any ordinary value passed by an ordinary caller can trigger UB, the API is
-**unsound**, and the bug belongs to whoever wrote the `unsafe` — not to the
+**unsound**, and the bug belongs to whoever wrote the `unsafe`, not to the
 caller who found it.
 :::
 
@@ -273,7 +273,7 @@ unsafe extern "C" {
 }
 ```
 
-Default Rust layout — `repr(Rust)` — guarantees nothing. The compiler reorders
+Default Rust layout, `repr(Rust)`, guarantees nothing. The compiler reorders
 fields to shrink padding, packs `Option<&T>` into one word, and is free to change
 all of it between releases. `#[repr(C)]` pins the layout to C's rules so the two
 languages agree on where `len` starts.
@@ -284,11 +284,46 @@ your pointer, that it does not keep it. The declaration is a claim you are makin
 about someone else's code.
 
 :::compare
-**C++** — `extern "C"` there is about name mangling and nothing else; safety was
+**C++.** Its `extern "C"` is about name mangling and nothing else; safety was
 never on the table because it was never claimed. In Rust the block is the exact
 boundary where the guarantee stops, which is why edition 2024 makes you write
 `unsafe extern` and say so.
 :::
+
+## transmute, and why almost nothing needs it
+
+`std::mem::transmute` reinterprets the bits of one type as another. It checks
+that the two types are the same size and nothing else, which makes it the
+sharpest tool in the language and almost always the wrong one.
+
+```rust,bad
+let flag: bool = unsafe { std::mem::transmute(2u8) };
+```
+
+Both types are one byte, so this compiles. It is still undefined behaviour,
+because `bool` has exactly two valid bit patterns and `2` is not one of them.
+Nothing crashes. The optimiser is now entitled to assume `flag` is `true` in one
+branch and `false` in another, and both of those assumptions can be compiled into
+the same function.
+
+The rule worth carrying: **`transmute` is unchecked, so its safety condition is
+that the source bits are a valid value of the target type, and only you can know
+that.** Size matching is what the compiler verifies; validity is what it cannot.
+
+Nearly every use has a safe replacement that says the same thing more narrowly:
+
+| instead of transmute | use |
+|---|---|
+| bytes to a number | `u32::from_ne_bytes` and friends |
+| a number to bytes | `to_ne_bytes` |
+| a float's bit pattern | `f32::to_bits` and `from_bits` |
+| a raw pointer to a reference | `&*ptr`, still unsafe but with one obligation rather than two |
+| changing a pointer's type | `as` casts, which do not lie about validity |
+| an enum from an integer | a `match`, or `TryFrom` |
+
+The remaining honest uses are things like extending a lifetime inside a
+self-referential structure, and those are the cases where you should be reading
+the Nomicon rather than a unit summary.
 
 ## static mut, unions, and the ones to avoid
 
@@ -327,7 +362,7 @@ been in production for years.
 **The habit.** Before writing `unsafe`, answer three questions in order:
 
 1. What invariant am I claiming, in one sentence?
-2. Who could break it — and can any safe caller?
+2. Who could break it, and can any safe caller?
 3. Can this be a safe API instead?
 
 If the third answer is yes, do that. Most Rust never needs the keyword; the code

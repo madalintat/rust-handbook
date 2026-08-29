@@ -8,7 +8,7 @@ needs: 05-ownership, 13-generics, 14-traits, 21-concurrency
 blurb: The standard library is three libraries in a trench coat. Take away the outer one and the same language runs on a chip with 20 kB of RAM and no operating system.
 ---
 
-%% `std` is not a monolith and never was. It is a thin outer layer over two smaller libraries, and almost everything you think of as Rust — `Option`, `Result`, iterators, slices, arithmetic, traits, generics — lives underneath it, in a crate that assumes nothing about the machine at all. Knowing where the seams are is what makes a microcontroller, a kernel and a WebAssembly module all reachable from the same language.
+%% `std` is not a monolith and never was. It is a thin outer layer over two smaller libraries, and almost everything you think of as Rust (`Option`, `Result`, iterators, slices, arithmetic, traits, generics) lives underneath it, in a crate that assumes nothing about the machine at all. Knowing where the seams are is what makes a microcontroller, a kernel and a WebAssembly module all reachable from the same language.
 
 Nothing in this unit is a dialect. It is the same compiler, the same borrow
 checker, fewer libraries linked.
@@ -23,7 +23,7 @@ checker, fewer libraries linked.
 | `alloc` | a global allocator | `Box`, `Vec`, `String`, `Rc`, `Arc`, `BTreeMap` |
 | `std` | an operating system | files, threads, sockets, time, `HashMap`, `println!`, and a re-export of the other two |
 
-`std::cmp::max` **is** `core::cmp::max` — the same function, reached by a
+`std::cmp::max` **is** `core::cmp::max`, the same function reached by a
 different path. `std::vec::Vec` **is** `alloc::vec::Vec`. Most of what you have
 written so far was never using `std` for anything but the name.
 
@@ -36,14 +36,14 @@ is in `core`, and the fix is one word in a `use`.
 ### The interesting exclusions
 
 `HashMap` is in `std`, not `alloc`, because its default hasher seeds itself from
-the operating system's randomness — no OS, no seed. Use `BTreeMap`, or a
-fixed-capacity map from `heapless`.
+the operating system's randomness. With no OS there is no seed. Use `BTreeMap`,
+or a fixed-capacity map from `heapless`.
 
 `f32::sqrt`, `sin`, `ln` and friends are in `std`, not `core`, because they are
 implemented by calling the platform's C maths library. Arithmetic, comparison,
-`abs` and `to_bits` are in `core` — those are instructions. For the rest, add the
-`libm` crate, or notice you were only comparing distances and never needed the
-root.
+`abs` and `to_bits` are in `core`, because those are instructions. For the rest,
+add the `libm` crate, or notice that you were only comparing distances and never
+needed the root.
 
 ## Turning it off
 
@@ -55,8 +55,8 @@ root.
 
 One crate attribute. It stops `std` being linked and swaps the prelude for
 `core::prelude`, so `Vec`, `String`, `Box`, `println!` and `format!` disappear
-from scope. `Option`, `Result`, `Iterator`, `Some`, `Ok`, `drop` and `Clone` stay
-— they were always `core`.
+from scope. `Option`, `Result`, `Iterator`, `Some`, `Ok`, `drop` and `Clone`
+stay, because they were always `core`.
 
 If you do have a heap, opt back in explicitly:
 
@@ -84,8 +84,8 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 
 `std` provided this: print the message, unwind, abort. Without `std`, `panic!`
 has nowhere to go, so the language requires exactly one **panic handler** in the
-final binary. In practice you pull one in as a crate — `panic-halt`,
-`panic-reset`, `panic-probe` — and choose behaviour by choosing a dependency.
+final binary. In practice you pull one in as a crate (`panic-halt`,
+`panic-reset`, `panic-probe`) and choose the behaviour by choosing a dependency.
 
 If you want `alloc`, you must also say where memory comes from:
 
@@ -96,8 +96,8 @@ static HEAP: embedded_alloc::LlffHeap = embedded_alloc::LlffHeap::empty();
 
 :::gotcha
 Most embedded Rust never declares an allocator. Not because it cannot, but
-because a fixed 32 kB of RAM plus a heap that can fragment is a bad trade — a
-firmware that allocates can fail at hour 400 in a way that never appeared on the
+because a fixed 32 kB of RAM plus a heap that can fragment is a bad trade.
+Firmware that allocates can fail at hour 400 in a way that never appeared on the
 bench. `heapless` gives you `Vec`, `String` and queues with a capacity in the
 type: `heapless::Vec<u8, 64>` lives entirely in the struct.
 :::
@@ -112,12 +112,11 @@ cargo build --release --target thumbv7em-none-eabihf
 ```
 
 That string is a **target triple**. `thumbv7em` is the instruction set, `none`
-is the operating system — literally none — and `eabihf` is the ABI, with
-hardware floats. Compare
-`x86_64-unknown-linux-gnu` or `wasm32-unknown-unknown`.
+is the operating system, literally none, and `eabihf` is the ABI, with hardware
+floats. Compare `x86_64-unknown-linux-gnu` or `wasm32-unknown-unknown`.
 
 :::compare
-**C** — cross-compiling means acquiring a toolchain, a sysroot and a libc for the
+**C.** Cross-compiling means acquiring a toolchain, a sysroot and a libc for the
 target, and every dependency you use must have been taught to build for it.
 
 Rust ships the `core` and `alloc` source with the compiler and builds them for
@@ -143,9 +142,9 @@ runner = "probe-rs run --chip STM32F411RETx"
 
 A Rust binary starts at your entry point. There is no garbage collector to
 schedule, no green-thread scheduler, no reflection metadata, no exception tables
-unless you asked for unwinding. That is not an embedded feature — it is the same
-property that lets Rust be called from C — but it is what makes 20 kB of flash a
-realistic budget.
+unless you asked for unwinding. That is not an embedded feature; it is the same
+property that lets Rust be called from C. What it buys you here is a flash
+budget of 20 kB that a real program can live inside.
 
 And **zero-cost abstraction** stops being a slogan when the alternative is
 counting instructions. An iterator chain over a slice compiles to the same loop
@@ -154,19 +153,19 @@ write; a `PhantomData` field occupies nothing.
 
 ### Ownership describes hardware exactly
 
-There is one UART on the chip. Not "one per thread" or "one you should be careful
-about" — one, physically. Ownership already means exactly that: one value, one
-owner, and passing it moves it.
+There is one UART on the chip. Not "one per thread", and not "one you should be
+careful about". One, physically. Ownership already means exactly that: one
+value, one owner, and passing it moves it.
 
 :::note
 A peripheral is a resource with exactly one owner, which is the case ownership
 was designed for. The HAL hands out each peripheral once, from a `take()` that
-returns `Option` and yields `None` the second time — so two drivers cannot both
+returns `Option` and yields `None` the second time, so two drivers cannot both
 believe they own the serial port.
 :::
 
-`embedded-hal` turns that into portability. A driver is written against traits —
-`OutputPin`, `SpiDevice`, `DelayNs` — and every chip's HAL crate implements them:
+`embedded-hal` turns that into portability. A driver is written against traits
+(`OutputPin`, `SpiDevice`, `DelayNs`) and every chip's HAL crate implements them:
 
 ```rust
 pub struct Led<P: OutputPin> { pin: P }
@@ -180,8 +179,8 @@ the register write and there is no vtable.
 
 ### Configuration in the type
 
-The most elegant thing in embedded Rust, and it is just generics. The name for
-it is the **typestate** pattern.
+The neatest thing in embedded Rust, and it is only generics. The name for it is
+the **typestate** pattern.
 
 ```rust
 pub struct Pin<STATE> { number: u8, _state: PhantomData<STATE> }
@@ -203,7 +202,7 @@ Driving an unconfigured pin is not a bug you catch in review; it is
 `error[E0599]`, and the C version of it is an afternoon with an oscilloscope
 wondering why the input floats.
 
-`into_output` takes `self`, so the old handle is consumed — the pin has one
+`into_output` takes `self`, so the old handle is consumed. The pin has one
 configuration at a time, enforced by the same move rule as a `String`.
 
 :::memory the state weighs nothing
@@ -220,8 +219,8 @@ configuration at a time, enforced by the same move rule as a `String`.
 
 That is why the pattern is affordable on a part where every byte of RAM is
 counted: the state machine is erased before code generation. It generalises past
-hardware — a builder that must be finished, a connection that must be opened —
-wherever an order exists and getting it wrong is expensive.
+hardware, to a builder that must be finished or a connection that must be
+opened, wherever an order exists and the wrong order is expensive.
 
 ## Interrupts
 
@@ -246,9 +245,9 @@ TICKS.fetch_add(1, Ordering::Relaxed);
 
 ### When a counter is not enough
 
-Sharing a struct needs a lock, and `std::sync::Mutex` is not available — it
-blocks the thread, and on a microcontroller blocking inside an interrupt is a
-deadlock with no scheduler to break it.
+Sharing a struct needs a lock, and `std::sync::Mutex` is not available. It
+blocks the thread, and on a microcontroller a block inside an interrupt is a
+deadlock with no scheduler left to break it.
 
 ```rust
 critical_section::with(|cs| {
@@ -260,10 +259,10 @@ That is a **critical section**. The crate disables interrupts for the duration o
 bare metal and takes a real lock on a hosted target, so the same driver compiles
 for both. The `cs` token
 is the interesting part: it carries no data, costs nothing, and exists only as
-proof that interrupts are off — and it is required to reach the data.
+proof that interrupts are off. Nothing reaches the data without it.
 
 :::gotcha
-Not every chip has atomics. Thumbv6 parts — Cortex-M0, RP2040 — have no atomic
+Not every chip has atomics. Thumbv6 parts (Cortex-M0, RP2040) have no atomic
 read-modify-write instruction at all, so `AtomicU32::fetch_add` does not exist
 there. `portable-atomic` fills the gap using critical sections.
 :::
@@ -287,8 +286,8 @@ handful of bytes on the wire and almost nothing in flash.
 shape: no files, no threads, no clock, nothing but the module and its imports.
 
 The difference is that a browser gives you an allocator, so `alloc` and therefore
-`Vec` and `String` work fine, and much of `std` compiles — it just panics or
-returns errors at the points that would need a syscall. `wasm32-wasip1` adds a
+`Vec` and `String` work fine, and much of `std` compiles. It panics or returns
+errors only at the points that would need a syscall. `wasm32-wasip1` adds a
 capability-based system interface and gets you most of `std` back.
 
 The lesson is the general one. Once you know which layer a thing lives in, you

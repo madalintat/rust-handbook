@@ -28,7 +28,7 @@ pub trait Iterator {
 
 `next` advances the iterator and yields `Some(item)`, or `None` when it is
 finished. That is the entire contract. `map`, `filter`, `sum`, `fold`, `collect`
-are **default methods** — code that already exists in the trait, calling `next`
+are **default methods**, code that already exists in the trait and calls `next`
 through `Self`. Implement `next` and you inherit all of it without writing a
 line.
 
@@ -68,7 +68,7 @@ let names = vec!["ada", "grace"];
 names.iter().map(|n| expensive(n));   // warning: unused `Map` that must be used
 ```
 
-`expensive` is never called. Not once. `map` does not map — it *returns a struct*
+`expensive` is never called. Not once. `map` does not map. It *returns a struct*
 called `Map` holding the source iterator and the closure, and that struct sits
 there doing nothing until somebody calls `next` on it. Every adapter is like
 this, which is why they all carry `#[must_use]`: dropping one on the floor is
@@ -99,12 +99,11 @@ let n = (1..=3)
 ```
 
 prints `map 1`, `filter 2`, `map 2`, `filter 4`, `map 3`, `filter 6`. Each
-element travels the entire chain before the next one is pulled. The stages are
-interleaved because there is nowhere to buffer a stage — no intermediate
-collection exists.
+element travels the entire chain before the next one is pulled. The stages
+interleave because no intermediate collection exists to hold one.
 
 :::compare
-**Python** — a list comprehension `[f(x) for x in xs]` builds the whole list;
+**Python**: a list comprehension `[f(x) for x in xs]` builds the whole list;
 `map`/`filter`/generators are lazy like Rust's. **Java** streams and **C++20**
 ranges match Rust closely. **Go** has neither, so the loop is written out.
 
@@ -117,17 +116,17 @@ eager version parses a million things and throws away 999,999 of them.
 
 | call | yields | what happens to the collection |
 |---|---|---|
-| `v.iter()` | `&T` | borrowed — `v` is usable afterwards |
-| `v.iter_mut()` | `&mut T` | borrowed uniquely — you may write through it |
-| `v.into_iter()` | `T` | consumed — `v` is moved and gone |
+| `v.iter()` | `&T` | borrowed; `v` is usable afterwards |
+| `v.iter_mut()` | `&mut T` | borrowed uniquely, so you may write through it |
+| `v.into_iter()` | `T` | consumed; `v` is moved and gone |
 
 That is ownership from unit 05 with nothing added. An iterator is just another
 value that holds either a borrow or the thing itself.
 
 ```rust
-for s in &v      { }   // iter()      — s: &String,     v survives
-for s in &mut v  { }   // iter_mut()  — s: &mut String, v survives
-for s in v       { }   // into_iter() — s: String,      v is moved
+for s in &v      { }   // iter()      → s: &String,     v survives
+for s in &mut v  { }   // iter_mut()  → s: &mut String, v survives
+for s in v       { }   // into_iter() → s: String,      v is moved
 ```
 
 `for` reaches its decision by calling `IntoIterator::into_iter` on whatever it
@@ -167,7 +166,7 @@ expected. The name `into_` describes only one of the three impls.
 
 ```rust
 let v = [1, 5, 2];
-v.iter().take_while(|n| **n < 3).count();   // 1 — the 5 ends it, 2 is never seen
+v.iter().take_while(|n| **n < 3).count();   // 1: the 5 ends it, 2 is never seen
 v.iter().filter(|n| **n < 3).count();       // 2
 ```
 
@@ -180,8 +179,8 @@ at contiguous memory that a general iterator does not have:
 
 ```rust
 let temps = [3, 7, 4, 9];
-let rises = temps.windows(2).filter(|w| w[1] > w[0]).count();   // 2 — overlapping
-let pairs = temps.chunks(2);                                     // [3,7] [4,9] — not
+let rises = temps.windows(2).filter(|w| w[1] > w[0]).count();   // 2 (overlapping)
+let pairs = temps.chunks(2);                                     // [3,7] [4,9] (no overlap)
 ```
 
 ### Consumers
@@ -192,7 +191,7 @@ Something has to call `next`, and that something is a consumer.
 |---|---|
 | `collect()` | anything implementing `FromIterator` |
 | `sum()` / `product()` | one number |
-| `fold(init, f)` | one value — the operation the rest are built from |
+| `fold(init, f)` | one value: the operation the rest are built from |
 | `count()` / `last()` / `nth(n)` | |
 | `any(p)` / `all(p)` / `find(p)` / `position(p)` | short-circuiting |
 | `min_by_key(f)` / `max_by_key(f)` | an `Option` |
@@ -237,13 +236,14 @@ means this and never means anything else.
 ```rust
 let nums: Result<Vec<i32>, _> =
     ["1", "2", "x", "4"].iter().map(|s| s.parse::<i32>()).collect();
-// Err(ParseIntError { .. })  — and "4" was never parsed
+// Err(ParseIntError { .. });  "4" was never parsed
 ```
 
 An iterator of `Result<T, E>` collects into `Result<Vec<T>, E>`. All `Ok` gives
 the vector; the first `Err` is returned immediately and the rest of the iterator
 is never advanced. One method replaces a loop, a `mut` vector, a `match` and an
-early `return` — and it short-circuits, which the naive loop usually forgets to.
+early `return`, and it short-circuits, which the hand-written loop usually forgets
+to do.
 
 The same impl exists for `Option`, and for every target collection, so
 `Result<HashMap<_, _>, E>` works identically.
@@ -280,6 +280,40 @@ again afterwards, and some deliberately do. Adapters that need the guarantee cal
 Make your own `next` stay `None`. Do not assume anyone else's does.
 :::
 
+## What the optimiser does next
+
+### One instruction, four numbers
+
+Once an adapter chain has become a plain loop, it becomes eligible for something
+better. A modern CPU can add four or eight `f32` values in a single instruction,
+and LLVM will rewrite a loop to use those instructions when it can prove the
+iterations are independent and the count is known.
+
+```rust
+pub fn dot(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b).map(|(x, y)| x * y).sum()
+}
+```
+
+That compiles to a loop over four-wide SIMD multiplies and adds, not to four
+separate scalar operations. The iterator version is often easier for LLVM to
+vectorise than the index version, because `zip` establishes that both slices are
+walked in step and no bounds check survives inside the body.
+
+:::gotcha
+Floating point addition is not associative, so summing in a different order can
+give a different answer. LLVM will not reorder your `f32` sum without permission,
+which means `sum()` over floats stays scalar. That is a correctness decision, not
+a missed optimisation, and it is why numerical libraries expose an explicit
+"fast math" opt-in rather than silently taking it.
+
+Integer sums have no such problem and do vectorise.
+:::
+
+`std::simd` exists on nightly for the cases where you want to say it explicitly
+rather than hope the optimiser noticed. Reach for it after you have looked at the
+generated assembly, not before.
+
 ## The zero-cost claim
 
 ```rust
@@ -290,11 +324,11 @@ compiles to the same machine code as the `for` loop with an `if` in it. That is
 worth justifying rather than asserting, and the justification is three steps:
 
 1. **The chain is a value, not a pipeline.** `Sum<Map<Filter<Range>>>` is one
-   struct built from three, entirely on the stack. No allocation, no channel,
-   no intermediate `Vec`.
+   struct built from three, entirely on the stack. Nothing is allocated and no
+   intermediate `Vec` is ever built.
 2. **Every call is statically known.** The closures are unique unnameable types,
-   so `Filter::next` calls *this* predicate, not a function pointer. There is no
-   vtable and nothing to guess.
+   so `Filter::next` calls *this* predicate directly, rather than through a
+   function pointer or a vtable.
 3. **So it all inlines.** `Range::next` into `Filter::next` into `Map::next` into
    the loop inside `sum`. What is left after inlining is a counter, a modulo, a
    multiply and an add.
@@ -303,8 +337,9 @@ The loop you would have written, arrived at by inlining rather than by trust.
 
 Often it is faster than the index loop, for a reason worth knowing: `for i in
 0..v.len() { v[i] }` performs a bounds check on every access, because the
-compiler must prove `i` is in range at each one. `for x in &v` performs none —
-the iterator holds the end pointer and cannot walk off it by construction.
+compiler must prove `i` is in range at each one. `for x in &v` performs none,
+because the iterator holds the end pointer and cannot walk off it by
+construction.
 
 :::note
 The costs are real but they are not run time. A chain of eight adapters is a type

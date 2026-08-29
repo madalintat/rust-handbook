@@ -55,14 +55,14 @@ pub fn run() -> String {
 @hint Delete `: String`. Inference will take the type from the call.
 
 @diagnose E0308
-`expected String, found usize` — and the word order is the whole message.
+`expected String, found usize`, and the word order is the whole message.
 **Expected** is what the surrounding context demanded; **found** is what the
 expression actually produced. Here the context is your own annotation
 `let n: String`, and the expression is `line_count(text)`, which returns `usize`.
 
 Look at what rustc underlines. The primary `^^^^^^^^^^^^^^^^` sits under the
-call — the expression that produced the wrong type — and a secondary `------`
-sits under `String`, labelled `expected due to this`. That secondary marker is
+call, the expression that produced the wrong type, and a secondary `------` sits
+under `String`, labelled `expected due to this`. That secondary marker is
 rustc telling you *where the expectation came from*. Nine times out of ten the
 bug is at the secondary marker, not the primary one.
 
@@ -70,14 +70,14 @@ bug is at the secondary marker, not the primary one.
 You probably reached for `to_string()` or `format!` in the wrong place and left
 something that cannot be displayed. `{n}` inside `format!` requires `n` to
 implement `Display`; every primitive and `String` does, so if this fired you have
-given it something else — a `Vec`, a tuple, or a `Result`. `{:?}` and `Debug`
+given it something else: a `Vec`, a tuple, or a `Result`. `{:?}` and `Debug`
 cover far more types, but here the fix is to make `n` a plain number.
 
 @after
 `expected ... found ...` is worth reading as a sentence with a subject. The
 compiler never guesses at intent: it takes an expectation from the nearest thing
-that declared one — an annotation, a function's return type, a struct field, the
-other arm of an `if` — and reports the first expression that fails to match it.
+that declared one (an annotation, a function's return type, a struct field, the
+other arm of an `if`) and reports the first expression that fails to match it.
 
 Which means the fix is a choice, not a lookup. Either the expectation is wrong
 (delete or change the annotation) or the expression is wrong (convert it). An
@@ -149,12 +149,12 @@ pub fn run() -> String {
 ```
 
 @hint rustc has already told you the name of the pattern that is missing. Read the `note:`.
-@hint Add the third arm. Resist adding `_ =>` instead — think about what happens the next time a variant is added.
+@hint Add the third arm. Resist adding `_ =>` instead, and think about what happens the next time a variant is added.
 
 @diagnose E0004
 `non-exhaustive patterns: &Level::Error not covered`. The headline names the
-exact pattern missing, which is unusual generosity — most errors describe a
-problem, this one hands you the fix.
+exact pattern missing, which is unusual generosity. Most errors describe a
+problem; this one hands you the fix.
 
 The primary underline is under `l`, the **scrutinee**, not under any arm. That is
 deliberate: no single arm is wrong, the *set* of them is incomplete, so the
@@ -163,7 +163,7 @@ variant's definition in the enum, labelled `not covered`, so you can jump
 straight to what you forgot.
 
 The `help:` suggests `ensure the match is exhaustive by adding the missing
-arm` — take it literally. `_ => ...` also compiles, and gives up the guarantee.
+arm`. Take it literally. `_ => ...` also compiles, and gives up the guarantee.
 
 @after
 This is exhaustiveness earning its keep. Add a fourth variant to `Level` and
@@ -172,8 +172,8 @@ case. That is a refactoring tool: change the type, then let the compiler give yo
 the to-do list.
 
 `_ => "unknown"` switches it off. That arm silently absorbs every future variant,
-and the bug it hides — a new `Level::Fatal` labelled `unknown` in production —
-is exactly what the check existed to prevent. Use `_` when the remaining cases
+and the bug it hides, a new `Level::Fatal` labelled `unknown` in production, is
+exactly what the check existed to prevent. Use `_` when the remaining cases
 genuinely are interchangeable, not to make a message go away.
 
 ## 3. Borrowed for reading, then written
@@ -229,8 +229,9 @@ pub fn run() -> Vec<String> {
 Three markers, and the order they appear in tells the story backwards from the
 crime.
 
-The primary `^^^^^^^^^` is on the first `log.push(...)` — `mutable borrow occurs
-here`. That is where the compiler stopped, not where the problem started. A
+The primary `^^^^^^^^^` is on the first `log.push(...)`, labelled `mutable
+borrow occurs here`. That is where the compiler stopped, not where the problem
+started. A
 secondary `----` on `&log[0]` says `immutable borrow occurs here`, and a third on
 `{first}` two lines below says `immutable borrow later used here`.
 
@@ -240,8 +241,8 @@ starts, and the error evaporates without changing a single type. Borrows end at
 their last use, not at the closing brace.
 
 @diagnose E0499
-You have two unique borrows of `log` alive at once — probably from adding
-`&mut` while the first borrow was still in play. Only one `&mut` to a value may
+You have two unique borrows of `log` alive at once, probably from adding `&mut`
+while the first borrow was still in play. Only one `&mut` to a value may
 exist at a time; that is the entire rule. The fix is the same shape as for
 E0502: shorten the first borrow so it ends before the second begins.
 
@@ -251,8 +252,8 @@ where it is created to its *last use*, not to the end of the block. Which is why
 moving one line up the file is a real fix and not a trick: it changes where the
 last use is.
 
-That also explains why the third marker — `immutable borrow later used here` —
-is the important one. If nothing used `first` after the `push`, the borrow would
+That also explains why the third marker, `immutable borrow later used here`, is
+the important one. If nothing used `first` after the `push`, the borrow would
 already have been dead and there would be no conflict. When you hit E0502, look
 for the `later used here` label and ask whether that use can move earlier or
 disappear.
@@ -324,7 +325,7 @@ pub fn run() -> String {
 }
 ```
 
-@hint Inside `summarise`, what does the compiler know about `T`? Not that it is a `Retry` — it only knows what the signature promised.
+@hint Inside `summarise`, what does the compiler know about `T`? Not that it is a `Retry`. It only knows what the signature promised.
 @hint The signature promised nothing, so `T` could be `u8` or `File`. Neither has `describe`.
 @hint `pub fn summarise<T: Describe>(items: &[T]) -> String`
 
@@ -334,8 +335,8 @@ nobody reads this correctly the first time, because it sounds like a typo report
 It is not.
 
 The compiler is checking `summarise` **once**, generically, knowing only what the
-signature declares about `T` — which here is nothing. So `T` might be `u8`. `u8`
-has no `describe`. Error. The `impl Describe for Retry` is irrelevant, because
+signature declares about `T`, which here is nothing. So `T` might be `u8`, and
+`u8` has no `describe`. Error. The `impl Describe for Retry` is irrelevant, because
 the compiler is not looking at `Retry` yet.
 
 The tell is the `help:` at the bottom: `consider restricting type parameter T`
@@ -359,7 +360,7 @@ E0599 has three causes and only one of them is a typo:
 
 The second is the one that catches everyone with `std::io::Write`: `write!` on a
 `File` fails with E0599 until `use std::io::Write;` is at the top. The method was
-always implemented — you just had not imported the vocabulary to name it.
+always implemented. You had simply not imported the vocabulary to name it.
 
 ## 5. Printable, but not Display
 
@@ -417,11 +418,11 @@ pub fn run() -> String {
 ```
 
 @hint The note says `Config` cannot be formatted with the default formatter. Something has to supply that formatting.
-@hint `Display` is never derived — it is a deliberate, human-facing decision, so you write the `impl` by hand.
+@hint `Display` is never derived. It is a deliberate, human-facing decision, so you write the `impl` by hand.
 @hint `impl std::fmt::Display for Config { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "retries={} verbose={}", self.retries, self.verbose) } }`
 
 @diagnose E0277
-`Config doesn't implement std::fmt::Display` — the headline is a *trait bound*
+`Config doesn't implement std::fmt::Display`. The headline is a *trait bound*
 failure dressed in friendly words. Underneath, `format!` requires its arguments
 to satisfy `T: Display`, and `Config` does not.
 
@@ -437,7 +438,7 @@ usually the part you did not know.
 @diagnose E0119
 You wrote a second `impl Display for Config`, or derived something that already
 exists. Only one implementation of a trait for a type may exist in the whole
-program — that is **coherence**. Delete the duplicate.
+program, which is what **coherence** means. Delete the duplicate.
 
 @after
 The split is a design decision, not an oversight. `Debug` is for you: derivable,
@@ -461,7 +462,7 @@ something wanting `&str`, or an iterator of `&T` to a `collect` wanting `T`. The
 @expect E0106
 
 Two references go in, one comes out. rustc says it needs a lifetime specifier.
-That is not a request for syntax — it is a question, and the question is *which
+That is not a request for syntax. It is a question, and the question is *which
 of the two inputs does the output borrow from?*
 
 Answer it.
@@ -516,7 +517,7 @@ output is tied to, so callers know how long the result stays valid.
 `self` is exactly the case the rules refuse to guess.
 
 @diagnose E0621
-`explicit lifetime required in the type of a` — you named a lifetime on the
+`explicit lifetime required in the type of a`. You named a lifetime on the
 return type but not on every input it can come from. If the function can return
 either argument, both parameters need the same `'a`. Giving `b` its own `'b`
 compiles only if `b` is never returned.
@@ -524,7 +525,7 @@ compiles only if `b` is never returned.
 @after
 `'a` is not a duration and it is not a hint. It is a **claim**: the returned
 reference will not outlive whatever the caller passed in for `'a`. The compiler
-then checks the claim on both sides — inside the body (do you only return things
+then checks the claim on both sides: inside the body (do you only return things
 that live that long?) and at every call site (does the caller keep the result
 past the inputs?).
 
@@ -579,10 +580,10 @@ pub fn run() -> String {
 
 @hint There is no way to return a reference to `s`. `s` does not survive the return, and no lifetime annotation can change that.
 @hint If you built it, you own it. Return the ownership rather than a pointer into a frame that is about to disappear.
-@hint `pub fn banner(name: &str) -> String { format!("== {name} ==") }` — then `run` no longer needs `.to_string()`.
+@hint `pub fn banner(name: &str) -> String { format!("== {name} ==") }`, after which `run` no longer needs `.to_string()`.
 
 @diagnose E0515
-`cannot return reference to local variable s` — and the primary underline is on
+`cannot return reference to local variable s`, and the primary underline is on
 `&s`, the expression being returned, with the note `returns a reference to data
 owned by the current function`.
 
@@ -601,8 +602,8 @@ You changed the return type to `&'a str` and now the compiler wants to know wher
 the function, so no input lifetime describes it. Return `String` instead.
 
 @after
-Notice that `name` could have been returned safely — it is an input reference,
-and it is alive in the caller by construction. What cannot escape is anything
+Notice that `name` could have been returned safely, because it is an input
+reference and is alive in the caller by construction. What cannot escape is anything
 created inside the frame. That is the whole distinction: a function may hand back
 borrows it was *given*, never borrows it *made*.
 
@@ -672,7 +673,7 @@ pub fn run() -> Vec<i32> {
 
 @hint `counts[0]` does not borrow the element. It calls `IndexMut` on the whole vector, and that takes `&mut self`.
 @hint You need something that hands you two disjoint pieces in one call, so the compiler sees one borrow split rather than two overlapping ones.
-@hint `slice::split_at_mut` returns `(&mut [T], &mut [T])` — two non-overlapping halves from a single borrow. Split at `n - 1`.
+@hint `slice::split_at_mut` returns `(&mut [T], &mut [T])`: two non-overlapping halves from a single borrow. Split at `n - 1`.
 
 @diagnose E0499
 `cannot borrow *counts as mutable more than once at a time`. Three markers: the
@@ -680,30 +681,30 @@ primary `^^^^^^` on `&mut counts[n - 1]` (`second mutable borrow occurs here`), 
 secondary on `&mut counts[0]` (`first mutable borrow occurs here`), and a third
 on `*first` (`first borrow later used here`).
 
-The compiler is not being pedantic about indices — it never sees them. `counts[0]`
-desugars to `IndexMut::index_mut(&mut *counts, 0)`, which borrows the **entire
-vector**. Two such calls are two whole-collection borrows, and their indices are
+The compiler is not being pedantic about indices. It never sees them.
+`counts[0]` desugars to `IndexMut::index_mut(&mut *counts, 0)`, which borrows
+the **entire vector**. Two such calls are two whole-collection borrows, and their indices are
 runtime values the borrow checker has no way to compare.
 
 That is why the fix is a different API rather than a rearrangement.
 
 @diagnose E0502
-You mixed a shared and a unique borrow — often by leaving `counts.len()` between
+You mixed a shared and a unique borrow, often by leaving `counts.len()` between
 the two `&mut`, since `len` needs `&self`. Compute the length before the first
 mutable borrow, as the starter already does.
 
 @diagnose E0716
 A temporary you borrowed was dropped at the end of its statement. Usually this
-means a `&mut` was taken from something built in place — bind the value to a
+means a `&mut` was taken from something built in place. Bind the value to a
 variable first so it outlives the borrow.
 
 @after
 `split_at_mut` is the escape hatch, and it is worth knowing that internally it is
 `unsafe`: it hands out two `&mut` derived from one, and the compiler cannot prove
 they are disjoint. A human proved it once, wrote the bounds check, and published
-the guarantee as a safe signature. That is the intended role of `unsafe` — a
-small audited kernel exposing a checkable interface, not an escape used at the
-call site.
+the guarantee as a safe signature. That is the intended role of `unsafe`: a
+small audited kernel behind a checkable interface, rather than an escape used at
+the call site.
 
 The same shape recurs everywhere: `iter_mut` (one borrow, many disjoint items),
 `chunks_mut`, `get_many_mut`, `Cell` and `RefCell` for when the disjointness is

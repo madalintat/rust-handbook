@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Rust Handbook — content/ -> data/.
+"""Rust Handbook: content/ -> data/.
 
 Everything computable once is computed here: word counts, reading minutes,
-heading ids, the table of contents, the glossary's back-references, and — with
---validate — whether each exercise actually behaves the way its author claimed.
+heading ids, the table of contents, the glossary's back-references, and, with --validate,
+whether each exercise actually behaves the way its author claimed.
 
     python3 build.py                       rebuild data/
     python3 build.py --validate            rebuild, then compile every exercise
@@ -53,17 +53,17 @@ TRACK = [
     ("08-structs",      "Structs and methods",        "moss",   "Data with a name, `impl` blocks, and what `&self` versus `self` commits you to."),
     ("09-enums",        "Enums and pattern matching", "moss",   "Sum types, exhaustiveness as a tool rather than a chore, and why `match` catches bugs `switch` cannot."),
     ("10-option",       "Option",                     "moss",   "The null that cannot bite you, and the combinators that keep it from becoming a pyramid."),
-    ("11-collections",  "Collections",                "moss",   "Vec, String, HashMap, VecDeque, BTreeMap — what each one costs and when it reallocates."),
+    ("11-collections",  "Collections",                "moss",   "Vec, String, HashMap, VecDeque, BTreeMap, what each one costs and when it reallocates."),
     ("12-errors",       "Error handling",             "clay",   "Result, `?`, and the difference between an error you handle and a bug you panic on."),
     ("13-generics",     "Generics",                   "slate",  "Monomorphisation: what the compiler actually emits, and why generic Rust costs nothing at runtime."),
     ("14-traits",       "Traits",                     "slate",  "Shared behaviour, coherence, blanket impls, and static versus dynamic dispatch."),
-    ("15-lifetimes",    "Lifetimes",                  "ferris", "Not how long a value lives — a claim the compiler checks. Elision, and why `'a` is not a duration."),
+    ("15-lifetimes",    "Lifetimes",                  "ferris", "Not how long a value lives, a claim the compiler checks. Elision, and why `'a` is not a duration."),
     ("16-closures",     "Closures",                   "plum",   "Fn, FnMut, FnOnce: three traits that describe what a closure does to what it captured."),
     ("17-iterators",    "Iterators",                  "plum",   "Lazy by construction, fused by adapters, and compiled down to the loop you would have written."),
     ("18-smart-ptr",    "Smart pointers",             "plum",   "Box, Rc, RefCell: moving ownership to the heap, sharing it, and moving the borrow check to runtime."),
     ("19-modules",      "Modules and crates",         "slate",  "Paths, visibility, `use`, and how a workspace is laid out."),
     ("20-testing",      "Testing and docs",           "moss",   "`#[test]`, integration tests, and doc comments that are compiled and run."),
-    ("21-concurrency",  "Concurrency",                "rust",   "Send and Sync, threads, channels, and Arc<Mutex<T>> — fearless because the checker is watching."),
+    ("21-concurrency",  "Concurrency",                "rust",   "Send and Sync, threads, channels, and Arc<Mutex<T>>, fearless because the checker is watching."),
     ("22-async",        "Async",                      "rust",   "Futures do nothing until polled, what `.await` compiles into, and where Pin comes from."),
     ("23-unsafe",       "Unsafe",                     "rust",   "The five things it unlocks, the invariants it does not check, and why it is not a licence."),
     ("24-macros",       "Macros",                     "plum",   "macro_rules! matching, hygiene, and what a procedural macro sees."),
@@ -124,7 +124,7 @@ def front_matter(text):
     end = text.find("\n---", 3)
     if end < 0:
         # An unterminated block used to raise ValueError from deep inside the
-        # build, with a traceback naming no file — leaving the author to bisect
+        # build, with a traceback naming no file, leaving the author to bisect
         # 56 markdown files by hand.
         raise ValueError("front matter opened with --- but never closed")
     meta = {}
@@ -137,14 +137,14 @@ def front_matter(text):
 
 GLOSSARY = {}
 GLOSS_USE = {}
-_CUR = {"unit": None, "title": None}
+_CUR = {"unit": None, "title": None, "kind": "unit"}
 
 
 def load_glossary():
     """The shared file, then one optional file per unit.
 
     Per-unit files exist so several authors can add terms at once without
-    editing — and corrupting — one shared JSON document. Later files win on a
+    editing, and corrupting, one shared JSON document. Later files win on a
     duplicate key, which is fine: the definitions agree or the later author had
     a reason.
     """
@@ -188,7 +188,7 @@ def inline(text):
         entry = GLOSSARY.get(re.sub(r"<[^>]+>", "", term).lower())
         if entry:
             GLOSS_USE.setdefault(entry["t"].lower(), set()).add(
-                (_CUR["unit"], _CUR["title"])
+                (_CUR["unit"], _CUR["title"], _CUR["kind"])
             )
             return (
                 f'<span class="term" data-g="{html.escape(entry["p"], quote=True)}"'
@@ -220,7 +220,7 @@ def read_fence(lines, i):
     """Consume a fenced block starting at lines[i].
 
     Returns (info, code, next_i, raw). `raw` is the block exactly as written,
-    fences and all — because a caller that only wants to ROUTE the block must
+    fences and all, because a caller that only wants to ROUTE the block must
     not re-serialise it. Two of the three callers used to rebuild it with three
     backticks, which silently truncated every ````markdown example an author
     put inside an @after or @diagnose, at the first inner fence.
@@ -240,7 +240,7 @@ def read_fence(lines, i):
 
 
 # ```rust,bad marks code that is supposed to fail; the border says so before the
-# reader has read a character of it. Any other info string is just a label —
+# reader has read a character of it. Any other info string is just a label, 
 # never a lookup that can fail, because authors write ```no_run and ```text too.
 TONES = {"bad": "will not compile", "good": "compiles"}
 
@@ -255,7 +255,7 @@ def fence_meta(info):
 
 
 # Every block opener render() branches on. It lives here rather than inline in
-# the paragraph loop so the two cannot drift apart unnoticed — they already had.
+# the paragraph loop so the two cannot drift apart unnoticed. They already had.
 BLOCK_START = re.compile(r"^\s*(```|:::|#{1,4}\s|>\s|[-*]\s|\d+\.\s|\|)")
 
 CALLOUTS = {
@@ -422,7 +422,7 @@ def split_parts(body, seen, toc):
                 "title": title,
                 # One field, not two. `html` and `intro` were provably equal for
                 # every part in the book, so the reader was downloading each
-                # part's markup twice — 118 KB of 705 KB.
+                # part's markup twice: 118 KB of 705 KB.
                 "intro": intro,
                 "subs": subs,
                 "words": w,
@@ -439,7 +439,7 @@ def build_units():
         slug = meta.get("slug", path.stem)
         if slug not in ORDER:
             # Without this the unit builds, prints its word count, satisfies the
-            # author's definition of done — and is invisible in the app, because
+            # author's definition of done, and is invisible in the app, because
             # only TRACK produces manifest entries.
             raise ValueError(
                 f"{path.name}: slug {slug!r} is not in TRACK. "
@@ -449,7 +449,7 @@ def build_units():
             got = meta.get(key)
             if got is not None and str(got) != str(want):
                 print(f"  ! {path.name}: front-matter {key}={got!r} ignored; TRACK says {want!r}")
-        _CUR["unit"], _CUR["title"] = slug, TITLES[slug]
+        _CUR["unit"], _CUR["title"], _CUR["kind"] = slug, TITLES[slug], "unit"
 
         seen, toc = {}, []
         lead, parts = split_parts(body, seen, toc)
@@ -513,8 +513,8 @@ def parse_exercise(block, n_default):
     sink = None  # where loose content currently goes
 
     def emit(text):
-        """Route one chunk to the active sink. Written twice — once for prose,
-        once for fences — the two copies disagreed, and a fence inside a
+        """Route one chunk to the active sink. Written twice, once for prose,
+        once for fences, the two copies disagreed, and a fence inside a
         @diagnose landed in the brief, giving the answer away."""
         if isinstance(sink, tuple) and sink[0] == "diagnose":
             ex["diagnose"][sink[1]].append(text)
@@ -545,7 +545,7 @@ def parse_exercise(block, n_default):
                 # Not every rustc error has a code. `const LIMIT = 4;` gives a
                 # bare "missing type for const item", and an exercise built on
                 # one could previously assert nothing at all about why its
-                # starter failed — so it would keep passing validation even if
+                # starter failed, so it would keep passing validation even if
                 # it began failing for a completely different reason.
                 if not val:
                     ex["expect"] = None
@@ -581,19 +581,26 @@ def parse_exercise(block, n_default):
 
 
 def parse_exercise_file(path):
-    """One `content/ex/*.md` -> (slug, exercises). Shared by the builder and by
-    --check, which used to keep its own copy of this and quietly dropped the
-    _CUR line, misfiling every glossary term it saw."""
+    """One exercise or project file -> (meta, slug, lead, items).
+
+    The single parser for anything shaped as `## N. Title` blocks: a unit's
+    exercises, a project's stages, and whatever --check is pointed at. Three
+    copies of this existed at various times and each one drifted in the line
+    that sets _CUR, which is how glossary terms ended up filed under the wrong
+    unit and then under the wrong kind.
+    """
     meta, body = front_matter(path.read_text())
-    slug = meta.get("unit", path.stem)
-    # inline() attributes each glossary hit to _CUR. Leaving it pointing at the
-    # last unit build_units() saw made every term bolded in an exercise or drill
-    # claim to live in whichever unit sorted last.
-    _CUR["unit"], _CUR["title"] = slug, TITLES.get(slug, slug)
-    _, blocks = sections(body)
-    exs = [parse_exercise(b, i) for i, b in enumerate(blocks, 1)]
-    exs.sort(key=lambda e: e["n"])
-    return slug, exs
+    slug = meta.get("unit") or meta.get("project") or path.stem
+    kind = "project" if meta.get("project") else "unit"
+    # inline() attributes each glossary hit to _CUR, and a chip built from the
+    # wrong slug or kind links to a route that does not exist.
+    _CUR["unit"] = slug
+    _CUR["title"] = TITLES.get(slug, meta.get("title", slug))
+    _CUR["kind"] = kind
+    lead, blocks = sections(body)
+    items = sorted((parse_exercise(b, i) for i, b in enumerate(blocks, 1)),
+                   key=lambda e: e["n"])
+    return meta, slug, lead, items
 
 
 def build_exercises():
@@ -602,11 +609,80 @@ def build_exercises():
     if not d.exists():
         return got
     for path in sorted(d.glob("*.md")):
-        slug, exs = parse_exercise_file(path)
+        _, slug, _, exs = parse_exercise_file(path)
         (OUT / "ex").mkdir(parents=True, exist_ok=True)
         (OUT / "ex" / f"{slug}.json").write_text(json.dumps({"unit": slug, "exercises": exs}))
         got[slug] = exs
         print(f"  ex    {slug:18s} {len(exs):3d} exercises")
+    return got
+
+
+# --------------------------------------------------------------------------
+# projects
+# --------------------------------------------------------------------------
+
+
+# Tiers, so the section reads as a shelf rather than a pile. A mini is one idea
+# done properly in an evening; a core project is a real program; a deep one is a
+# weekend and leaves you with something you would actually reach for.
+TIERS = {
+    "mini": ("Mini", "four stages, one idea, about twenty minutes"),
+    "core": ("Core", "eight stages, a real program end to end"),
+    "deep": ("Deep", "twelve stages or more, a weekend, something you would use"),
+}
+TIER_ORDER = ["mini", "core", "deep"]
+
+DOMAINS = ["ai", "systems", "languages", "network", "graphics",
+           "data", "crypto", "games", "tools", "embedded"]
+
+
+def build_projects():
+    """One real program, built in eight stages.
+
+    A stage is an exercise, so this reuses the exercise parser wholesale. What a
+    project adds is an introduction and the promise that stage N's starter is
+    stage N-1's finished code: the reader edits one growing program rather than
+    eight unrelated snippets.
+    """
+    got = {}
+    d = CONTENT / "projects"
+    if not d.exists():
+        return got
+    for path in sorted(d.glob("*.md")):
+        meta, slug, intro_raw, stages = parse_exercise_file(path)
+        intro = render(intro_raw) if intro_raw.strip() else ""
+
+        words = words_of(intro) + sum(words_of(s["brief"]) + words_of(s["after"]) for s in stages)
+        if slug in ORDER:
+            # The two are merged by slug for validation and share a cache key
+            # space, so a collision would silently drop a unit's exercises.
+            raise ValueError(
+                f"{path.name}: project slug {slug!r} collides with a unit slug"
+            )
+        tier = meta.get("tier", "core")
+        if tier not in TIERS:
+            raise ValueError(f"{path.name}: tier {tier!r} is not one of {list(TIERS)}")
+        domain = meta.get("domain", "tools")
+        if domain not in DOMAINS:
+            raise ValueError(f"{path.name}: domain {domain!r} is not one of {DOMAINS}")
+
+        project = {
+            "slug": slug,
+            "title": meta.get("title", slug),
+            "accent": meta.get("accent", "plum"),
+            "blurb": meta.get("blurb", ""),
+            "tier": tier,
+            "domain": domain,
+            "needs": [x.strip() for x in meta.get("needs", "").split(",") if x.strip()],
+            "mins": int(meta.get("mins", 0)) or max(20, mins_of(words) + 4 * len(stages)),
+            "words": words,
+            "intro": intro,
+            "stages": stages,
+        }
+        (OUT / "project").mkdir(parents=True, exist_ok=True)
+        (OUT / "project" / f"{slug}.json").write_text(json.dumps(project))
+        got[slug] = stages
+        print(f"  proj  {slug:18s} {len(stages):3d} stages  {words:5,d} words")
     return got
 
 
@@ -623,7 +699,7 @@ def build_drills():
     for path in sorted(d.glob("*.md")):
         meta, body = front_matter(path.read_text())
         slug = meta.get("unit", path.stem)
-        _CUR["unit"], _CUR["title"] = slug, TITLES.get(slug, slug)
+        _CUR["unit"], _CUR["title"], _CUR["kind"] = slug, TITLES.get(slug, slug), "unit"
         _, blocks = sections(body)
         qs = []
         for head, raw in blocks:
@@ -665,10 +741,29 @@ def build_drills():
 
 
 # --------------------------------------------------------------------------
-# validation — the only opinion in this file the compiler can overrule
+# validation, the only opinion in this file the compiler can overrule
 # --------------------------------------------------------------------------
 
 PLAY = "https://play.rust-lang.org/execute"
+VERSIONS = "https://play.rust-lang.org/meta/versions"
+
+
+def toolchain():
+    """Which rustc the exercises were validated against.
+
+    Worth recording rather than assuming: the playground tracks stable, so the
+    compiler under the exercises moves on its own every six weeks. When the
+    version in the manifest and the version answering today diverge, that is
+    exactly the window in which a diagnostic can change out from under an
+    exercise, which is the whole reason --validate exists.
+    """
+    try:
+        req = urllib.request.Request(VERSIONS, headers={"User-Agent": "rust-handbook-build"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            v = json.load(r)["stable"]["rustc"]
+        return {"version": v["version"], "date": v["date"], "hash": v["hash"][:9]}
+    except Exception:
+        return None
 CACHE = OUT / ".validate-cache.json"
 
 
@@ -708,6 +803,31 @@ def first_error_line(stderr):
                 "unknown failure")
 
 
+def ref_of(slug, ex):
+    """The one spelling of a cache ref. It was written out in two places, and a
+    change to the format would have silently emptied the carry-forward's set
+    intersection, reporting every item as never validated."""
+    return f"{slug}#{ex['n']}"
+
+
+def cache_split(items):
+    """(cache, refs the cache still speaks for, refs it does not).
+
+    "The cache covers this item" means its key still matches, not merely that an
+    entry exists. validate() always knew that; the carry-forward used presence
+    alone, so an exercise edited since the last run counted as validated and
+    replayed the finding from the version that no longer exists. That is the
+    exact bug cache_key was introduced to fix, returning one layer up.
+    """
+    cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+    fresh, stale = set(), set()
+    for slug, exs in items.items():
+        for ex in exs:
+            ref = ref_of(slug, ex)
+            (fresh if cache.get(ref, {}).get("key") == cache_key(ex) else stale).add(ref)
+    return cache, fresh, stale
+
+
 def cache_key(ex):
     """Everything a verdict depends on.
 
@@ -715,7 +835,7 @@ def cache_key(ex):
     which meant the fix for "no @diagnose written for E0382" did not change the
     key: the author added the block, re-ran, and got the identical stale finding
     replayed out of the cache with no way to clear it short of deleting the file.
-    `kind` matters too — flipping to `predict` skips the starter compile
+    `kind` matters too, flipping to `predict` skips the starter compile
     entirely.
     """
     payload = "\x00".join([
@@ -754,7 +874,7 @@ def expect_findings(ex, stderr):
 def check_exercise(ex):
     """The single definition of "this exercise is sound". Both --validate and
     --check call it, so the two runners cannot drift into grading content by
-    different rulebooks — which they had already started to do."""
+    different rulebooks, which they had already started to do."""
     out = []
     if not ex["starter"]:
         out.append("no starter")
@@ -797,22 +917,22 @@ def validate(exercises, workers=4):
 
     446 round-trips at roughly 1.5s each is 11 minutes of sitting in urlopen, so
     they run four at a time. Concurrency does not increase the load on the
-    playground — the same 446 requests either way — only its density, and the
+    playground, the same 446 requests either way, only its density, and the
     content hash means an unchanged rebuild sends none at all. Four is chosen to
     stay comfortably inside what one ordinary user of a free service looks like.
     """
-    cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+    cache, fresh, _ = cache_split(exercises)
     findings, checked, cached = [], 0, 0
     todo = []
 
     for slug, exs in exercises.items():
         for ex in exs:
-            ref, key = f"{slug}#{ex['n']}", cache_key(ex)
-            if cache.get(ref, {}).get("key") == key:
+            ref = ref_of(slug, ex)
+            if ref in fresh:
                 cached += 1
                 findings.extend(cache[ref]["findings"])
             else:
-                todo.append((ref, key, ex))
+                todo.append((ref, cache_key(ex), ex))
 
     def record(ref, key, local):
         cache[ref] = {"key": key, "findings": local}
@@ -830,7 +950,7 @@ def validate(exercises, workers=4):
                 record(ref, key, [{"ref": ref, "what": w} for w in fut.result()])
     finally:
         # Written whatever happens. Losing eleven minutes of someone else's CPU
-        # to a Ctrl-C — and then asking the same free service for it again — is
+        # to a Ctrl-C, and then asking the same free service for it again, is
         # not a reasonable thing to do.
         CACHE.write_text(json.dumps(cache))
 
@@ -842,7 +962,7 @@ def validate(exercises, workers=4):
 # --------------------------------------------------------------------------
 
 
-def build_manifest(units, exercises, drills, audit):
+def build_manifest(units, exercises, drills, projects, audit):
     entries = []
     for i, (slug, title, accent, blurb) in enumerate(TRACK):
         u = units.get(slug)
@@ -861,19 +981,48 @@ def build_manifest(units, exercises, drills, audit):
             "drills": len(drills.get(slug, [])),
         })
 
+    project_entries = []
+    for slug in sorted(projects):
+        pj = json.loads((OUT / "project" / f"{slug}.json").read_text())
+        project_entries.append({k: pj[k] for k in
+                                ("slug", "title", "accent", "blurb", "tier", "domain",
+                                 "needs", "mins", "words")}
+                               | {"stages": len(pj["stages"])})
+
+    # Ordered by tier, then by how far into the track their prerequisites reach,
+    # so reading the list top to bottom is a sensible order to actually do them in.
+    project_entries.sort(key=lambda p: (
+        TIER_ORDER.index(p["tier"]),
+        max([ORDER.get(n, 0) for n in p["needs"]] or [0]),
+        p["title"],
+    ))
+
     manifest = {
         "title": "Rust Handbook",
         "units": entries,
+        "projects": project_entries,
+        "tiers": {k: {"name": v[0], "note": v[1]} for k, v in TIERS.items()},
         "totals": {
             "units": len(entries),
             "ready": sum(1 for e in entries if e["ready"]),
-            "words": sum(e["words"] for e in entries),
-            "mins": sum(e["mins"] for e in entries),
+            "words": sum(e["words"] for e in entries) + sum(p["words"] for p in project_entries),
+            "unit_words": sum(e["words"] for e in entries),
+            # Reading minutes, derived from words the same way for both. A
+            # project's own `mins` is how long the whole build takes, which is a
+            # different quantity and lives in `project_mins`; adding it here
+            # would put "17 hours of reading" under a word count of 72,000.
+            "mins": sum(e["mins"] for e in entries)
+                    + sum(mins_of(p["words"]) for p in project_entries),
+            "unit_mins": sum(e["mins"] for e in entries),
+            "project_mins": sum(p["mins"] for p in project_entries),
             "exercises": sum(e["exercises"] for e in entries),
             "drills": sum(e["drills"] for e in entries),
+            "projects": len(project_entries),
+            "stages": sum(p["stages"] for p in project_entries),
             "terms": len(GLOSSARY),
         },
         "audit": audit,
+        "edition": "2024",
     }
     (OUT / "manifest.json").write_text(json.dumps(manifest))
 
@@ -898,7 +1047,7 @@ def build_glossary():
             "t": e["t"],
             "p": e["p"],
             "x": e.get("x", ""),
-            "in": [{"s": s, "n": n} for s, n in used if s],
+            "in": [{"s": slug, "n": name, "k": kind} for slug, name, kind in used if slug],
         })
     (OUT / "glossary.json").write_text(json.dumps({"terms": terms}))
     return terms
@@ -920,7 +1069,7 @@ def check_one(path):
         print(f"no such file: {p}")
         return 1
 
-    slug, exs = parse_exercise_file(p)
+    _, slug, _, exs = parse_exercise_file(p)
     print(f"{slug}: {len(exs)} exercises")
 
     findings = []
@@ -931,7 +1080,7 @@ def check_one(path):
         findings.extend(local)
 
     if findings:
-        print(f"\n{len(findings)} finding(s) — fix and re-run")
+        print(f"\n{len(findings)} finding(s). Fix and re-run.")
         return 1
     print(f"\n{len(exs)} clean")
     return 0
@@ -948,24 +1097,60 @@ def main():
 
     units = build_units()
     exercises = build_exercises()
+    projects = build_projects()
     drills = build_drills()
 
+    # A rebuild that does not validate carries the previous verdict forward
+    # rather than erasing it. Editing a paragraph is not evidence that the
+    # exercises stopped compiling, and blanking the record would take the
+    # toolchain the UI reports with it.
     audit = {"checked": 0, "cached": 0, "findings": [], "ran": False}
+    prev = OUT / "manifest.json"
+    if prev.exists():
+        try:
+            old = json.loads(prev.read_text()).get("audit", {})
+            if old.get("ran"):
+                # Carry the verdict, but only over the items the cache still
+                # speaks for. A wholesale copy reported "308 validated, no
+                # findings" over stages nothing had ever compiled, with a
+                # toolchain version printed behind the claim.
+                _, fresh, stale = cache_split({**exercises, **projects})
+                audit = {**old, "carried": True,
+                         "checked": 0, "cached": len(fresh),
+                         "findings": [f for f in old.get("findings", [])
+                                      if f.get("ref") in fresh],
+                         "unvalidated": sorted(stale)[:20],
+                         "unvalidated_count": len(stale)}
+        except (json.JSONDecodeError, OSError):
+            pass
+
     if "--validate" in sys.argv:
-        print("validating against play.rust-lang.org …")
-        audit = validate(exercises)
+        tc = toolchain()
+        print(f"validating against play.rust-lang.org, rustc "
+              f"{tc['version'] if tc else 'unknown'} …")
+        audit = validate({**exercises, **projects})
+        # After validate(), which returns a fresh dict.
         audit["ran"] = True
+        audit["carried"] = False
+        audit["unvalidated"] = []
+        audit["unvalidated_count"] = 0
+        audit["toolchain"] = tc
 
     _CUR["unit"] = _CUR["title"] = None
+    _CUR["kind"] = "unit"
     terms = build_glossary()
-    m = build_manifest(units, exercises, drills, audit)
+    m = build_manifest(units, exercises, drills, projects, audit)
 
     t = m["totals"]
     print(
         f"\n{t['ready']}/{t['units']} units · {t['words']:,} words · "
-        f"{t['exercises']} exercises · {t['drills']} drills · {len(terms)} terms"
+        f"{t['exercises']} exercises · {t['stages']} project stages · "
+        f"{t['drills']} drills · {len(terms)} terms"
     )
     if audit["ran"]:
+        tc = audit.get("toolchain")
+        if tc:
+            print(f"toolchain: rustc {tc['version']} ({tc['date']})")
         n = len(audit["findings"])
         print(f"validated {audit['checked']} (+{audit['cached']} cached) · "
               + (f"{n} finding(s)" if n else "all clean"))

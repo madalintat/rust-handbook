@@ -136,6 +136,105 @@ console.log('\n--- the cursor may not sit past the last character ---');
 t('$ on a one-char line', 'a\n|b\nc', '$', 'a\n|b\nc');
 t('l cannot leave the line', '|a\nb', 'lll', '|a\nb');
 
+console.log('\n--- text objects (mini.ai) ---');
+t('ciw on a word',        'let na|me = 1;', 'ciwX<Esc>', 'let |X = 1;');
+t('diw',                  'let na|me = 1;', 'diw',       'let | = 1;');
+t('daw eats the space',   'let na|me = 1;', 'daw',       'let |= 1;');
+t('di" inside quotes',    'let s = "he|llo";', 'di"',    'let s = "|";');
+t('da" takes the quotes', 'let s = "he|llo";', 'da"',    'let s = |;');
+t('di( inside parens',    'f(a|rg);',        'di(',      'f(|);');
+t('da( takes the parens', 'f(a|rg);',        'da(',      'f|;');
+t('di{ inside braces',    'fn m() { le|t x; }', 'di{',   'fn m() {|}');
+t('ci( then type',        'f(a|rg);',        'ci(Y<Esc>', 'f(|Y);');
+t('di( nests correctly',  'f(g(x), |y);',    'di(',      'f(|);');
+t('yi( then p',           'f(a|b);',         'yi($p',    'f(ab);a|b');
+t('an absent object is safe', 'let |x;',     'di(x',     'let |;');
+
+console.log('\n--- gc, from Comment.nvim ---');
+t('gcc comments',         'let |x = 1;',     'gcc',      '|// let x = 1;');
+t('gcc uncomments',       '// let |x = 1;',  'gcc',      '|let x = 1;');
+t('gcc round-trips',      'let |x = 1;',     'gccgcc',   '|let x = 1;');
+t('2gcc takes two lines', '|a\nb\nc',        '2gcc',     '|// a\n// b\nc');
+t('gcc keeps indent',     '    le|t x;',     'gcc',      '    |// let x;');
+
+console.log('\n--- gs, from substitute.nvim ---');
+{
+  const v = Vim.create();
+  v.text = 'alpha beta'; v.setCursor(0);
+  keys(v, 'yw');                 // register = "alpha "
+  keys(v, 'wgsw');               // replace the next word with it
+  ok('gsw pastes the register over a word', v.text === 'alpha alpha ', JSON.stringify(v.text));
+  keys(v, 'yiw');
+  ok('gs did not clobber the register', v.state.reg.text.length > 0);
+}
+
+console.log('\n--- search, with smartcase ---');
+{
+  const v = Vim.create();
+  v.text = 'let alpha = 1;\nlet Beta = 2;\nlet alpha = 3;'; v.setCursor(0);
+  keys(v, '/beta<CR>');
+  ok('a lower-case pattern ignores case', v.text.slice(v.state.cur, v.state.cur + 4) === 'Beta',
+     v.text.slice(v.state.cur, v.state.cur + 6));
+  v.setCursor(0);
+  keys(v, '/alpha<CR>');
+  const first = v.state.cur;
+  keys(v, 'n');
+  ok('n goes to the next match', v.state.cur > first, `${first} -> ${v.state.cur}`);
+  keys(v, 'N');
+  ok('N goes back', v.state.cur === first, `${v.state.cur} vs ${first}`);
+  v.setCursor(0);
+  keys(v, '/Beta<CR>');
+  ok('a pattern with a capital is literal', v.text.slice(v.state.cur, v.state.cur + 4) === 'Beta');
+  v.key('/'); ok('the / prompt shows in the label', v.label() === '/', v.label());
+  v.key('Escape');
+  keys(v, '/zzz<CR>');
+  ok('a miss is reported', /not found/.test(v.state.status), v.state.status);
+}
+
+console.log('\n--- Ctrl-A and Ctrl-X ---');
+{
+  const inc = (start, key, want) => {
+    const { text, cur } = parse(start);
+    const v = Vim.create(); v.text = text; v.setCursor(cur);
+    v.key(key);
+    ok(`${key} on ${JSON.stringify(start)}`, v.text === want, JSON.stringify(v.text));
+  };
+  inc('let x = 4|1;', 'A_INC', 'let x = 42;');
+  inc('let x = 4|2;', 'A_DEC', 'let x = 41;');
+  inc('let |x = 9;',  'A_INC', 'let x = 10;');
+  inc('let x = -|1;', 'A_INC', 'let x = 0;');
+}
+
+console.log('\n--- an abandoned command must disarm the operator ---');
+/* Regression: a text object that did not match, or an unrecognised g<key>, left
+   st.op armed. The next motion then executed an edit nobody asked for, with no
+   error shown and nothing to suggest anything had happened. */
+/* Text only: the trailing motion is expected to move the cursor. What must not
+   happen is an edit. */
+function tText(name, start, seq, wantText) {
+  const { text, cur } = parse(start);
+  const v = Vim.create();
+  v.text = text; v.setCursor(cur);
+  keys(v, seq);
+  ok(`${name.padEnd(34)} ${JSON.stringify(seq)}`, v.text === wantText,
+     `want ${JSON.stringify(wantText)}\n          got  ${JSON.stringify(v.text)}`);
+}
+
+tText('failed di( edits nothing', 'let |x = 1;', 'di(w', 'let x = 1;');
+tText('failed da" edits nothing', 'let |x = 1;', 'da"w', 'let x = 1;');
+tText('unknown g key edits nothing', '|alpha beta', 'dgzw', 'alpha beta');
+tText('unknown gc motion edits nothing', '|alpha beta', 'gcqw', 'alpha beta');
+t('a working text object is unaffected', 'f(a|rg);', 'di(', 'f(|);');
+t('a working gcc is unaffected', '|let x;', 'gcc', '|// let x;');
+{
+  const v = Vim.create(); v.text = 'let x = 1;'; v.setCursor(4);
+  v.key('d'); v.key('i'); v.key('(');
+  ok('the operator is cleared after a failed object', v.state.op === null, String(v.state.op));
+  ok('and the reason is reported', /no i\(/.test(v.state.status), v.state.status);
+  v.key('d'); v.key('g'); v.key('z');
+  ok('the operator is cleared after an unknown g key', v.state.op === null, String(v.state.op));
+}
+
 console.log('\n--- the : command line ---');
 {
   let ran = 0;
@@ -193,7 +292,7 @@ console.log('\n--- the preference survives, which is the whole point ---');
   ok('turning it off persists too', Vim.isOn() === false && store['rh-vim'] === '0');
 
   // A browser that refuses storage (private window, blocked site data) must not
-  // throw — it just means the preference does not stick.
+  // throw, it just means the preference does not stick.
   globalThis.localStorage = {
     getItem() { throw new Error('blocked'); },
     setItem() { throw new Error('blocked'); },

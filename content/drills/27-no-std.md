@@ -31,9 +31,9 @@ use std::cmp::max;
 pub fn floor(n: u16) -> u16 { max(n, 10) }
 ```
 
-- A. Yes — `cmp` does not need an allocator
-- *B. No — the name `std` does not resolve at all
-- C. No — `max` is not generic over `u16`
+- A. Yes, because `cmp` does not need an allocator
+- *B. No, because the name `std` does not resolve at all
+- C. No, because `max` is not generic over `u16`
 - D. Yes, with a warning
 
 @why
@@ -42,7 +42,7 @@ stops the crate being linked, so the *path* is dead even though the function is
 perfectly available.
 
 A has the right reasoning and the wrong conclusion, which is what makes it
-tempting. `std::cmp::max` needs no allocator — and that is exactly why it is
+tempting. `std::cmp::max` needs no allocator, and that is exactly why it is
 `core::cmp::max` underneath. Change the first path segment and the line compiles
 unchanged.
 
@@ -63,7 +63,7 @@ smaller than the name suggests: `Option`, `Result`, `Iterator`, `Clone`, `Drop`,
 
 What leaves is what needs a heap or an OS: `String`, `Vec` and `Box` (available
 again via `alloc`), and `println!` and `format!` (`println!` needs stdout, and
-never comes back — `format!` returns with `alloc`).
+never comes back, while `format!` returns with `alloc`).
 
 ## 4
 
@@ -77,7 +77,7 @@ Why is `HashMap` in `std` rather than `alloc`?
 @why
 `RandomState` asks the OS for entropy so that hash keys differ per process, which
 is a defence against algorithmic complexity attacks. No OS, no entropy, no
-default hasher — so the type cannot live below `std`.
+default hasher, so the type cannot live below `std`.
 
 D is wrong in a useful way: `hashbrown` is the same implementation and works in
 `no_std` once you supply a hasher yourself. On a microcontroller the usual answer
@@ -88,9 +88,9 @@ allocates.
 
 Does `f32::sqrt` exist in `core`?
 
-- A. Yes — floating point arithmetic is all in `core`
-- *B. No — it is implemented by calling the platform's C maths library
-- C. No — floats do not exist at all in `no_std`
+- A. Yes, because floating point arithmetic is all in `core`
+- *B. No, because it is implemented by calling the platform's C maths library
+- C. No, because floats do not exist at all in `no_std`
 - D. Only on targets with a hardware FPU
 
 @why
@@ -100,8 +100,8 @@ come from libm, which is part of a hosted platform's runtime, so
 `(x * x + y * y).sqrt()` in a `no_std` crate is `error[E0599]`.
 
 Two fixes. Add the `libm` crate, which is that library rewritten in Rust. Or
-notice you were only *comparing* distances — `sqrt` is monotonic, so comparing the
-squares gives the identical ordering, exactly, and for free.
+notice you were only *comparing* distances. `sqrt` is monotonic, so comparing
+the squares gives the identical ordering, exactly, and for free.
 
 ## 6
 
@@ -114,9 +114,9 @@ Why does `extern crate alloc;` still exist when Rust 2018 removed `extern crate`
 
 @why
 `extern crate` disappeared because a `Cargo.toml` dependency is enough to bring a
-crate into scope. `core` and `alloc` have no `Cargo.toml` entry — they come with
-the toolchain — so something has to say "link this one", and `core` is linked
-automatically while `alloc` is not.
+crate into scope. `core` and `alloc` have no `Cargo.toml` entry, because they
+come with the toolchain, so something has to say "link this one". `core` is
+linked automatically; `alloc` is not.
 
 The reason `alloc` is opt-in is the interesting part: linking it is a claim that a
 heap exists. Most `no_std` crates deliberately do not make that claim, so that
@@ -126,14 +126,14 @@ they still work on a part with no allocator at all.
 
 How many `#[panic_handler]` functions must a `#![no_std]` binary have?
 
-- A. Zero — panics abort by default
+- A. Zero, because panics abort by default
 - *B. Exactly one, anywhere in the dependency graph
 - C. One per crate
 - D. One per `panic!` call site
 
 @why
 `panic!` has to end up somewhere, and without `std` there is no default
-somewhere — so the language requires exactly one, and rejects both zero and two.
+somewhere, so the language requires exactly one and rejects both zero and two.
 
 In practice you never write it: you add `panic-halt`, `panic-reset` or
 `panic-probe` as a dependency and choose the behaviour by choosing the crate. Two
@@ -151,7 +151,7 @@ In the target triple `thumbv7em-none-eabihf`, what does `none` mean?
 
 @why
 The middle field is the OS, and `none` means bare metal: no syscalls, no
-scheduler, no filesystem — which is precisely why `std` cannot be built for it.
+scheduler, no filesystem, which is precisely why `std` cannot be built for it.
 Compare `x86_64-unknown-linux-gnu`, where the field says `linux`.
 
 D is a good trap because it is contradicted by the same string: `eabihf` is the
@@ -167,9 +167,9 @@ let mut led = Pin::new(13);   // -> Pin<Unconfigured>
 led.set_high();               // set_high is in impl Pin<Output>
 ```
 
-- A. Yes — `set_high` is a method on `Pin`
-- *B. No — `E0599`, because `Pin<Unconfigured>` does not have that method
-- C. No — `E0308`, because the types of the two lines disagree
+- A. Yes, because `set_high` is a method on `Pin`
+- *B. No: `E0599`, because `Pin<Unconfigured>` does not have that method
+- C. No: `E0308`, because the types of the two lines disagree
 - D. Yes, but the pin stays low at runtime
 
 @why
@@ -178,8 +178,8 @@ and `Pin<Unconfigured>` and `Pin<Output>` are as unrelated as `Vec<u8>` and
 `Vec<String>`. So the method genuinely does not exist on the value you have, which
 is `error[E0599]: no method named set_high found for struct Pin<Unconfigured>`.
 
-D is what the C version does — drive a pin whose direction register was never
-written, read a floating input, and hand you plausible nonsense.
+D is what the C version does. It drives a pin whose direction register was never
+written, reads a floating input, and hands you plausible nonsense.
 
 ## 10
 
@@ -188,7 +188,7 @@ where the only difference is a `PhantomData<STATE>` field?
 
 - A. Larger, by one discriminant byte
 - B. Larger, by the size of the state type
-- *C. Identical — `PhantomData` is zero-sized
+- *C. Identical, because `PhantomData` is zero-sized
 - D. Unspecified; it depends on the optimiser
 
 @why
@@ -198,8 +198,8 @@ difference is which `impl` blocks apply, and that is resolved and then discarded
 during compilation.
 
 That is what makes typestate affordable on a chip with 20 kB of RAM. An entire
-state machine, checked exhaustively, costing zero bytes of flash and zero cycles —
-and it is the same mechanism as any other generic parameter.
+state machine, checked exhaustively, costing zero bytes of flash and zero
+cycles. And it is the same mechanism as any other generic parameter.
 
 ## 11
 
@@ -210,15 +210,15 @@ use core::cell::Cell;
 pub static TICKS: Cell<u32> = Cell::new(0);
 ```
 
-- A. Yes — `Cell` is exactly what a global counter wants
-- *B. No — a `static` must be `Sync`, and `Cell` is deliberately not
-- C. No — `Cell::new` is not a `const fn`
+- A. Yes, because `Cell` is exactly what a global counter wants
+- *B. No, because a `static` must be `Sync` and `Cell` is deliberately not
+- C. No, because `Cell::new` is not a `const fn`
 - D. Yes, but only inside an `unsafe` block
 
 @why
 Every `static` is reachable from everywhere at once, so its type must be `Sync`.
 `Cell`'s whole purpose is mutation without synchronisation, which is sound only
-while exactly one context can reach it — so it is `!Sync` on purpose, and the
+while exactly one context can reach it. So it is `!Sync` on purpose, and the
 error is `Cell<u32> cannot be shared between threads safely`.
 
 "Threads" is a misleading word on a microcontroller with none. An interrupt is
@@ -242,9 +242,9 @@ blocking inside an interrupt on a chip with no scheduler is a deadlock nothing c
 break. `critical-section` disables interrupts on bare metal and takes a real lock
 on a hosted target, so the same driver compiles for both.
 
-The `cs` token it hands your closure is the elegant part: it carries no data and
+The `cs` token it hands your closure is the clever bit: it carries no data and
 costs nothing, exists only as proof that interrupts are off, and is *required* to
-reach the data — so the unsound version cannot be written.
+reach the data. The unsound version cannot be written.
 
 C is what the C code does, and it is where the data races live.
 
@@ -272,7 +272,7 @@ is genuinely not evidence that it compiles for yours.
 With `defmt`, where does the formatting of `defmt::info!("adc={}", v)` happen?
 
 - A. On the device, then the string is transmitted
-- *B. On the host — the device sends an index and the raw argument bytes
+- *B. On the host, because the device sends an index and the raw argument bytes
 - C. Nowhere; `defmt` only supports literal strings
 - D. On the device, but only in release builds
 
@@ -298,8 +298,8 @@ On `wasm32-unknown-unknown`, which of these work? Choose all that apply.
 
 @why
 The `unknown` OS field means the same thing as `none`: no syscalls. But the
-runtime does provide an allocator, so everything in `alloc` — `Vec`, `String`,
-`Box`, `Rc` — works normally, and much of `std` compiles and merely fails at the
+runtime does provide an allocator, so everything in `alloc` (`Vec`, `String`,
+`Box`, `Rc`) works normally, and much of `std` compiles and merely fails at the
 points that would need the OS.
 
 Files and threads are those points. `wasm32-wasip1` adds a capability-based system

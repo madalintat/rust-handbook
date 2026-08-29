@@ -5,12 +5,12 @@ title: Lifetimes
 accent: ferris
 concepts: lifetime, lifetime elision, region, static, dangling reference, variance, borrow checker
 needs: 05-ownership, 06-borrowing, 07-slices
-blurb: Not how long a value lives — a claim the compiler checks. Elision, structs that borrow, and why 'a is not a duration.
+blurb: Not how long a value lives, but a claim the compiler checks. Elision, structs that borrow, and why 'a is not a duration.
 ---
 
 %% Lifetimes are where people bounce off Rust, and it is usually the first thing they were told that did the damage. A lifetime annotation does not make anything live longer. It does not keep anything alive. It is not a dial you are setting.
 
-`'a` is a **name for a region of code**. Writing `&'a str` makes a *claim* — this reference is valid for at least region `'a` — which the compiler then checks against what your program actually does. You are describing a relationship that already exists. You are not creating one.
+`'a` is a **name for a region of code**. Writing `&'a str` makes a *claim*: this reference is valid for at least region `'a`. The compiler then checks that claim against what your program actually does. You are describing a relationship that already exists. You are not creating one.
 
 Almost every lifetime misconception dissolves once that lands, so it is worth spending a part on before anything else.
 
@@ -28,7 +28,7 @@ Nothing in that signature makes `a` or `b` live one instruction longer. Both
 strings live exactly as long as the caller's scopes say they do, whether this
 function exists or not. What the signature states is a contract in three parts:
 
-- both arguments are valid for some region — call it `'a`
+- both arguments are valid for some region, call it `'a`
 - the return value is valid for that same region
 - it is the *caller's* job to find an `'a` where all three hold
 
@@ -46,9 +46,9 @@ value.
 :::memory what 'a actually names
  fn main() {
      let text  = String::from("hello world");     ┐
-     let other = String::from("hi");              │  'a — the region over
-     let best  = longest(&text, &other);          │       which both borrows
-     println!("{best}");                          │       must be valid
+     let other = String::from("hi");              │  'a: the region over
+     let best  = longest(&text, &other);          │      which both borrows
+     println!("{best}");                          │      must be valid
  }   ← other dropped, then text dropped           ┘
 :::
 
@@ -57,11 +57,11 @@ true. Here `'a` runs from the two borrows to the last use of `best`. If no
 region satisfies everything, that failure *is* the error you are reading.
 
 :::compare
-**C++** — `std::string_view` into a temporary compiles happily and reads freed
+**C++**: `std::string_view` into a temporary compiles happily and reads freed
 memory. The validity of a reference is documented, at best, in a comment. `'a`
 is the same idea with a checker bolted on.
 
-**Java / Python / Go** — nothing to learn here, because a collector keeps alive
+**Java / Python / Go**: nothing to learn here, because a collector keeps alive
 anything still reachable. That is a real convenience and you pay a runtime for
 it.
 :::
@@ -79,8 +79,8 @@ const char *greeting(void) {
 ```
 
 The caller gets an address into a stack frame that has already been reused. It
-usually prints correctly in a debug build and garbage under load — the worst
-outcome, because then it ships.
+usually prints correctly in a debug build and garbage under load, which is the
+worst outcome, because then it ships.
 
 ```rust,bad
 fn greeting() -> &str {      // error[E0106]: missing lifetime specifier
@@ -105,7 +105,7 @@ reference would point at a dead frame.
 
 :::gotcha
 `E0515` can never be fixed by adding a lifetime. No annotation makes a local
-outlive its own function — that is the entire point of the rule. The fix is to
+outlive its own function; that is the entire point of the rule. The fix is to
 return an owned value, or to borrow from something the caller already owns.
 
 ```rust,good
@@ -119,8 +119,8 @@ fn greeting() -> String {
 
 ### The three rules
 
-`fn first_word(s: &str) -> &str` compiles with no annotations at all. Not
-because it has no lifetimes — because the compiler wrote them for you.
+`fn first_word(s: &str) -> &str` compiles with no annotations at all. It does
+have lifetimes. The compiler wrote them for you.
 
 :::note
 **Lifetime elision**, applied in order to every `fn` signature:
@@ -138,7 +138,7 @@ If any output lifetime is still unassigned, that is `E0106`.
 |---|---|---|
 | `fn len(s: &str) -> usize` | `fn len<'a>(s: &'a str) -> usize` | rule 1; no output borrow |
 | `fn trim(s: &str) -> &str` | `fn trim<'a>(s: &'a str) -> &'a str` | rules 1 then 2 |
-| `fn pick(a: &str, b: &str) -> &str` | — | rule 1 gives `'a` and `'b`; 2 and 3 do not apply → `E0106` |
+| `fn pick(a: &str, b: &str) -> &str` | rejected | rule 1 gives `'a` and `'b`; 2 and 3 do not apply → `E0106` |
 | `fn name(&self) -> &str` | `fn name<'a>(&'a self) -> &'a str` | rules 1 then 3 |
 
 The rules are not clever, and that is deliberate. They encode the only sensible
@@ -187,7 +187,7 @@ borrowed.** The parameter is not a field and holds no data. It is a constraint
 carried around in the type.
 :::
 
-Every `impl` block has to carry it too, because the type is not `Parser` — it is
+Every `impl` block has to carry it too, because the type is not `Parser`. It is
 `Parser<'a>` for some `'a`.
 
 ```rust
@@ -200,8 +200,8 @@ impl<'a> Parser<'a> {
 
 That `'a` on the return type is doing real work. Elided, rule 3 would tie the
 result to `&self`, so the returned slice would die with the `Parser`. Written
-out, it says the slice comes from the *source text* — which outlives the parser
-— and callers may keep it after the parser is gone.
+out, it says the slice comes from the *source text*, which outlives the parser,
+so callers may keep it after the parser is gone.
 
 :::gotcha
 A struct holding `&'a str` is a **view**. It cannot be stored in a `static`,
@@ -238,7 +238,7 @@ dies. `move` an owned `String` in and the bound is satisfied.
 
 ### Variance, mentioned and then left alone
 
-A `&'long T` is accepted where a `&'short T` is wanted — a longer-lived
+A `&'long T` is accepted where a `&'short T` is wanted, because a longer-lived
 reference is usable wherever a shorter one would do. That is **covariance**, and
 it is why most code never notices lifetimes have a subtyping relation at all.
 

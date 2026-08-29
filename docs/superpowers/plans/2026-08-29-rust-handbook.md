@@ -25,11 +25,11 @@ The compiler is `https://play.rust-lang.org/execute`.
 
 ---
 
-### Task 1 — Shell and design tokens
+### Task 1: Shell and design tokens
 
 **Files:** Create `index.html`, `assets/app.css`
 
-**Produces:** the token layer every later task reads — `--bg --surface --raised
+**Produces:** the token layer every later task reads, `--bg --surface --raised
 --border --ink --ink-2 --ink-3 --ink-4 --accent --btn-bg --btn-border
 --btn-shadow`, the type scale `--t-micro … --t-h1`, and the component classes
 `.btn .chip .card .prose .sect .topbar .tabbar .sheet`.
@@ -40,12 +40,12 @@ The compiler is `https://play.rust-lang.org/execute`.
 - [ ] Workbench components: `.wb`, `.editor`, `.gutter`, `.diag`, `.testrow`
 - [ ] Check: open in a browser, toggle theme, no flash, no horizontal scroll
 
-### Task 2 — `assets/workbench.js`
+### Task 2: `assets/workbench.js`
 
 **Files:** Create `assets/workbench.js`
 
 **Interfaces produced:**
-- `hlRust(src) -> html` — the tokenizer, also used by `app.js` for prose blocks
+- `hlRust(src) -> html`: the tokenizer, also used by `app.js` for prose blocks
 - `runPlayground(code, {tests}) -> {success, stdout, stderr}`
 - `parseDiagnostics(stderr, offset) -> {errors:[{code,msg,line,col}], warnings, tests:[{name,ok,panic}]}`
 - `mountEditor(el, starter) -> {value(), set(v), reset()}`
@@ -61,7 +61,7 @@ The compiler is `https://play.rust-lang.org/execute`.
       offset of appended hidden tests.
 - [ ] Check: paste the E0382 sample from the spec, confirm code+line+col parse
 
-### Task 3 — `build.py`
+### Task 3: `build.py`
 
 **Files:** Create `build.py`
 
@@ -81,7 +81,7 @@ The compiler is `https://play.rust-lang.org/execute`.
       (must pass), hash-cached in `data/.validate-cache.json`
 - [ ] Check: `python3 build.py && python3 -c "import json;json.load(open('data/manifest.json'))"`
 
-### Task 4 — `assets/app.js`
+### Task 4: `assets/app.js`
 
 **Files:** Create `assets/app.js`
 
@@ -96,27 +96,27 @@ The compiler is `https://play.rust-lang.org/execute`.
 - [ ] Glossary hover popovers, reading toggles, mobile sheet
 - [ ] Check: every route renders; a failed run shows our explanation
 
-### Task 5 — `assets/gate.js`, `assets/companion.js`
+### Task 5: `assets/gate.js`, `assets/companion.js`
 
 - [ ] Port the gate, re-themed, new salt
 - [ ] Ferris's two voices: fires on a pass, a long session, a return
 
-### Task 6 — Content: `05` Ownership
+### Task 6: Content: `05` Ownership
 
 **Files:** `content/units/05-ownership.md`, `content/ex/05-ownership.md`,
 `content/drills/05-ownership.md`
 
-- [ ] Note, 3,000–5,000 words, mechanism not rules, with memory diagrams
+- [ ] Note, 3,000 to 5,000 words, mechanism not rules, with memory diagrams
 - [ ] 8 exercises across `fix` / `fill` / `write` / `predict`
 - [ ] 15 drills
 - [ ] `python3 build.py --validate` green
 
-### Task 7 — Content: `06` Borrowing
-### Task 8 — Content: `15` Lifetimes
+### Task 7: Content: `06` Borrowing
+### Task 8: Content: `15` Lifetimes
 
 Same shape as Task 6.
 
-### Task 9 — Deploy
+### Task 9: Deploy
 
 - [ ] `vercel.json` with `cleanUrls` and asset cache headers
 - [ ] `README.md`

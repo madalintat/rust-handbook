@@ -77,7 +77,7 @@ pub fn run() -> i64 {
 An enum is laid out as its largest variant plus a discriminant, so the compiler
 needs a number for `size_of::<Expr>()`. `Add` contains two `Expr`s, so that
 number is `2 × size_of::<Expr>() + tag`. There is no value of `size` that
-satisfies it — the calculation does not terminate.
+satisfies it, because the calculation does not terminate.
 
 `Box<Expr>` is eight bytes whatever is at the far end, so the recursion is cut at
 the pointer. `Add` becomes sixteen bytes, `Num` eight, and `Expr` is a tag plus
@@ -189,25 +189,25 @@ pub fn run() -> Vec<String> {
 underneath, `the trait Sized is not implemented for dyn Draw`.
 
 Almost every generic in the standard library has an implicit `Sized` bound,
-because almost every generic needs to know how big the thing is — where to put
-it, how far to step to the next one. `Vec<T>` is one of them: its elements sit
-end to end in one allocation, so a fixed stride is not optional.
+because almost every generic needs to know how big the thing is: where to put it,
+and how far to step to reach the next one. `Vec<T>` is one of them: its elements
+sit end to end in one allocation, so a fixed stride is not optional.
 
 `dyn Draw` is deliberately unsized. It stands for *any* type implementing `Draw`,
 and those types have different sizes. Putting it behind a pointer fixes the size
-of the thing in the vector: `Box<dyn Draw>` is two words — one to the value on
+of the thing in the vector. `Box<dyn Draw>` is two words: one to the value on
 the heap, one to the **vtable** that says which `draw` to call.
 
 @diagnose E0308
 `mismatched types: expected dyn Draw, found Circle`. The same problem from the
-other end — you told the vector its elements are `dyn Draw` and then handed it a
+other end. You told the vector its elements are `dyn Draw` and then handed it a
 concrete `Circle`. Both halves need the `Box`: the annotation
 (`Vec<Box<dyn Draw>>`) and each element (`Box::new(Circle)`).
 
 @after
 This is where the cost of dynamic dispatch actually is, and it is worth being
 precise: one pointer of extra width on each element, one indirection to reach the
-value, and one indirection through the vtable to reach the method — which the CPU
+value, and one indirection through the vtable to reach the method, which the CPU
 cannot inline through.
 
 The alternative, when the set of shapes is closed and known, is an enum:
@@ -296,13 +296,13 @@ pub fn run() -> Vec<String> {
 
 @hint If calling the destructor by hand were allowed, what would happen at the end of the block?
 @hint There is a free function for this, and it is already in the prelude.
-@hint `drop(c);` — one word rearranged, and the meaning changes completely.
+@hint `drop(c);`. One word rearranged, and the meaning changes completely.
 
 @diagnose E0040
 `explicit use of destructor method`, with the suggestion
 `consider using drop function: drop(c)`.
 
-If `c.drop()` were allowed, your destructor would run there — and then run again
+If `c.drop()` were allowed, your destructor would run there and then run again
 at the closing brace, because `c` still owns the value. That is a double free in
 the one place the language guarantees there is not one. So the method is
 reachable only by the compiler.
@@ -319,14 +319,14 @@ destructor runs there. Ownership already had the machinery.
 
 @after
 The log order is the check. `working`, then `closing db` at the `drop(c)` line,
-then `after` — so the connection really did close in the middle of the block
-rather than at the end.
+then `after`. The connection really did close in the middle of the block rather
+than at the end.
 
 This is the standard way to release a resource early, and it is most useful for
 locks: `drop(guard)` unlocks a mutex without needing an artificial `{ }` around
 the critical section. The other spellings people reach for are worse.
-`let _ = mutex.lock();` looks similar and is a trap — `_` is not a binding, so
-the guard is dropped on that very line and the lock was never held.
+`let _ = mutex.lock();` looks similar and is a trap. `_` is not a binding, so the
+guard is dropped on that very line and the lock was never held.
 
 Also note `drop(&mut self)`, not `drop(self)`, in the impl. The value is
 mid-destruction and its fields are dropped after your code returns, so you get a
@@ -387,10 +387,10 @@ pub fn run() -> (u32, u32, usize) {
 
 @hint `let a = cfg;` moves the handle. It does not make a second one.
 @hint Making a second handle is an explicit call, and it increments the count.
-@hint `Rc::clone(&cfg)` — note the shape: an associated function taking a reference, not a method.
+@hint `Rc::clone(&cfg)`. Note the shape: an associated function taking a reference, not a method.
 
 @diagnose E0382
-`use of moved value: cfg` — `the type Rc<Config> does not implement Copy`.
+`use of moved value: cfg`, then `the type Rc<Config> does not implement Copy`.
 
 This is unit 05 with no exceptions carved out. An `Rc` is a struct holding one
 pointer, and it has a destructor that decrements the count, so it cannot be
@@ -403,7 +403,7 @@ an integer.
 
 @diagnose E0507
 `cannot move out of an Rc`. You reached through the handle instead of duplicating
-it — something like `let c: Config = *cfg;`. `Rc` deliberately gives you only
+it, with something like `let c: Config = *cfg;`. `Rc` deliberately gives you only
 `&T`, because moving the value out would leave the other owners pointing at
 nothing. Clone the handle, or clone the inner value with `(*cfg).clone()` if you
 genuinely want a separate `Config`.
@@ -417,7 +417,7 @@ that do not.
 
 `strong_count` is 3 at the end because all three handles are still alive. Each
 `drop` takes it down by one, and the `Config` is freed when it reaches zero. No
-collector, no scanning — a decrement and a branch.
+collector and no scanning, just a decrement and a branch.
 
 The limit worth remembering: that counter is a plain `usize`, not atomic. `Rc` is
 neither `Send` nor `Sync`, and the compiler will not let one cross a thread
@@ -473,7 +473,7 @@ pub fn run() -> (usize, usize) {
 }
 ```
 
-@hint There is no `Rc::get_mut` route here — two handles exist, so it would return `None`.
+@hint There is no `Rc::get_mut` route here, because two handles exist and it would return `None`.
 @hint The wrapper you want moves the borrow check from compile time to run time. It goes *inside* the `Rc`.
 @hint `Rc<RefCell<Vec<String>>>`, then `handle.borrow_mut().push(..)` and `inbox.borrow().len()`.
 
@@ -485,7 +485,7 @@ implemented for Rc<Vec<String>>`.
 That note is the precise reason. `Rc<T>` implements `Deref<Target = T>` and
 deliberately does **not** implement `DerefMut`. If it did, two handles could hand
 out two `&mut` to the same value at once, which is `E0499` written with extra
-steps — the exact aliasing the whole borrow system exists to prevent.
+steps, and it is the exact aliasing the whole borrow system exists to prevent.
 
 `RefCell<T>` is the escape hatch, and it is honest about what it costs. It keeps
 its own borrow counter and checks it while the program runs, so `borrow_mut` can
@@ -493,20 +493,21 @@ take `&self` and still hand back a `&mut T`.
 
 @diagnose E0308
 The nesting is the wrong way round. `RefCell<Rc<Vec<String>>>` gives you a
-mutable slot holding a shared handle — you can swap which vector you point at,
-but still cannot push into it. Read the type outside in: `Rc` first (several
+mutable slot holding a shared handle. You can swap which vector you point at,
+but you still cannot push into it. Read the type outside in: `Rc` first (several
 owners), `RefCell` inside it (any of them may mutate).
 
 @after
 `Rc<RefCell<T>>` is the standard single-threaded shape for shared mutable state,
-and `Arc<Mutex<T>>` is the same sentence across threads — the same nesting, with
+and `Arc<Mutex<T>>` is the same sentence across threads: the same nesting, with
 the check made atomic and the failure made blocking rather than panicking.
 
 The price is that breaking the rule is a **panic** rather than a compile error,
 and the panic only fires on the path that takes both borrows. `RefCell` is the
-right answer when the aliasing pattern is genuinely dynamic — an observer list, a
-graph with edges both ways, an interpreter environment. It is the wrong answer
-when it appears because a function needed to reach a value two frames up; that is
+right answer when the aliasing pattern is genuinely dynamic, as in an observer
+list, a graph with edges both ways, or an interpreter environment. It is the
+wrong answer when it appears because a function needed to reach a value two
+frames up; that is
 usually a `&mut` parameter nobody wanted to thread through, and threading it
 through is cheaper than a bug your tests do not reach.
 
@@ -579,19 +580,19 @@ pub fn run() -> (u32, u32) {
 ```
 
 @hint The `Ref` guard returned by `borrow()` is a temporary. Ask how long a temporary in a `match` scrutinee lives.
-@hint It lives until the end of the whole `match`, arms included — so the shared borrow is still held when the `None` arm asks for a unique one.
+@hint It lives until the end of the whole `match`, arms included, so the shared borrow is still held when the `None` arm asks for a unique one.
 @hint Pull the lookup out into its own statement, ending the borrow before the insert: `let hit = cache.borrow().get(key).copied();`
 
 @diagnose BorrowMutError
 `already borrowed: BorrowMutError`, from the `borrow_mut` inside the `None` arm.
 
-`cache.borrow()` returns a `Ref<HashMap<..>>` — a guard that decrements the
+`cache.borrow()` returns a `Ref<HashMap<..>>`, a guard that decrements the
 cell's borrow counter in its `Drop`. The guard here is a temporary with no name,
 and a temporary in a `match` scrutinee is kept alive for the entire `match`
 expression, because an arm might be matching on a reference into it.
 
 So on the miss, the shared borrow is still counted when `borrow_mut` asks for the
-unique one. Shared plus unique, rejected — at run time, with a panic, on the exact
+unique one. Shared plus unique, rejected: at run time, with a panic, on the exact
 path that a first-run test would exercise and a cache-hit test would not.
 
 `if` behaves differently: temporaries in an `if` condition are dropped before the
@@ -600,14 +601,14 @@ that distinction is not a plan.
 
 @after
 This is the whole trade `RefCell` makes, made visible. The rule enforced is
-identical to the compiler's — any number of shared, or exactly one unique — but
+identical to the compiler's (any number of shared, or exactly one unique), but
 the enforcement happens while the program runs, so a violation is a crash in
 production rather than a red squiggle.
 
 Two habits that avoid nearly all of it. Keep guards short and named: bind the
 result of a `borrow()` to a `let`, use it, and let it drop before you take
 another. And never hold a borrow across a call that might re-enter the same cell,
-which is how this fails in real code — a callback, an observer, a recursive walk.
+which is how this fails in real code: a callback, an observer, a recursive walk.
 
 `try_borrow_mut()` returns `Result<RefMut<T>, BorrowMutError>` if you would
 rather decide than crash. It is the right tool for a re-entrant callback and the
@@ -620,8 +621,8 @@ wrong tool for hiding a design you have not thought through.
 @expect E0277
 
 One vector, read from two threads. `Rc` is the type for several owners, so this
-looks correct — and the compiler rejects it on a ground that has nothing to do
-with ownership.
+looks correct. The compiler rejects it on a ground that has nothing to do with
+ownership.
 
 Read what it says about `Send`.
 
@@ -675,8 +676,8 @@ requirement comes from the bound on `thread::spawn`.
 
 `Rc`'s strong count is an ordinary `usize` incremented with an ordinary `add`.
 Two threads cloning at once can read the same value, both add one, and both write
-back — one increment lost. The count then reaches zero while a handle is still
-live, the value is freed, and the survivor is holding a dangling pointer.
+back, and one increment is lost. The count then reaches zero while a handle is
+still live, the value is freed, and the survivor is holding a dangling pointer.
 
 So `Rc` is deliberately marked `!Send`, and `thread::spawn` requires `Send` on
 everything the closure captures. The bug is caught at the type level, at compile
@@ -684,7 +685,7 @@ time, rather than showing up as a use-after-free once a month under load.
 
 @diagnose E0373
 `closure may outlive the current function`. You removed the `move`, so the
-closure borrowed `data` rather than taking the handle — and the compiler cannot
+closure borrowed `data` rather than taking the handle, and the compiler cannot
 prove the thread ends before `run` does. `move` is what transfers the cloned
 handle in, which is why the clone is made before the `spawn`.
 
@@ -697,7 +698,7 @@ always being safe.
 
 The general shape is worth naming: **`Send` means safe to move to another thread,
 `Sync` means safe to share by reference between threads.** Neither is implemented
-by hand — they are derived structurally, so a struct is `Send` when its fields
+by hand. They are derived structurally, so a struct is `Send` when its fields
 are. Putting one `Rc` inside a type is enough to make the whole thing `!Send`
 forever, which is a good thing the day someone tries to spawn a thread with it.
 
@@ -711,8 +712,8 @@ Note that `Arc<T>` alone still only hands out `&T`. Mutation across threads need
 @expect E0609
 
 A parent holds its children, and each child needs to reach its parent. The
-`parent` field is a `Weak<Node>` — a handle that does not own — and the code
-tries to read a field straight through it.
+`parent` field is a `Weak<Node>`, a handle that does not own, and the code tries
+to read a field straight through it.
 
 A `Weak` might be pointing at something already freed, so it does not let you.
 
@@ -805,9 +806,9 @@ pub fn run() -> (String, bool) {
 `no field name on type Ref<'_, Weak<Node>>`.
 
 Three layers, and the error names all of them. `borrow()` gave you a `Ref`, which
-derefs to the `Weak<Node>` inside — and a `Weak` is not a `Node`. It has no
-fields to read, because it does not own anything and the value it refers to may
-already have been dropped.
+derefs to the `Weak<Node>` inside, and a `Weak` is not a `Node`. It has no fields
+to read, because it does not own anything and the value it refers to may already
+have been dropped.
 
 `upgrade()` is the question you have to ask: it returns `Option<Rc<Node>>`,
 `Some` while at least one strong handle still exists and `None` once the last one
@@ -815,8 +816,8 @@ has gone. Nothing else can reach through a `Weak`, and that is the entire safety
 argument for it.
 
 @diagnose E0308
-`expected Weak<Node>, found Rc<Node>`. `Rc::downgrade(&root)` is the conversion —
-it takes a strong handle and gives back a weak one, bumping the weak count rather
+`expected Weak<Node>, found Rc<Node>`. `Rc::downgrade(&root)` is the conversion.
+It takes a strong handle and gives back a weak one, bumping the weak count rather
 than the strong one. Assigning `Rc::clone(&root)` into the `parent` field instead
 would type-check only if the field were `RefCell<Rc<Node>>`, which is the bug
 this whole structure is arranged to avoid.
@@ -829,7 +830,7 @@ rather than a pointer into freed memory.
 Had `parent` been an `Rc<Node>`, root and leaf would each hold a strong handle to
 the other. Both counts sit at 1 after the locals drop, neither ever reaches zero,
 and both allocations leak. That is the one way to leak memory in safe Rust, and
-it is allowed because leaking is not *unsound* — nothing dangles, nothing is
+it is allowed because leaking is not *unsound*: nothing dangles and nothing is
 freed twice. `mem::forget` is a safe function for the same reason.
 
 The rule that avoids it in any parent-child structure: **strong down, weak up.**

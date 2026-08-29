@@ -57,15 +57,15 @@ mod spec {
 ```
 
 @hint `mod spec` is a module. Modules do not inherit their parent's names.
-@hint A child module *can* see its parent's items, including private ones — but it still has to name them.
+@hint A child module *can* see its parent's items, including private ones, but it still has to name them.
 @hint `use super::*;` as the first line inside `mod spec`.
 
 @diagnose E0425
 `cannot find function add in this scope`, pointing at the call inside the test.
 
 Nothing is wrong with `add` and nothing is wrong with the test. `mod spec` is a
-separate namespace, and names do not leak downwards into it automatically —
-you have to ask. `use super::*;` says *bring in everything the parent module
+separate namespace, and names do not leak downwards into it automatically. You
+have to ask. `use super::*;` says *bring in everything the parent module
 has*, and because a child module is allowed to see its parent's private items,
 that includes the ones no user could reach.
 
@@ -85,7 +85,7 @@ mod tests {
 ```
 
 `#[cfg(test)]` is doing real work. It means the module is compiled *only* when
-building tests — under `cargo build --release` it does not exist at all, so test
+building tests. Under `cargo build --release` it does not exist at all, so test
 helpers, fixtures and `dev-dependencies` cost your users nothing. Leave it off
 and your test data ships in the binary.
 
@@ -97,8 +97,8 @@ and your test data ships in the binary.
 @expect E0369
 
 `assert_eq!` looks like syntax. It is a macro, and it expands into ordinary code
-that compares two values and then prints them if they differ — so the type has
-to support both operations.
+that compares two values and then prints them if they differ, so the type has to
+support both operations.
 
 Give `Point` what the macro needs.
 
@@ -165,7 +165,7 @@ saying an implementation of `PartialEq` might be missing.
 
 `assert_eq!` expands to roughly `if !(*left == *right) { panic!(...) }`, so the
 first thing it needs is `==`. Rust does not compare structs field by field
-unless you say so — equality is a trait, not a built-in, because for many types
+unless you say so. Equality is a trait, not a built-in, because for many types
 the obvious field-by-field comparison is wrong.
 
 @diagnose E0277
@@ -194,7 +194,7 @@ the standard library exists to make that honest.
 @expect E0277
 
 The test wants to use `?` so a parse failure ends the test instead of unwrapping
-through it. `?` returns early with an error — and this function has nothing to
+through it. `?` returns early with an error, and this function has nothing to
 return it as.
 
 Change the test's signature. The body needs one more line after that.
@@ -245,7 +245,7 @@ mod spec {
 ```
 
 @hint A `#[test]` function is allowed to return a value, and the harness knows what to do with it.
-@hint `?` only works in a function returning `Result` or `Option`. Give the test a return type — and then it needs a tail expression.
+@hint `?` only works in a function returning `Result` or `Option`. Give the test a return type, and then it needs a tail expression.
 @hint `fn parses() -> Result<(), std::num::ParseIntError>`, ending with `Ok(())`.
 
 @diagnose E0277
@@ -280,8 +280,8 @@ fn reads_config() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Two different error types, one signature, because `?` converts through `From`
-and everything convertible to `Box<dyn Error>`. The alternative — `.unwrap()` on
-every line — reports a panic location instead of the error, which is strictly
+and everything convertible to `Box<dyn Error>`. The alternative, `.unwrap()` on
+every line, reports a panic location instead of the error, which is strictly
 less information.
 
 One restriction: a `Result`-returning test cannot also be `#[should_panic]`. The
@@ -351,7 +351,7 @@ mod spec {
 @hint `#[should_panic(expected = "must be non-zero")]`, or any substring of the real message.
 
 @diagnose E0425
-`cannot find function ratio in this scope` — the test module is missing
+`cannot find function ratio in this scope`. The test module is missing
 `use super::*;`. That is a different problem from the one this exercise is
 about; put the import back and the panic mismatch is what remains.
 
@@ -361,7 +361,7 @@ string`, with the actual message printed next to the one you asked for. It looks
 like the code is wrong and it is almost always the test.
 
 The real lesson is the opposite of what it looks like. A bare `#[should_panic]`
-with no `expected` would have passed here — and would go on passing if `ratio`
+with no `expected` would have passed here, and would go on passing if `ratio`
 started panicking because of an array index, an `unwrap` on `None`, or a stack
 overflow in something it called. The test would be green and checking nothing.
 
@@ -456,7 +456,7 @@ pub fn run() -> u32 {
 ```
 
 @hint An integration test is a different crate. Adding `pub` to reach it would publish an implementation detail to every user, forever.
-@hint `digits` is not the behaviour you want to guarantee — it is how `parse` happens to be built. What does the crate actually promise?
+@hint `digits` is not the behaviour you want to guarantee. It is how `parse` happens to be built. What does the crate actually promise?
 @hint Call `config::parse("a1b2")` and assert on the `retries` field.
 
 @diagnose E0603
@@ -464,8 +464,8 @@ pub fn run() -> u32 {
 
 The test is standing outside `config`, and private means visible in the defining
 module and its descendants only. `mod integration` is a sibling of `config`, not
-a child, so it is on the outside — exactly like `tests/api.rs`, which is not
-even in the same crate.
+a child, so it is on the outside, exactly like `tests/api.rs`, which is not even
+in the same crate.
 
 The reflex is to add `pub`. Resist it. `pub` on `digits` makes an internal
 helper part of your published API: you can no longer rename it, change its
@@ -479,8 +479,8 @@ A unit test in a child module can reach anything, which makes it easy and makes
 it test the implementation. An integration test in `tests/` can reach only the
 public API, which makes it test *the thing your users get*. It fails if you
 forget a `pub use`, if a returned type is not nameable from outside, if a trait
-a caller needs is not exported — none of which a unit test can notice, because
-it is on the wrong side of the wall.
+a caller needs is not exported. A unit test can notice none of that, because it
+is on the wrong side of the wall.
 
 Keep both. Unit-test the genuinely awkward internals, where reaching a branch
 through the API would take twenty lines of setup. Test everything else from
@@ -493,7 +493,7 @@ outside.
 @expect test-failure
 
 `kib` used to round down. It rounds up now, and the example in its documentation
-was not updated — so `cargo test` fails on the docs, not on the code.
+was not updated, so `cargo test` fails on the docs rather than on the code.
 
 Fix the example. (The playground compiles your file as a crate called
 `playground`, which is why the example says `playground::kib`.)
@@ -557,8 +557,8 @@ every other ecosystem's README examples decay silently over a few releases and
 nobody finds out until a user does.
 
 Two consequences follow. First, doctests run from *outside* your crate, so they
-see only the public API — which makes every example a small integration test,
-and is why they need a `use my_crate::...` line. Second, because the example is
+see only the public API. That makes every example a small integration test, and
+is why they need a `use my_crate::...` line. Second, because the example is
 checked, writing it before the implementation is a reasonable way to design an
 API: you find out immediately whether the calling code reads well.
 
@@ -567,10 +567,10 @@ The fence takes annotations when plain execution is wrong:
 | fence | meaning |
 |---|---|
 | ```` ``` ```` | compile and run |
-| ```` ```no_run ```` | compile, do not run — opens a socket, writes a file |
+| ```` ```no_run ```` | compile, do not run: opens a socket, writes a file |
 | ```` ```should_panic ```` | the example is meant to panic |
 | ```` ```compile_fail ```` | the example must not compile, and that is the point |
-| ```` ```ignore ```` | do not even compile — a last resort, and say why |
+| ```` ```ignore ```` | do not even compile; a last resort, and say why |
 
 A line beginning `#` is compiled but hidden from the rendered page, which is how
 an example keeps its setup without showing it.
@@ -582,8 +582,8 @@ an example keeps its setup without showing it.
 
 @expect E0425
 
-`normalise` is a helper the tests use — and so does `slug`, which is part of the
-library. The `#[cfg(test)]` on it means it exists only in test builds, so the
+`normalise` is a helper the tests use, and `slug` uses it too, which is part of
+the library. The `#[cfg(test)]` on it means it exists only in test builds, so the
 library build has nothing to call.
 
 This is the one to recognise on sight, because of *when* it goes wrong.
@@ -641,7 +641,7 @@ mod spec {
 
 @hint Ask which builds contain `normalise` and which builds contain `slug`.
 @hint `#[cfg(test)]` deletes the item from every build that is not a test build. `slug` is in all of them.
-@hint Remove `#[cfg(test)]` from `normalise`. It stays private, so it is still invisible outside the crate — the attribute was never what was hiding it.
+@hint Remove `#[cfg(test)]` from `normalise`. It stays private, so it is still invisible outside the crate; the attribute was never what was hiding it.
 
 @diagnose E0425
 `cannot find function normalise in this scope`, at the call inside `slug`.
@@ -651,7 +651,7 @@ mod spec {
 by the time `slug` is checked there is genuinely no such function.
 
 Note what the timing does to you. Under `cargo test` the `test` cfg is on and
-this compiles fine, so the error surfaces on `cargo build` — often in CI, often
+this compiles fine, so the error surfaces on `cargo build`: often in CI, often
 on the release build, and always after the tests went green. It is the wrong way
 round for a mistake to be found.
 
@@ -669,7 +669,7 @@ mod tests {
 ```
 
 Helpers that only tests use go *inside* the gated module. Helpers that the
-library also uses are ordinary private functions — private is already enough to
+library also uses are ordinary private functions. Private is already enough to
 keep them out of your public API, and privacy costs nothing at run time because
 the function is inlined or dead-code-eliminated exactly as before.
 
@@ -683,9 +683,9 @@ and example builds, so a heavyweight assertion crate is free for your users.
 
 @expect E0277
 
-The test calls two fallible functions with `?`. They fail in different ways —
-one returns a `Utf8Error`, the other a `ParseIntError` — and the signature can
-only name one of them.
+The test calls two fallible functions with `?`, and they fail in different ways.
+One returns a `Utf8Error` and the other a `ParseIntError`, so the signature
+cannot name both.
 
 Give the test a return type that accepts both.
 
@@ -764,7 +764,7 @@ error type in the signature has to be reachable by `From` from every error the
 body can produce.
 
 Two errors that have nothing to do with each other cannot be unified by naming
-one of them. What you need is a type that both convert into — and
+one of them. What you need is a type that both convert into, and
 `Box<dyn Error>` is exactly that, via a blanket impl for anything implementing
 `Error`.
 
@@ -779,8 +779,8 @@ in a library.
 
 In a test you are the only caller, the failure just needs to be printed, and the
 cost of boxing on a path that runs once is nothing. In a library, a boxed error
-tells callers nothing they can act on — they cannot `match` on it to decide
-whether to retry — which is why libraries define an error enum and implement
+tells callers nothing they can act on, because they cannot `match` on it to
+decide whether to retry. That is why libraries define an error enum and implement
 `From` for the errors they wrap.
 
 Same operator, opposite conclusion, and the difference is who reads the error. A

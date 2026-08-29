@@ -64,8 +64,8 @@ function build() {
   return el;
 }
 
-/* Disabled by default: an open handbook is the point. Set GATE to true — and set
-   a real HASH above — to put the door back. */
+/* Disabled by default: an open handbook is the point. Set GATE to true, and set
+   a real HASH above, to put the door back. */
 const GATE = false;
 
 if (GATE && !unlocked()) {

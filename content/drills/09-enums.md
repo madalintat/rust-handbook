@@ -14,10 +14,10 @@ enum Shape {
 }
 ```
 
-- A. 8 — the size of the largest field
-- B. 17 — both fields plus a one-byte tag
-- *C. 24 — a tag padded to 8, plus the two-word payload
-- D. 40 — every variant laid out end to end
+- A. 8, the size of the largest field
+- B. 17, both fields plus a one-byte tag
+- *C. 24, a tag padded to 8 plus the two-word payload
+- D. 40, every variant laid out end to end
 
 @why
 An enum value must be able to hold any variant, so its size is the largest
@@ -38,7 +38,7 @@ Which of these is true of `Option<&T>`? Choose all that apply.
 - D. It requires a heap allocation for the `Some` case
 
 @why
-A reference is never null, so the bit pattern `0` is a **niche** — a value the
+A reference is never null, so the bit pattern `0` is a **niche**: a value the
 payload can never take. The compiler uses it for `None` and stores no tag at
 all. `Option<&T>` is 8 bytes, same as `&T`.
 
@@ -62,10 +62,10 @@ fn go(s: Signal) -> bool {
 }
 ```
 
-- A. Yes — the two cases it lists are the important ones
-- *B. No — `error[E0004]`, `Signal::Amber` is not covered
+- A. Yes, the two cases it lists are the important ones
+- *B. No, `error[E0004]`, `Signal::Amber` is not covered
 - C. Yes, and `Amber` falls through to `false`
-- D. No — match arms cannot return `bool`
+- D. No, match arms cannot return `bool`
 
 @why
 `match` is an expression and must produce a value on every possible input.
@@ -74,7 +74,7 @@ There is no arm for `Amber`, so there is no value, and the program is rejected.
 C is the C intuition and the reason this matters. A C `switch` with no `default`
 silently does nothing for the unlisted case; Rust makes it a build failure with
 a line number. Adding a fourth signal later turns every incomplete match in the
-codebase into an error naming its file — which is the single most useful
+codebase into an error naming its file. That is the single most useful
 refactoring property in the language.
 
 ## 4
@@ -93,7 +93,7 @@ println!("{s}");
 
 - *A. `matched`, with a warning that the second arm is unreachable
 - B. `no`
-- C. It does not compile — `expected` is not a constant
+- C. It does not compile, since `expected` is not a constant
 - D. `matched`, with no warning at all
 
 @why
@@ -128,7 +128,7 @@ such expressions between them cover every input is equivalent to solving the
 halting problem, so rather than special-case simple arithmetic the rule is
 uniform: an arm with a guard contributes nothing to the exhaustiveness check.
 
-C is wrong on its own terms — rustc reasons about `i32` as ranges, not by
+C is wrong on its own terms: rustc reasons about `i32` as ranges rather than by
 enumeration, which is why the error text names `i32::MIN..=-1_i32` rather than
 listing four billion values.
 
@@ -149,7 +149,7 @@ match &msg {
 - A. `String`
 - *B. `&String`
 - C. `&Option<String>`
-- D. It does not compile — the pattern is not a reference pattern
+- D. It does not compile, since the pattern is not a reference pattern
 
 @why
 This is **match ergonomics**. The scrutinee is `&Option<String>` and the pattern
@@ -177,7 +177,7 @@ let msg: Option<String> = Some(String::from("hi"));
 A and D take the value by value: matching on `msg` itself binds `s` as an owned
 `String`, and `unwrap_or_default` takes `self`. Both leave `msg` moved-from.
 
-B and C match on `&msg`, so the binding mode is by-reference and nothing moves —
+B and C match on `&msg`, so the binding mode is by-reference and nothing moves:
 `s` is a `&String` in both.
 
 The pattern to internalise: what moves is decided by the *scrutinee*, not by the
@@ -198,9 +198,9 @@ fn describe(e: &Event) -> String {
 }
 ```
 
-- A. Yes — extra fields are ignored
-- *B. No — `error[E0027]`, the pattern does not mention field `y`
-- C. No — `error[E0004]`, non-exhaustive
+- A. Yes, extra fields are ignored
+- *B. No, `error[E0027]`, the pattern does not mention field `y`
+- C. No, `error[E0004]`, non-exhaustive
 - D. Yes, and `y` is bound to its default value
 
 @why
@@ -209,8 +209,8 @@ writing `..`. `Event::Click { x }` mentions one of two, so it is rejected with
 `pattern does not mention field y`.
 
 A is the tempting answer because destructuring in JavaScript and Python does
-work that way. Rust makes you write `Event::Click { x, .. }` instead — two extra
-characters that mean "and I know there are others". Adding a field later then
+work that way. Rust makes you write `Event::Click { x, .. }` instead: two extra
+characters meaning "and I know there are others". Adding a field later then
 breaks only the patterns that did *not* opt out, which is usually exactly the
 set you want to revisit.
 
@@ -232,7 +232,7 @@ fn f(x: Option<u16>) -> u16 {
 - E. `n = 0;`
 
 @why
-The `else` block must have type `!` — it must not finish. After the statement
+The `else` block must have type `!`, meaning it must not finish. After the statement
 `n` has to be in scope and bound, and the only way that can be guaranteed is if
 the failing path never reaches the next line. `return`, `panic!`, `exit`,
 `break` and `continue` all qualify.
@@ -240,7 +240,7 @@ the failing path never reaches the next line. `return`, `panic!`, `exit`,
 B produces a `u16`, which is a perfectly good value and precisely what is not
 allowed: `else clause of let...else does not diverge`.
 
-E is a nice distractor — you cannot assign to `n`, because `n` does not exist
+E is a nice distractor: you cannot assign to `n`, because `n` does not exist
 yet. That is the whole reason for the rule.
 
 ## 10
@@ -259,7 +259,7 @@ let s = match code {
 - A. `"other"`
 - B. `"client 400"`
 - *C. `"client 418"`
-- D. It does not compile — `@` cannot be used with a range
+- D. It does not compile, since `@` cannot be used with a range
 
 @why
 `n @ 400..=499` tests the value against the range **and** binds the matched value
@@ -269,7 +269,7 @@ nothing to interpolate.
 B is the trap: `n` is the value that matched, not the start of the range. The
 binding sees `418`.
 
-`@` composes with any pattern, not just ranges — `msg @ Message::Quit` binds the
+`@` composes with any pattern, not only ranges: `msg @ Message::Quit` binds the
 whole enum value while still testing its variant.
 
 ## 11
@@ -290,7 +290,7 @@ Every alternative in an or-pattern must bind **the same set of names at the same
 types**, because the arm body is one piece of code compiled once. A binds `r: &f64`
 on both sides, so it is fine.
 
-B fails with `error[E0408]: variable r is not bound in all patterns` — and `w`
+B fails with `error[E0408]: variable r is not bound in all patterns`, and `w`
 and `h` are not bound in the first. D fails the same way for `w`.
 
 C is the interesting one: it is legal. Nothing requires the field to be in the
@@ -306,7 +306,7 @@ the *intended* way for a library to opt out of that?
 - A. Always include `_ => {}` in the library's own matches
 - *B. Mark the enum `#[non_exhaustive]`, which forces downstream matches to have a wildcard
 - C. Use a struct with a tag field instead
-- D. There is no way — enums in public APIs can never gain variants
+- D. There is no way, since enums in public APIs can never gain variants
 
 @why
 `#[non_exhaustive]` tells other crates "this list will grow", and the compiler
@@ -314,8 +314,8 @@ then *requires* a `_` arm in any match on it outside the defining crate. Adding 
 variant later is then a non-breaking change. `io::ErrorKind` is the canonical
 example.
 
-A does nothing for downstream users — the library's own matches are not the
-problem. And note the asymmetry: inside the defining crate, matches on a
+A does nothing for downstream users, because the library's own matches are not
+the problem. And note the asymmetry: inside the defining crate, matches on a
 `#[non_exhaustive]` enum are still checked exhaustively, so the author still gets
 the compile errors. You only give up the guarantee at the crate boundary, which
 is exactly where you wanted to.
@@ -338,7 +338,7 @@ enum Result<T, E> { Ok(T), Err(E) }
 ```
 
 There is no magic in the type. What the language adds around them is convenience
-— `?`, the `Try` trait, the prelude importing their variants unqualified — and
+(`?`, the `Try` trait, the prelude importing their variants unqualified) plus
 the layout optimisations any enum gets. Understanding that they are just enums
 is what makes `match`, `if let` and the combinator methods on them stop feeling
 like special cases.
@@ -351,7 +351,7 @@ Why does this state machine take `state` by value rather than `&mut self`?
 fn step(state: Connection, ev: Event) -> Connection { /* ... */ }
 ```
 
-- A. It is faster — no pointer indirection
+- A. It is faster, with no pointer indirection
 - *B. Consuming the old state makes using a stale state a compile error
 - *C. It lets an arm move a field out of the old state into the new one
 - D. `&mut self` cannot be used in a `match`
@@ -366,7 +366,7 @@ can move the `TcpStream` straight into the next state, with no clone and no
 `Option` dance. Through a `&mut self` you would need `std::mem::replace` or
 `Option::take` to get the same effect.
 
-A is wrong in general — if the enum has a fat variant, moving it by value copies
+A is wrong in general: if the enum has a fat variant, moving it by value copies
 the whole thing on every transition.
 
 ## 15
@@ -384,8 +384,8 @@ C has exactly three values' worth of shape, and each carries precisely the data
 that state needs. There is no way to build a `Queued` job with a worker id,
 because there is no syntax for it.
 
-A allows `queued && running`, plus a `worker` that means nothing when queued —
-eight combinations, three legal. B is better but still lets `state = 1` pair with
+A allows `queued && running`, plus a `worker` that means nothing when queued:
+eight combinations, of which three are legal. B is better but still lets `state = 1` pair with
 `worker: None`, and the mapping from `1` to "running" lives in your head.
 
 The heuristic: a `bool` next to two `Option`s where only some combinations are

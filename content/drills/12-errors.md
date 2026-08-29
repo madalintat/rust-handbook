@@ -7,8 +7,8 @@ unit: 12-errors
 A JSON parser in a web server receives malformed input from a client. What
 should it do?
 
-- A. `panic!` — the input is invalid, so the program cannot continue
-- *B. Return an `Err` — bad input is normal operation for a parser
+- A. `panic!`, since the input is invalid and the program cannot continue
+- *B. Return an `Err`, because bad input is normal operation for a parser
 - C. `unwrap` the parse and let the caller catch it
 - D. Log a warning and return a default value
 
@@ -18,8 +18,8 @@ and keep serving everyone else, which is exactly the "could a caller do
 something sensible about this?" test.
 
 A is the mistake that turns a parser into a denial-of-service hole: one crafted
-request kills the thread, or the process. C is A with extra steps — there is no
-catch, `unwrap` panics.
+request kills the thread, or the process. C is A with extra steps: there is no
+catch, and `unwrap` panics.
 
 D is quietly the worst of the four. Substituting a default hides the failure
 from every layer above and produces wrong answers instead of no answer.
@@ -31,7 +31,7 @@ What does `?` do that a plain early return does not?
 - A. It logs the error before returning
 - *B. It converts the error with `From` into the function's error type
 - C. It unwinds the stack
-- D. Nothing — it is pure syntax sugar for `match`
+- D. Nothing, it is pure syntax sugar for `match`
 
 @why
 The desugaring is `Err(e) => return Err(From::from(e))`, and that `From::from` is
@@ -39,7 +39,7 @@ the whole reason `?` composes. A function calling five libraries with five error
 types can return one type, because each `?` converts on the way out.
 
 D is the answer most people give and it is almost right, which is what makes it
-worth naming. It *is* sugar for a `match` — but the `match` it expands to
+worth naming. It *is* sugar for a `match`, but the `match` it expands to
 contains a conversion, and missing that is why `error[E0277]: ? couldn't convert
 the error` reads as mysterious rather than obvious.
 
@@ -55,8 +55,8 @@ fn line_count(path: &str) -> usize {
 ```
 
 - A. Yes
-- *B. No — `?` needs the function to return `Result` or `Option`
-- C. No — `read_to_string` does not return a `Result`
+- *B. No, `?` needs the function to return `Result` or `Option`
+- C. No, `read_to_string` does not return a `Result`
 - D. Yes, but it panics if the file is missing
 
 @why
@@ -65,7 +65,7 @@ Result or Option`. `?` expands to a `return Err(...)`, and a function declared
 `-> usize` has no way to express that.
 
 D is the tempting one because it describes what `unwrap` would do. `?` is not an
-unwrap and never panics — it propagates. The two are opposites: `?` hands the
+unwrap and never panics; it propagates. The two are opposites: `?` hands the
 decision to the caller, `unwrap` refuses to have one.
 
 ## 4
@@ -80,7 +80,7 @@ work inside `fn f() -> Result<u32, ConfigError>`? Choose all that apply.
 - E. Adding `#[derive(Debug)]` to `ConfigError`
 
 @why
-A is the manual version, D generates exactly that impl, and B sidesteps it —
+A is the manual version, D generates exactly that impl, and B sidesteps it:
 `Box<dyn Error>` has a blanket `From` impl for every `E: Error`, so every `?`
 already works.
 
@@ -98,9 +98,9 @@ When is `unwrap` defensible in code that has to stay up?
 - D. Whenever the error type does not implement `Display`
 
 @why
-`unwrap` is a claim that this cannot fail. Sometimes the claim is true — a
-regex literal compiled at startup, an index you just bounds-checked — and a
-panic is then the correct response, because the alternative is continuing with a
+`unwrap` is a claim that this cannot fail. Sometimes the claim is true, as with a
+regex literal compiled at startup or an index you just bounds-checked. A panic
+is then the correct response, because the alternative is continuing with a
 broken invariant.
 
 Where B is honest, `expect` is strictly better than `unwrap`: same behaviour,
@@ -126,8 +126,8 @@ difference is what gets printed, and it is a bigger difference than it sounds:
 broke, while `PORT must be a number: ParseIntError { .. }` tells you what the
 code was trying to do.
 
-Write the `expect` message as the assumption — *why* you believed it could not
-fail — rather than a description of the failure. It is a comment that the
+Write the `expect` message as the assumption, meaning *why* you believed it
+could not fail, rather than as a description of the failure. It is a comment that the
 compiler puts in the crash log.
 
 ## 7
@@ -135,19 +135,19 @@ compiler puts in the crash log.
 What does the `Error` trait require you to implement?
 
 - A. `fn description(&self) -> &str`
-- B. Nothing at all — it is a marker trait
+- B. Nothing at all, it is a marker trait
 - *C. Nothing directly, but it requires `Debug` and `Display` as supertraits
 - D. `fn source(&self) -> Option<&dyn Error>`
 
 @why
-`pub trait Error: Debug + Display` — every method has a default, so `impl Error
-for MyType {}` is a legal body. What is not optional is the two supertraits, and
+`pub trait Error: Debug + Display`, and every method has a default, so `impl
+Error for MyType {}` is a legal body. What is not optional is the two supertraits, and
 that is where `error[E0277]: the trait bound MyType: Display is not satisfied`
 comes from.
 
 B is nearly right and misses the supertraits, which is exactly the mistake that
 produces that error. `source` is overridable and worth writing when your error
-wraps another — it builds the `Caused by:` chain — but it defaults to `None`.
+wraps another, since it builds the `Caused by:` chain, but it defaults to `None`.
 `description` is long deprecated.
 
 ## 8
@@ -160,7 +160,7 @@ wraps another — it builds the `Caused by:` chain — but it defaults to `None`
 - D. A `Debug` dump of the struct
 
 @why
-Lowercase, no trailing punctuation, no `Error:` prefix — because whoever prints
+Lowercase, no trailing punctuation, no `Error:` prefix, because whoever prints
 it adds the framing. Say what failed and name the thing that failed, so the
 message is useful without a stack trace.
 
@@ -176,14 +176,14 @@ Which crate belongs where?
 
 - *A. `thiserror` in a library, `anyhow` in a binary
 - B. `anyhow` in a library, `thiserror` in a binary
-- C. Both in both — they do the same thing
+- C. Both in both, since they do the same thing
 - D. Neither; the standard library is enough
 
 @why
 The split follows from who reads the error. A library's caller is *code*, and
 code needs a concrete enum it can `match` on to decide whether to retry, fall
 back, or give up. `thiserror` generates the `Display`, `Error` and `From` impls
-and then gets out of the way — the type you ship does not mention the crate.
+and then gets out of the way; the type you ship does not mention the crate.
 
 A binary's caller is a *human reading a terminal*, who wants one clear line.
 `anyhow` erases the type and carries a context chain instead.
@@ -198,7 +198,7 @@ What does `.context("reading app.toml")` add?
 - A. It converts the error into a `String`
 - *B. A layer of explanation, preserved above the original error
 - C. A stack trace
-- D. Nothing at runtime — it is a compile-time annotation
+- D. Nothing at runtime, it is a compile-time annotation
 
 @why
 The original error is kept as the source; the context becomes the new `Display`.
@@ -214,7 +214,7 @@ Caused by:
 A is wrong in a way worth naming: if context replaced the error, you would lose
 the only part that says what actually went wrong. It wraps rather than replaces.
 
-C is a separate feature — `anyhow` can capture a backtrace, but that is
+C is a separate feature: `anyhow` can capture a backtrace, but that is
 `RUST_BACKTRACE`, not `context`.
 
 ## 11
@@ -235,8 +235,8 @@ message and the whole `Caused by:` chain nicely. It is written for this one
 moment.
 
 It also means a hand-rolled error type that only derives `Debug` will print as
-`RetryLimit { attempts: 5 }` from `main` — technically fine, and not the message
-you wrote.
+`RetryLimit { attempts: 5 }` from `main`, which is technically fine and not the
+message you wrote.
 
 ## 12
 
@@ -249,8 +249,8 @@ What does a panic do by default?
 
 @why
 Unwinding walks back through every frame and runs the `Drop` impl of every live
-value: locks released, files closed, buffers flushed. That is why Rust needs no
-`finally` — RAII holds under panic too.
+value: locks released, files closed, buffers flushed. That is why Rust has no
+`finally`: RAII holds under panic too.
 
 B is the *other* mode, selected with `panic = "abort"` in a release profile. It
 skips all cleanup, lets the compiler delete the landing-pad code, and produces a
@@ -292,8 +292,8 @@ There is no second stack to unwind onto, so the runtime gives up and aborts.
 Practically that means a destructor must not panic: no `unwrap` in `Drop`, no
 assertions, no `expect` on a lock.
 
-It is a rule that only bites during an incident — the first panic is the one you
-were debugging, the abort is why you have no useful output about it.
+It is a rule that only bites during an incident: the first panic is the one you
+were debugging, and the abort is why you have no useful output about it.
 
 ## 15
 
@@ -311,7 +311,7 @@ B and D are bugs or broken invariants: no caller can do anything sensible, and
 continuing means operating on state you know is wrong.
 
 A, C and E are all things that happen to correct programs every day. Each has an
-obvious caller response — fall back to defaults, re-prompt, retry with backoff —
+obvious caller response (fall back to defaults, re-prompt, retry with backoff),
 which is precisely the test for `Result`.
 
 The asymmetry is the thing to remember: a `Result` you should have panicked on

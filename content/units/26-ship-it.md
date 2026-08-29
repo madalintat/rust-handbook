@@ -5,10 +5,10 @@ title: Ship it
 accent: rust
 concepts: cargo new, lib split, clap, anyhow, stdout, stderr, exit code, integration test, doc comment, release profile, lto, clippy
 needs: 12-errors, 17-iterators, 19-modules, 20-testing
-blurb: A file-searching tool from `cargo new` to a stripped release binary — the library split, clap, anyhow, two output streams, and what actually makes it small.
+blurb: A file-searching tool from `cargo new` to a stripped release binary: the library split, clap, anyhow, two output streams, and what actually makes it small.
 ---
 
-%% Everything so far has been a piece. This is the assembly: one command-line tool, a small `grep`, built in the order you would actually build it. Nothing here is new syntax. What is new is the arrangement — which code goes in which file, which error type each half wants, and which of the twenty things `cargo` can do are worth doing.
+%% Everything so far has been a piece. This is the assembly: one command-line tool, a small `grep`, built in the order you would actually build it. Nothing here is new syntax. What is new is the arrangement: which code goes in which file, which error type each half wants, and which of the twenty things `cargo` can do are worth doing.
 
 The tool is called `minigrep`. It takes a pattern and a path, prints matching
 lines with line numbers, and exits 0 if it found something.
@@ -51,8 +51,8 @@ and cannot read what it printed. Every line you leave in `main` is a line no tes
 will ever cover.
 :::
 
-So `main` gets the three things that genuinely require a process — reading
-`argv`, holding the real stdout, returning an exit status — and nothing else.
+So `main` gets only the three things that genuinely require a process: reading
+`argv`, holding the real stdout, and returning an exit status.
 
 ```rust
 fn main() -> ExitCode {
@@ -72,7 +72,7 @@ Four lines of logic. Everything below `run` is library code, takes `&str` and
 `impl Write`, and can be tested on a machine with no filesystem at all.
 
 :::compare
-**Python / Go** — the habit of putting the work in `main()` and reaching for a
+**Python / Go.** The habit of putting the work in `main()` and reaching for a
 subprocess-based test costs you nothing until the tool grows. In Rust the
 convention is enforced by the crate layout: `lib.rs` is importable, `main.rs`
 is not, and integration tests can only see the library.
@@ -111,11 +111,11 @@ pub struct Args {
 
 The struct *is* the interface. Field order gives positional order, `bool` becomes
 a flag, `usize` gets parsed and range-checked, and the doc comments become
-`--help`. Nothing else to write and nothing to keep in sync.
+`--help`. There is no second place to update when the interface changes.
 
 :::gotcha
 `Args::parse()` calls `std::process::exit` when the arguments are wrong. That is
-correct in `main` and wrong anywhere else — inside a test it kills the test
+correct in `main` and wrong anywhere else. Inside a test it kills the test
 runner rather than failing a test. Use `try_parse_from(argv)` when you want the
 error back, and `parse_from(argv)` when you want to supply the arguments.
 :::
@@ -153,7 +153,7 @@ on one line.
 
 ### A library wants a type
 
-The moment someone else calls your code, a sentence is not enough — they need to
+The moment someone else calls your code, a sentence is not enough. They need to
 branch on what went wrong.
 
 ```rust
@@ -169,7 +169,7 @@ pub enum SearchError {
 :::note
 `thiserror` in `lib.rs`, `anyhow` in `main.rs`. One defines errors a caller can
 `match` on; the other accumulates human context and prints it once. They are not
-competitors — they sit on opposite sides of the file boundary.
+competitors; they sit on opposite sides of the file boundary.
 :::
 
 ## The search
@@ -202,9 +202,9 @@ buffer already read, so a match allocates nothing.
      └─────────────────────┘
 :::
 
-`.lines()` is lazy, `.filter()` is lazy, and only `.collect()` does any work — so
-the whole pipeline compiles into one pass over the buffer with no intermediate
-vectors.
+`.lines()` is lazy, `.filter()` is lazy, and only `.collect()` does any work, so
+the whole pipeline compiles into a single pass over the buffer with no
+intermediate vectors.
 
 ### Because it takes `&str`, it is testable
 
@@ -221,8 +221,9 @@ mod tests {
 }
 ```
 
-No temporary directory, no fixture file, no cleanup. This is the payoff for the
-split: the interesting code never learned what a file is.
+There is no temporary directory to build and nothing to clean up afterwards.
+This is the payoff for the split: the interesting code never learned what a file
+is.
 
 ## Two streams and a number
 
@@ -239,8 +240,8 @@ entire rule, and it is why `--verbose` output, progress bars and errors all go t
 stderr.
 
 :::gotcha
-`println!` locks stdout, writes, and unlocks — every call. In a loop over a
-million lines that is a million lock acquisitions. Take the lock once:
+`println!` locks stdout, writes, and unlocks again, once for every call. In a
+loop over a million lines that is a million lock acquisitions. Take the lock once:
 
 ```rust
 let mut out = io::stdout().lock();
@@ -266,7 +267,7 @@ fn main() -> ExitCode { /* ... */ }
 ```
 
 Returning `Result` from `main` instead gives you 1 on error and a `{:?}` dump of
-the anyhow chain, which is a reasonable default — but it cannot express "worked,
+the anyhow chain, which is a reasonable default. But it cannot express "worked,
 found nothing", and shell scripts depend on that distinction.
 
 ## Tests and docs
@@ -279,8 +280,8 @@ found nothing", and shell scripts depend on that distinction.
 | `tests/cli.rs` | the public API only | one binary per file |
 | doc examples | the public API, as a reader sees it | compiled and run by `cargo test` |
 
-The **integration test** is the one that catches what unit tests cannot — that the
-binary itself behaves:
+The **integration test** catches the one thing unit tests cannot: whether the
+binary itself behaves.
 
 ```rust
 // tests/cli.rs
@@ -295,7 +296,7 @@ fn exits_one_when_nothing_matches() {
 }
 ```
 
-`CARGO_BIN_EXE_<name>` is set by cargo, so there is no path guessing.
+`CARGO_BIN_EXE_<name>` is set by cargo, so you never have to guess the path.
 
 ### Doc comments are tests
 
@@ -327,10 +328,10 @@ strip = true
 
 | setting | effect | cost |
 |---|---|---|
-| `--release` alone | ~10–100× faster than debug | slow builds |
-| `lto = true` | **LTO** — inlining across crate boundaries | much slower link |
+| `--release` alone | ~10 to 100× faster than debug | slow builds |
+| `lto = true` | **LTO**: inlining across crate boundaries | much slower link |
 | `codegen-units = 1` | no parallel-codegen optimisation loss | slower builds |
-| `strip = true` | drops symbols — often halves the file | no backtraces |
+| `strip = true` | drops symbols, often halving the file | no backtraces |
 | `panic = "abort"` | removes unwinding tables | no `catch_unwind` |
 | `opt-level = "z"` | size over speed | measurably slower |
 
@@ -342,6 +343,35 @@ Debug builds check integer overflow and release builds wrap. A tool that is
 correct under `cargo run` and quietly wrong under `cargo run --release` is
 almost always this. Test the release profile before you ship it.
 :::
+
+### Saying what happened
+
+A tool that prints only its results is a tool nobody can debug from a bug
+report. The convention is `log` for the facade and `env_logger` or `tracing`
+for the implementation, with the level chosen by an environment variable rather
+than a flag, so a user can turn detail on without you shipping a new release.
+
+```rust
+log::debug!("scanning {} with {} threads", path.display(), n);
+log::warn!("skipping {}: {}", path.display(), err);
+```
+
+Three things make this different from scattering `println!`:
+
+The macros compile to nothing when the level is off, because the level check
+happens before the arguments are formatted. A `debug!` in a hot loop costs one
+comparison in production rather than a string allocation.
+
+Everything goes to stderr, so it never contaminates the results you piped
+somewhere.
+
+`RUST_LOG=mytool=debug` turns on one crate at a time, which is what you want at
+2am when the bug is in your code and not in the six dependencies also logging.
+
+`tracing` is the same idea for concurrent programs. Its unit is a span rather
+than a line, so a message carries the request or task it happened inside, which
+is the difference between a readable log and an interleaved one once more than
+one thing is in flight.
 
 ### The last pass
 
@@ -369,5 +399,5 @@ forever** the moment you publish, so publishing a placeholder to reserve a name 
 a thing people do and then regret.
 
 Before you publish, fill in `description`, `license` and `repository` in
-`Cargo.toml` — cargo refuses without the first two, and readers ignore a crate
+`Cargo.toml`. Cargo refuses without the first two, and readers ignore a crate
 missing the third.

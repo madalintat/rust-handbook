@@ -10,7 +10,7 @@ blurb: Absence as a value the compiler can see, the combinators that keep it fro
 
 %% Tony Hoare called the null reference his billion dollar mistake: he added it to ALGOL W in 1965 because it was easy to implement, and it has been dereferenced by accident ever since. The problem was never the concept of absence. It was that absence and presence had the *same type*, so nothing forced anyone to check.
 
-`Option<T>` splits them apart. `T` is a value that is there. `Option<T>` is a value that might not be, and it is a different type — so the check is not a discipline, it is a compile error you have to answer.
+`Option<T>` splits them apart. `T` is a value that is there. `Option<T>` is a value that might not be, and it is a different type. The check stops being a discipline you keep and becomes a compile error you have to answer.
 
 ## An ordinary enum
 
@@ -25,7 +25,7 @@ pub enum Option<T> {
 ```
 
 Both variants are in the prelude, which is why you write `Some(3)` and not
-`Option::Some(3)`. Everything else — `map`, `unwrap_or`, `?` — is ordinary
+`Option::Some(3)`. Everything else (`map`, `unwrap_or`, `?`) is ordinary
 methods on an ordinary enum. You could have written it yourself, and before
 1.0 people did.
 
@@ -56,7 +56,7 @@ with "empty string" and "zero".
 
 Usually nothing at all.
 
-An enum needs a tag to say which variant it is — unless the payload has a bit
+An enum needs a tag to say which variant it is, unless the payload has a bit
 pattern it can never take. A reference is never null, so `None` can just be zero:
 
 :::memory Option<&str> and &str have identical layout
@@ -67,7 +67,7 @@ pattern it can never take. A reference is never null, so `None` can just be zero
 
   Option<&str>  ┌──────────────┬──────────────┐
    Some(s)      │ ptr  0x7ffd… │ len  6       │   16 bytes
-   None         │ ptr  0x0000… │ len  ——      │   no tag anywhere
+   None         │ ptr  0x0000… │ len  ──      │   no tag anywhere
                 └──────────────┴──────────────┘
 :::
 
@@ -79,13 +79,13 @@ This is **niche optimisation**. It applies to `&T`, `&mut T`, `Box<T>`, `Vec<T>`
 | `Option<&T>` | 8 | null pointer is the niche |
 | `Option<Box<T>>` | 8 | same |
 | `Option<String>` | 24 | the pointer inside is the niche |
-| `Option<u8>` | 2 | every `u8` pattern is a real value — a tag is needed |
+| `Option<u8>` | 2 | every `u8` pattern is a real value, so a tag is needed |
 | `Option<Option<u8>>` | 2 | the outer one reuses the inner tag's spare values |
 
 :::note
 Wrapping a pointer in `Option` to make nullability explicit is free. You get the
-compiler's insistence that you handle the empty case and pay nothing for it —
-which is why every `Box`-based linked structure in Rust uses `Option<Box<Node>>`
+compiler's insistence that you handle the empty case and pay nothing for it.
+That is why every `Box`-based linked structure in Rust uses `Option<Box<Node>>`
 rather than a nullable pointer.
 :::
 
@@ -111,8 +111,8 @@ listen(p);
 
 ### unwrap and expect
 
-`unwrap` returns the value or panics. It is not automatically a smell — it is a
-claim, and the question is whether the claim is true.
+`unwrap` returns the value or panics. It is not automatically a smell. It is a
+claim, and the only question is whether the claim is true.
 
 ```rust
 // legitimate: a literal you can read
@@ -150,8 +150,8 @@ for line in lines {
 ```
 
 Inside a loop, `unwrap` turns one malformed input into a total failure. Use `?`
-to propagate, `filter_map` to skip, or `unwrap_or` to substitute — all three are
-shorter than the panic.
+to propagate, `filter_map` to skip, or `unwrap_or` to substitute. Each of them is
+shorter to write than the panic you are replacing.
 :::
 
 ## The combinators
@@ -190,8 +190,8 @@ fn first_number(v: &[&str]) -> Option<i32> {
 }
 ```
 
-`and_then` is flatten-then-map — the same operation `flat_map` is for iterators
-and `then` is for promises. **If the closure can fail, you want `and_then`.**
+`and_then` is flatten-then-map: the same operation `flat_map` performs for
+iterators and `then` performs for promises. **If the closure can fail, you want `and_then`.**
 
 ### unwrap_or versus unwrap_or_else
 
@@ -221,8 +221,8 @@ fn initials(first: &str, last: &str) -> Option<String> {
 }
 ```
 
-Three lines, two early exits, no nesting. The same code with `match` is four
-levels deep.
+Two early exits in three lines, and the body below them stays flat. The same
+code written with `match` is four levels deep.
 
 :::gotcha
 `?` on `Option` only works in a function returning `Option` (or another type
@@ -265,7 +265,7 @@ impl Config {
 ```
 
 Without `as_ref`, `self.name.map(...)` would try to move the `String` out of
-`&self` — `error[E0507]`.
+`&self`, which is `error[E0507]`.
 
 `as_deref` goes one further, `Option<String>` → `Option<&str>`, and is the usual
 way to compare against a literal:

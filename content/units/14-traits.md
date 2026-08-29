@@ -5,7 +5,7 @@ title: Traits
 accent: slate
 concepts: trait, trait bound, coherence, orphan rule, newtype, default method, supertrait, associated type, blanket impl, trait object, vtable, static dispatch, dynamic dispatch, object safety
 needs: 08-structs, 13-generics
-blurb: A named set of behaviour a type can implement — and the two ways to call it, one free and one costing a pointer chase.
+blurb: A named set of behaviour a type can implement, plus the two ways to call it: one free, one costing a pointer chase.
 ---
 
 %% The last unit ended with a bound and never said what one is. `T: Display` is a claim that `T` implements a **trait**, and traits are how every abstraction in Rust is spelled: operators, iteration, printing, conversion, cleanup, thread safety. Learn the mechanism once and the standard library stops being a list of names to memorise.
@@ -56,7 +56,8 @@ impl Loudly for String {
 ```
 
 `String` is not yours. You extended it anyway, and `"hi".to_string().shout()`
-now works throughout your crate — with no wrapper, no subclass, no runtime cost.
+now works throughout your crate. The call costs exactly what an inherent method
+costs, and no wrapper type appears anywhere.
 
 A trait's methods are only callable where the trait is **in scope**, which is why
 files open with `use std::io::Write;` for a type they never name. Method missing?
@@ -110,8 +111,9 @@ impl fmt::Display for Lines {
 ```
 
 `Lines` is yours, so the impl is legal. The wrapper is erased entirely at
-compile time — a `Lines` is a `Vec<String>`, same size, same layout, no
-indirection. Add `Deref` if you want the `Vec` methods back through it.
+compile time. At runtime a `Lines` is a `Vec<String>`: same size, same layout,
+and reaching the field costs nothing. Add `Deref` if you want the `Vec` methods
+back through it.
 
 **newtype** does double duty in real code: `struct UserId(u64)` and
 `struct OrderId(u64)` are both a `u64` and cannot be swapped by accident, which
@@ -160,7 +162,7 @@ trait Convert<T> {                             // parameter: many per implemento
 
 `Iterator` uses an associated type, and the reason is decisive: a `Vec<u8>`'s
 iterator yields `u8` and nothing else. Were `Item` a parameter, every
-`for x in it` would be ambiguous — which `Iterator<T>` impl? — and you would
+`for x in it` would have to say which `Iterator<T>` impl it meant, and you would
 annotate constantly. Meanwhile `From` uses a parameter, because `String` genuinely
 converts from `&str`, `char`, `Box<str>` and more.
 
@@ -181,8 +183,8 @@ impl<T: Display> ToString for T {
 
 That single block in the standard library is why every `Display` type has
 `.to_string()`. You never implement `ToString`; you implement `Display` and it
-arrives. Coherence still holds — the blanket impl is `std`'s, over `std`'s trait,
-so nobody can collide with it.
+arrives. Coherence still holds, because the blanket impl is `std`'s, over `std`'s
+own trait, so nobody can collide with it.
 
 ## Static and dynamic dispatch
 
@@ -218,7 +220,8 @@ gone at compile time, so the address of `fmt` has to travel with the value.
 :::
 
 Sixteen bytes instead of eight. Calling `fmt` loads the vtable slot, then calls
-through it — no inlining, because the target is not known until it runs.
+through it. The optimiser cannot inline the target, because nothing knows what it
+is until the program runs.
 
 | | `impl Trait` / generic | `dyn Trait` |
 |---|---|---|
@@ -233,7 +236,7 @@ generics cannot express: `Vec<T>` needs one `T`, and there is no one `T`.
 
 :::gotcha
 `dyn` is not "slow". It is one predictable indirect call, roughly what every
-Java method call costs. The loss that matters is not the jump — it is the
+Java method call costs. The loss that matters is not the jump. It is the
 inlining, and everything the optimiser would have done afterwards.
 
 Use `dyn` at boundaries where the set of types is genuinely open or the mix is
@@ -254,15 +257,15 @@ let s: Box<dyn Store> = /* ... */;         // error[E0038]
 ```
 
 The vtable is a fixed table of function pointers built when the crate is
-compiled. A generic method has no single address — it has one per instantiation,
-and the set is unknown. A method without `self` has no receiver to dispatch on,
-and `-> Self` has no known size. So a trait is **object safe** only if every
+compiled. A generic method has no single address; it has one per instantiation,
+and the set of instantiations is unknown. A method without `self` has no receiver
+to dispatch on, and `-> Self` has no known size. So a trait is **object safe** only if every
 method takes some form of `self`, is non-generic, and does not mention `Self` in
 a position whose size must be known.
 
 The escape hatch is `where Self: Sized` on the offending method, which excludes
 it from the vtable and keeps the rest of the trait usable as `dyn`. `Iterator`
-does this for `map`, `filter` and the other adapters — which is why
+does this for `map`, `filter` and the other adapters, which is why
 `Box<dyn Iterator<Item = u8>>` works despite fifty generic methods.
 
 ### `impl Trait` in the two positions
@@ -279,9 +282,9 @@ fn print_all(items: impl IntoIterator<Item = String>) { /* ... */ }  // argument
 
 In **argument** position it is shorthand for a type parameter. In **return**
 position it means something you cannot write otherwise: *one specific type,
-which I decline to name*. The closure type inside that `filter` is unnameable —
-the compiler generated it — so `impl Iterator` is the only way to return it
-without boxing.
+which I decline to name*. The compiler generated the closure type inside that
+`filter`, and it has no name you could write down, so `impl Iterator` is the only
+way to return it without boxing.
 
 The cost of `Box<dyn Iterator<...>>` instead would be an allocation and a vtable
 per call. The cost of `impl Iterator` is that all return paths must yield the
@@ -297,13 +300,13 @@ you box.
 | `Clone` | explicit `.clone()` |
 | `Copy` | implicit duplication on assignment; requires `Clone`, forbids `Drop` |
 | `Default` | `T::default()`, `..Default::default()` in struct literals |
-| `PartialEq` / `Eq` | `==`. `Eq` additionally promises reflexivity — `f64` has only `PartialEq` because `NaN != NaN` |
+| `PartialEq` / `Eq` | `==`. `Eq` additionally promises reflexivity, which is why `f64` has only `PartialEq`: `NaN != NaN` |
 | `PartialOrd` / `Ord` | `<`, `.sort()`, `.max()`, use as a `BTreeMap` key |
 | `Hash` | use as a `HashMap` or `HashSet` key, with `Eq` |
 | `From<T>` | `.into()` in the other direction, and `?` converting error types |
 | `TryFrom<T>` | fallible conversion returning `Result` |
 | `AsRef<T>` | a function accepting `String`, `&str` and `Path` alike |
-| `Deref` | method calls falling through — how `String` gets `&str`'s methods |
+| `Deref` | method calls falling through, which is how `String` gets `&str`'s methods |
 | `Iterator` | `for`, and every adapter in the library |
 | `Drop` | code that runs when the value dies |
 

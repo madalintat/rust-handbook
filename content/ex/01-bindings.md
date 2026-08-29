@@ -10,7 +10,7 @@ unit: 01-bindings
 @expect E0384
 
 A retry counter that never gets past its declaration. The arithmetic is right,
-the types are right, and the compiler refuses anyway — because of what was left
+the types are right, and the compiler refuses anyway, because of what was left
 off one line.
 
 ```starter
@@ -43,7 +43,7 @@ pub fn run() -> u32 {
 ```
 
 @hint A `let` binding is immutable unless it says otherwise. This one does not say otherwise.
-@hint `let mut attempts = 0;` — one keyword, at the declaration rather than at the assignment.
+@hint `let mut attempts = 0;`. One keyword, at the declaration rather than at the assignment.
 
 @diagnose E0384
 `cannot assign twice to immutable variable attempts`. Two underlines tell the
@@ -52,12 +52,13 @@ second is on the line that tried to write again.
 
 The wording matters. Rust does not say "this variable is read-only"; it says you
 already assigned it once. A `let` binding may be written exactly once, which is
-why deferred initialisation — `let x;` then `x = ...` on each branch — is legal
-without `mut`. What `mut` buys is the second write and every one after it.
+why deferred initialisation is legal without `mut`: `let x;` and then `x = ...`
+on each branch writes once. What `mut` buys is the second write and every one
+after it.
 
 The suggestion rustc prints is the fix: `consider making this binding mutable`.
-Note where it points — at the declaration, not at the assignment. Mutability is
-a property of the binding.
+Note where it points: at the declaration, not at the assignment. Mutability is a
+property of the binding.
 
 @after
 `attempts += 1` and `attempts = attempts + 1` compile to the same thing here;
@@ -77,8 +78,8 @@ signal to whoever reads the function next.
 @expect E0596
 
 `bump` is correct and unchanged. The problem is entirely at the call site, and
-the error names a *borrow* rather than an assignment — worth reading closely,
-because it is the shape you will meet most often.
+the error names a *borrow* rather than an assignment. Read it closely, because
+it is the shape you will meet most often.
 
 ```starter
 pub fn bump(counter: &mut u32) {
@@ -127,8 +128,8 @@ pub fn run() -> u32 {
 `cannot borrow hits as mutable, as it is not declared as mutable`.
 
 Separate the two things that must both be true before anything can be written.
-The binding must permit mutation — that is `let mut`. And the access must be
-unique — that is `&mut`. Here the second was requested and the first was never
+The binding must permit mutation, which is `let mut`. The access must also be
+unique, which is `&mut`. Here the second was requested and the first was never
 granted, so the borrow is refused.
 
 This is why the error appears at `bump(&mut hits)` and the fix appears four
@@ -161,7 +162,7 @@ Ownership moved and the new owner declared a different intent. Nothing about the
 A port arrives as text with whitespace around it, and the rest of the function
 needs it as a number. Somebody tried to reuse the binding by assigning to it.
 
-Assignment cannot do this. Something else can — and it does not need `mut`.
+Assignment cannot do this. Something else can, and it works without `mut`.
 
 ```starter
 pub fn run() -> u32 {
@@ -190,7 +191,7 @@ pub fn run() -> u32 {
 }
 ```
 
-@hint Assignment can change a binding's value. It can never change its type — the type was fixed when the binding was created.
+@hint Assignment can change a binding's value. It can never change its type, which was fixed when the binding was created.
 @hint Introduce a *second* binding with the same name: `let port: u32 = port.trim().parse().unwrap();`. The annotation is what tells `parse` which type to produce.
 
 @diagnose E0277
@@ -221,8 +222,8 @@ binding's type. Again, one cause, several symptoms.
 @after
 Shadowing is not mutation and it is worth being precise about the difference.
 `let port: u32 = ...` creates a **new binding** that happens to reuse the name.
-The old `&str` still exists — it is what the right-hand side just read — and it
-is dropped at the end of the scope like any other value. It is simply no longer
+The old `&str` still exists; it is what the right-hand side just read. It is
+dropped at the end of the scope like any other value. It is simply no longer
 reachable by that name.
 
 This is exactly what shadowing is for. The alternative is inventing `port_str`
@@ -292,10 +293,10 @@ pub fn run() -> [&'static str; 3] {
 ```
 
 @hint Two branches are written. How many are there?
-@hint `n` can be negative, positive, or exactly zero — and the third case falls off the end of the `if` chain with `label` still unwritten.
+@hint `n` can be negative, positive, or exactly zero, and the third case falls off the end of the `if` chain with `label` still unwritten.
 
 @diagnose E0381
-`used binding label isn't initialized` — or, on a partial path,
+`used binding label isn't initialized`, or on a partial path,
 *possibly-uninitialized*. The word *possibly* is the interesting one: the
 compiler is not saying every run is broken, it is saying it found at least one
 route through the function where nothing was assigned.
@@ -303,10 +304,10 @@ route through the function where nothing was assigned.
 An `if` chain with no `else` has an implicit empty `else`. Take it: `n == 0`
 enters neither branch, falls through, and reads `label`.
 
-There is no default value to fall back on. No zero, no null, no empty string —
-a binding that has not been written on a path cannot be read on that path, full
-stop. That is why Rust needs no null: the situation null exists to represent is
-a compile error instead.
+Nothing is supplied to fall back on: not a zero, not a null, not an empty
+string. A binding that has not been written on a path cannot be read on that
+path, full stop. That is why Rust gets by without null. The situation null
+exists to represent is a compile error instead.
 
 @after
 Deferred initialisation is genuinely useful, and it is tracked per path rather
@@ -334,8 +335,8 @@ down. Same guarantee, caught earlier and read more easily.
 The padding width is computed by a function, and `PAD` wants that number at
 compile time so it can be baked into every use site.
 
-The function is trivially computable. That is not enough — something has to say
-so.
+The function is trivially computable. That is not enough on its own. Something
+has to say so.
 
 ```starter
 pub fn slot_width() -> usize {
@@ -389,8 +390,9 @@ pub fn run() -> String {
 
 A `const` initialiser is executed by an interpreter inside rustc while the crate
 is being compiled, so everything it touches has to be something that interpreter
-is permitted to run. An ordinary `fn` is not — not because this one does
-anything difficult, but because nothing in its signature promises it never will.
+is permitted to run. An ordinary `fn` is not, and the reason has nothing to do
+with this one being difficult. Nothing in its signature promises it never will
+be.
 The compiler will not infer const-ness from a body, exactly as it will not infer
 an item's type from one.
 
@@ -407,7 +409,7 @@ object, or call anything that is not itself `const`.
 The payoff is that computation moves from every run of the program to one run of
 the compiler. Array sizes, lookup tables, bit masks and protocol constants can
 all be derived rather than written out by hand, and the derivation costs nothing
-at runtime — the binary contains only the answer.
+at runtime, because the binary contains only the answer.
 
 If you export a `const fn` from a library, be aware you have promised more than
 usual: making a public `const fn` non-const later is a breaking change.
@@ -420,7 +422,7 @@ usual: making a public `const fn` non-const later is a breaking change.
 @expect E0369
 
 The parse is correct. The type annotation is correct. The value is even computed
-successfully — and then the last line still sees a string.
+successfully, and then the last line still sees a string.
 
 Look at where the shadowing binding was introduced, and what happens at the
 closing brace.
@@ -467,7 +469,7 @@ scope there.
 
 Shadowing follows scope like any other binding. The `let level: u32` inside the
 block introduced a name that lived from that line to the closing brace and then
-went out of scope, restoring the outer `level` — the `&str` — as the meaning of
+went out of scope, restoring the outer `level`, the `&str`, as the meaning of
 the name. Nothing was mutated and nothing leaked out.
 
 That constraint is what makes shadowing safe rather than confusing. A shadow can
@@ -504,7 +506,7 @@ business surviving.
 @expect E0425
 
 `Guard` writes to the log when it is dropped, which makes the invisible
-visible — you can see exactly when it was released.
+visible: you can see exactly when it was released.
 
 The test says the guard must still be held while the middle line runs. Right now
 it is not, and the reason is a single character.
@@ -574,7 +576,7 @@ pub fn run() -> Vec<String> {
 ```
 
 @hint The next line names `_guard`. Nothing in the function ever created it.
-@hint `_` is not a name. Give the guard a real one — `_guard` — and both problems disappear at once.
+@hint `_` is not a name. Give the guard a real one, `_guard`, and both problems disappear at once.
 
 @diagnose E0425
 `cannot find value _guard in this scope`, and the value is right there on the
@@ -582,7 +584,7 @@ line above. Except it is not: `let _ = ...` does not create a binding of any
 kind.
 
 Bare `_` is a pattern that matches anything and stores nothing. Nothing is
-bound, so nothing owns the `Guard`, so it is dropped **immediately** — on that
+bound, so nothing owns the `Guard`, so it is dropped **immediately**, on that
 line, before the next one runs. Had the reference to `_guard` not been an error,
 the log would have read `release lock` first and `holding lock` second, and the
 test would have failed for a reason far harder to see.
@@ -600,11 +602,11 @@ let _guard = mutex.lock();   // held to the end of the scope.
 ```
 
 Both compile. Only one of them takes a lock in any useful sense. The same trap
-catches file handles, tracing spans, profiling timers and transaction guards —
+catches file handles, tracing spans, profiling timers and transaction guards:
 anything whose entire purpose is its `Drop`.
 
 The rule to carry: if a value matters because of *when it is destroyed*, it
-needs a name. `let _ = ...` is for the opposite job — deliberately discarding a
+needs a name. `let _ = ...` is for the opposite job: deliberately discarding a
 `#[must_use]` result you have chosen to ignore.
 
 ## 8. A global that two threads could race
@@ -672,7 +674,7 @@ pub fn run() -> u32 {
 }
 ```
 
-@hint A `static` is fine. `static mut` is the problem — you need a type that can be modified through a shared reference safely.
+@hint A `static` is fine. `static mut` is the problem: you need a type that can be modified safely through a shared reference.
 @hint `std::sync::atomic::AtomicU32` does exactly that. `AtomicU32::new(0)` is a `const` constructor, so it is legal as a static's initialiser.
 @hint `HITS.fetch_add(1, Ordering::Relaxed)` returns the value *before* the add; `HITS.load(Ordering::Relaxed)` reads it.
 
@@ -685,7 +687,7 @@ synchronisation at all: two threads incrementing it race, the read-modify-write
 interleaves, and counts are lost. That is undefined behaviour, not merely a
 wrong number.
 
-So every access is `unsafe` — reads included, because a read racing a write is
+So every access is `unsafe`, reads included, because a read racing a write is
 just as broken. The compiler is not asking you to prove the code is correct; it
 is asking you to take responsibility for a guarantee it cannot check. In the
 2024 edition it is stricter still: even taking a reference to a `static mut` is
@@ -693,8 +695,8 @@ rejected outright.
 
 @after
 The fix is not a workaround. `AtomicU32` provides exactly what `static mut`
-lacked — a read-modify-write the hardware performs indivisibly — and once the
-type is safe to share, the `unsafe` requirement disappears. The pattern
+lacked: a read-modify-write the hardware performs indivisibly. Once the type is
+safe to share, the `unsafe` requirement disappears. The pattern
 generalises: `Mutex<T>` or `RwLock<T>` for anything bigger, `OnceLock<T>` for a
 value initialised once and then only read.
 

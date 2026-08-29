@@ -7,12 +7,12 @@
  * What it covers is the subset you actually use while fixing a twenty-line Rust
  * exercise: motions, operators, counts, registers, visual mode, undo. What it
  * deliberately does not cover is named registers, macros, marks, `.` repeat, and
- * ex commands beyond :w — those matter in a real editing session and would
+ * ex commands beyond :w. Those matter in a real editing session and would
  * double the size of this file for a workbench where the longest starter is 53
  * lines. `Vim.UNSUPPORTED` lists them so the UI can be honest.
  *
- * The motion and operator logic is pure — it takes (text, index) and returns a
- * new index or a new state — so it is testable without a DOM. Only `attach`
+ * The motion and operator logic is pure: it takes (text, index) and returns a
+ * new index or a new state, so it is testable without a DOM. Only `attach`
  * touches the textarea.
  */
 
@@ -22,7 +22,7 @@ const Vim = (() => {
 const UNSUPPORTED = ['named registers', 'macros (q)', 'marks', '. repeat', 'ex commands beyond :w'];
 
 /* ===================================================================== */
-/* text helpers — all pure, all index-based                              */
+/* text helpers, all pure, all index-based                              */
 /* ===================================================================== */
 
 const lineStart = (v, i) => v.lastIndexOf('\n', Math.max(0, i - 1)) + 1;
@@ -109,6 +109,68 @@ function findChar(v, i, ch, { back, till }) {
   return -1;
 }
 
+/* Text objects: the `iw` in `ciw` and the `a"` in `da"`. `i` takes the inside,
+   `a` takes the surrounding delimiters or trailing whitespace too. Returns
+   [from, to) or null. */
+const PAIRS = { '(': ')', ')': ')', b: ')', '[': ']', ']': ']',
+                '{': '}', '}': '}', B: '}', '<': '>', '>': '>' };
+const OPENERS = { ')': '(', ']': '[', '}': '{', '>': '<' };
+
+function textObject(v, i, kind, obj) {
+  if (obj === 'w' || obj === 'W') {
+    const big = obj === 'W';
+    if (i >= v.length) return null;
+    const k = klass(v[i], big);
+    let a = i, b = i;
+    while (a > 0 && v[a - 1] !== '\n' && klass(v[a - 1], big) === k) a--;
+    while (b + 1 < v.length && v[b + 1] !== '\n' && klass(v[b + 1], big) === k) b++;
+    b++;
+    // `aw` also eats the whitespace after the word, or before it if there is
+    // none after. That asymmetry is real Vim and it is what makes `daw` leave a
+    // sentence correctly spaced.
+    if (kind === 'a') {
+      const before = b;
+      while (b < v.length && v[b] !== '\n' && isSpace(v[b])) b++;
+      if (b === before) while (a > 0 && v[a - 1] !== '\n' && isSpace(v[a - 1])) a--;
+    }
+    return [a, b];
+  }
+
+  if (obj === '"' || obj === "'" || obj === '`') {
+    // Quotes have no nesting, so scan the line and take the pair we are inside.
+    const s0 = lineStart(v, i), e0 = lineEnd(v, i);
+    const at = [];
+    for (let k = s0; k < e0; k++) {
+      if (v[k] === obj && v[k - 1] !== '\\') at.push(k);
+    }
+    for (let k = 0; k + 1 < at.length; k += 2) {
+      if (i >= at[k] && i <= at[k + 1]) {
+        return kind === 'i' ? [at[k] + 1, at[k + 1]] : [at[k], at[k + 1] + 1];
+      }
+    }
+    return null;
+  }
+
+  const close = PAIRS[obj];
+  if (!close) return null;
+  const open = OPENERS[close];
+  // Walk out to the enclosing pair, counting depth so nested brackets work.
+  let depth = 0, a = -1;
+  for (let k = v[i] === close ? i - 1 : i; k >= 0; k--) {
+    if (v[k] === close && k !== i) depth++;
+    else if (v[k] === open) { if (depth === 0) { a = k; break; } depth--; }
+  }
+  if (a < 0) return null;
+  depth = 0;
+  let b = -1;
+  for (let k = a + 1; k < v.length; k++) {
+    if (v[k] === open) depth++;
+    else if (v[k] === close) { if (depth === 0) { b = k; break; } depth--; }
+  }
+  if (b < 0) return null;
+  return kind === 'i' ? [a + 1, b] : [a, b + 1];
+}
+
 /* Vertical movement keeps the column you were aiming for, so a run of j through
    a short line and out the other side lands where you expect. */
 function vertical(v, i, delta, want) {
@@ -119,11 +181,56 @@ function vertical(v, i, delta, want) {
   return at + Math.min(want, Math.max(0, lines[n].length));
 }
 
+/* gc, from Comment.nvim. Rust line comments only, which is all this editor
+   ever holds. Toggling is per-block: if every non-blank line is already
+   commented the block is uncommented, otherwise all of them are commented, so a
+   half-commented block ends up fully commented rather than inverted. */
+function toggleComment(v, from, to) {
+  const a = lineStart(v, from), b = lineEnd(v, to);
+  const body = v.slice(a, b).split('\n');
+  const live = body.filter((l) => l.trim() !== '');
+  const allOn = live.length > 0 && live.every((l) => /^\s*\/\//.test(l));
+  const indent = Math.min(...(live.length ? live : ['']).map((l) => /^\s*/.exec(l)[0].length));
+  const out = body.map((l) => {
+    if (l.trim() === '') return l;
+    if (allOn) return l.replace(/^(\s*)\/\/ ?/, '$1');
+    return l.slice(0, indent) + '// ' + l.slice(indent);
+  });
+  return [a, b, out.join('\n')];
+}
+
+/* Ctrl-A and Ctrl-X, which the config maps to <leader>+ and <leader>-. Finds
+   the number under or after the cursor on this line and steps it. */
+function stepNumber(v, i, by) {
+  const s0 = lineStart(v, i), e0 = lineEnd(v, i);
+  const line = v.slice(s0, e0);
+  const re = /-?\d+/g;
+  let m;
+  while ((m = re.exec(line)) !== null) {
+    const a = s0 + m.index, b = a + m[0].length;
+    if (b > i) return [a, b, String(parseInt(m[0], 10) + by)];
+  }
+  return null;
+}
+
+/* smartcase, as the config sets it: a lower-case pattern matches either case, a
+   pattern with any capital in it is taken literally. */
+function searchFrom(v, i, pat, back) {
+  if (!pat) return -1;
+  const smart = /[A-Z]/.test(pat);
+  const hay = smart ? v : v.toLowerCase();
+  const needle = smart ? pat : pat.toLowerCase();
+  if (back) {
+    const at = hay.lastIndexOf(needle, Math.max(0, i - 1));
+    return at >= 0 ? at : hay.lastIndexOf(needle);           // wrap
+  }
+  const at = hay.indexOf(needle, i + 1);
+  return at >= 0 ? at : hay.indexOf(needle);                 // wrap
+}
+
 /* ===================================================================== */
 /* the machine                                                           */
 /* ===================================================================== */
-
-const MOTION_KEYS = 'hjklwWbBeE0^$GH{}';
 
 function create(opts = {}) {
   const st = {
@@ -131,11 +238,14 @@ function create(opts = {}) {
     cur: 0,
     want: 0,             // desired column for j/k
     count: '',
+    opCount: '',   // the count typed BEFORE the operator
     op: null,            // pending operator: d c y > <
     anchor: 0,           // visual start
     reg: { text: '', linewise: false },
     await: null,         // f F t T r, or 'g'
     cmd: null,           // the : command line, while one is open
+    find: '',            // the last / pattern, for n and N
+    search: null,        // the / prompt, while one is open
     undo: [],
     redo: [],
     status: '',
@@ -146,7 +256,7 @@ function create(opts = {}) {
 
   const clampNormal = (i) => {
     // In normal mode the cursor sits ON a character, so it may not rest past the
-    // last one — the difference that makes `$` behave.
+    // last one, the difference that makes `$` behave.
     const s = lineStart(text, i), e = lineEnd(text, i);
     return Math.max(s, Math.min(i, Math.max(s, e - (st.mode === 'insert' ? 0 : 1))));
   };
@@ -161,7 +271,28 @@ function create(opts = {}) {
     text = text.slice(0, from) + insert + text.slice(to);
   }
 
-  const n = () => Math.max(1, parseInt(st.count || '1', 10));
+  /* Vim multiplies the count before an operator by the count after it, so
+     `2d3w` deletes six words. One string cannot hold two numbers: appending the
+     second to the first made `2d3w` mean 23. */
+  const num = (c) => Math.max(1, parseInt(c || '1', 10));
+  const n = () => num(st.opCount) * num(st.count);
+  const hasCount = () => !!(st.count || st.opCount);
+
+  /* Every pending-state branch ends one of two ways. Spelling the epilogue out
+     per branch is how `r` and `f` came to leave an operator armed after the
+     command was over: the next motion then executed an edit nobody asked for. */
+  const done = () => {
+    st.count = st.opCount = '';
+    st.op = null;
+    emit();
+    return true;
+  };
+  const abandon = (why) => {
+    if (why) st.status = why;
+    reset();
+    emit();
+    return true;
+  };
 
   /* --- motions ------------------------------------------------------- */
   /* Returns {to, linewise, inclusive} or null. `to` is where the cursor goes;
@@ -196,7 +327,7 @@ function create(opts = {}) {
       case '$': return { to: lineEnd(v, i), inclusive: true };
       case '{': return { to: paraBack(v, i), linewise: true };
       case '}': return { to: paraFwd(v, i), linewise: true };
-      case 'G': return { to: firstNonBlank(v, st.count ? lineAt(v, count - 1) : lineAt(v, 1e9)), linewise: true };
+      case 'G': return { to: firstNonBlank(v, hasCount() ? lineAt(v, count - 1) : lineAt(v, 1e9)), linewise: true };
       case 'H': return { to: 0, linewise: true };
       default: return null;
     }
@@ -224,6 +355,14 @@ function create(opts = {}) {
       st.cur = firstNonBlank(text, from);
       return;
     }
+    if (op === 'S') {
+      // substitute.nvim's gs: replace the range with the register, and do NOT
+      // clobber the register with what was there. That is the whole point of it.
+      snapshot();
+      replace(from, to, st.reg.text);
+      st.cur = clampNormal(from);
+      return;
+    }
     snapshot();
     st.reg = { text: cut, linewise: !!linewise };
     if (op === 'c' && linewise) {
@@ -240,9 +379,12 @@ function create(opts = {}) {
   }
 
   function paste(before) {
-    snapshot();
     const { text: r, linewise } = st.reg;
+    // Guard first. snapshot() clears the redo stack, so snapshotting before
+    // deciding there is nothing to paste meant a stray `p` after a `u` threw
+    // away the redo you were about to use.
     if (!r) return;
+    snapshot();
     if (linewise) {
       const body = r.endsWith('\n') ? r.slice(0, -1) : r;
       if (before) {
@@ -252,7 +394,7 @@ function create(opts = {}) {
       } else {
         // Insert the newline BEFORE the body, at the end of the current line.
         // That works whether or not a line follows and whether or not the buffer
-        // ends with a newline — appending to it does not.
+        // ends with a newline. Appending to it does not.
         const at = lineEnd(text, st.cur);
         replace(at, at, '\n' + body);
         st.cur = firstNonBlank(text, at + 1);
@@ -280,7 +422,26 @@ function create(opts = {}) {
     }
 
     // waiting for the argument of f/F/t/T/r, or the second key of g
-    // The : command line. Only :w and :x do anything — they run the code, which
+    // The / prompt. smartcase, and the pattern is remembered for n and N.
+    if (st.search !== null) {
+      if (k === 'Escape') { st.search = null; }
+      else if (k === 'Enter') {
+        const pat = st.search;
+        st.search = null;
+        if (pat) {
+          st.find = pat;
+          const at = searchFrom(text, st.cur, pat, false);
+          if (at >= 0) { st.cur = clampNormal(at); st.want = col(text, st.cur); }
+          else st.status = `not found: ${pat}`;
+        }
+      } else if (k === 'Backspace') {
+        if (!st.search) st.search = null; else st.search = st.search.slice(0, -1);
+      } else if (k.length === 1) st.search += k;
+      emit();
+      return true;
+    }
+
+    // The : command line. Only :w and :x do anything. They run the code, which
     // is the muscle memory worth honouring here. Everything else says so.
     if (st.cmd !== null) {
       if (k === 'Escape') { st.cmd = null; }
@@ -291,7 +452,7 @@ function create(opts = {}) {
           st.status = 'running';
           if (opts.onRun) opts.onRun();
         } else if (c === 'q' || c === 'q!') {
-          st.status = 'nothing to quit — this is a workbench';
+          st.status = 'nothing to quit. This is a workbench';
         } else {
           st.status = `not a command: :${c}`;
         }
@@ -307,25 +468,73 @@ function create(opts = {}) {
     if (st.await) {
       const a = st.await;
       st.await = null;
-      if (k === 'Escape') { reset(); emit(); return true; }
+      if (k === 'Escape') return abandon();
       if (a === 'g') {
         if (k === 'g') {
-          st.cur = firstNonBlank(text, st.count ? lineAt(text, n() - 1) : 0);
+          st.cur = firstNonBlank(text, hasCount() ? lineAt(text, n() - 1) : 0);
           if (st.op) { doPendingLinewise(st.cur); } else { st.want = col(text, st.cur); }
+        } else if (k === 'c') {
+          // gcc, or gc over a visual selection. Comment.nvim's mapping.
+          if (st.mode === 'visual' || st.mode === 'vline') {
+            const [a2, b2, body] = toggleComment(text, Math.min(st.anchor, st.cur),
+                                                 Math.max(st.anchor, st.cur));
+            snapshot();
+            replace(a2, b2, body);
+            st.mode = 'normal';
+            st.cur = clampNormal(firstNonBlank(text, a2));
+          } else {
+            st.await = 'gc';
+            emit();
+            return true;
+          }
+        } else if (k === 's') {
+          // substitute.nvim: gs replaces a motion's text with the register.
+          st.op = 'S';
           st.count = '';
           emit();
           return true;
+        } else if (k === 'S') {
+          if (st.reg.text) {
+            snapshot();
+            replace(st.cur, lineEnd(text, st.cur), st.reg.text);
+            st.cur = clampNormal(st.cur);
+          }
+        } else {
+          // `gz` and friends are not commands.
+          return abandon();
         }
-        reset(); emit(); return true;
+        return done();
+      }
+      if (a === 'gc') {
+        // gcc toggles this line; gc{motion} toggles the lines it spans.
+        let from = st.cur, to = st.cur;
+        if (k !== 'c') {
+          const m = motion(k, n());
+          if (!m) { st.op = null; reset(); emit(); return true; }
+          from = Math.min(st.cur, m.to);
+          to = Math.max(st.cur, m.to);
+        } else if (n() > 1) {
+          to = lineAt(text, lineNo(text, st.cur) + n() - 1);
+        }
+        const [a2, b2, body] = toggleComment(text, from, to);
+        snapshot();
+        replace(a2, b2, body);
+        st.cur = clampNormal(firstNonBlank(text, a2));
+        return done();
+      }
+      if (a === 'i' || a === 'a') {
+        const range = textObject(text, st.cur, a, k);
+        if (!range) return abandon(`no ${a}${k} here`);
+        if (st.op) applyOp(st.op, range[0], range[1], false);
+        else st.cur = clampNormal(range[0]);
+        return done();
       }
       if (a === 'r') {
         if (k.length === 1) {
           snapshot();
           replace(st.cur, st.cur + 1, k);
         }
-        st.count = '';
-        emit();
-        return true;
+        return done();
       }
       // f F t T
       const found = findChar(text, st.cur, k,
@@ -341,11 +550,9 @@ function create(opts = {}) {
           st.want = col(text, st.cur);
         }
       } else {
-        st.status = `no '${k}' on this line`;
+        return abandon(`no '${k}' on this line`);
       }
-      st.count = '';
-      emit();
-      return true;
+      return done();
     }
 
     if (k === 'Escape') { reset(); emit(); return true; }
@@ -362,16 +569,23 @@ function create(opts = {}) {
       const from = lineStart(text, st.cur);
       const to = lineAt(text, lineNo(text, st.cur) + n() - 1);
       applyOp(st.op, from, to, true);
-      st.op = null;
-      st.count = '';
+      return done();
+    }
+
+    // `di(`, `ciw`, `ya"`: the operator waits for the object kind, then the object.
+    if (st.op && (k === 'i' || k === 'a')) {
+      st.await = k;
       emit();
       return true;
     }
 
-    // a motion, possibly completing a pending operator
-    if (MOTION_KEYS.includes(k)) {
-      const m = motion(k, n());
-      if (!m) { st.count = ''; emit(); return true; }
+    // A motion, possibly completing a pending operator. motion() returning null
+    // IS the membership test; a separate MOTION_KEYS string was a second copy of
+    // the same list and had already drifted (it omitted the space motion, which
+    // was therefore unreachable).
+    const mo = motion(k, n());
+    if (mo) {
+      const m = mo;
       if (st.op) {
         const from = Math.min(st.cur, m.to);
         const to = Math.max(st.cur, m.to) + (m.inclusive ? 1 : 0);
@@ -381,15 +595,29 @@ function create(opts = {}) {
         st.cur = st.mode === 'visual' || st.mode === 'vline' ? m.to : clampNormal(m.to);
         if (k !== 'j' && k !== 'k') st.want = col(text, st.cur);
       }
-      st.count = '';
-      emit();
-      return true;
+      return done();
     }
 
     switch (k) {
       case 'g': st.await = 'g'; emit(); return true;
       case 'f': case 'F': case 't': case 'T': case 'r':
         st.await = k; emit(); return true;
+      case '/': st.search = ''; emit(); return true;
+      case 'n': case 'N': {
+        if (!st.find) { st.status = 'no previous search'; break; }
+        const at = searchFrom(text, st.cur, st.find, k === 'N');
+        if (at >= 0) st.cur = clampNormal(at);
+        else st.status = `not found: ${st.find}`;
+        break;
+      }
+      case 'A_INC': case 'A_DEC': {
+        const r = stepNumber(text, st.cur, k === 'A_INC' ? n() : -n());
+        if (!r) { st.status = 'no number on this line'; break; }
+        snapshot();
+        replace(r[0], r[1], r[2]);
+        st.cur = clampNormal(r[0] + r[2].length - 1);
+        break;
+      }
 
       case 'i': snapshot(); st.mode = 'insert'; break;
       case 'I': st.cur = firstNonBlank(text, st.cur); snapshot(); st.mode = 'insert'; break;
@@ -418,9 +646,11 @@ function create(opts = {}) {
           if (st.mode !== 'insert') st.mode = 'normal';
           break;
         }
-        // Return without clearing the count: it belongs to the operator, not to
-        // the key that set it. `2dd` deletes two lines, `d3w` three words.
+        // The count typed so far belongs to the operator. Digits typed after it
+        // are a second, independent count, and the two multiply.
         st.op = k;
+        st.opCount = st.count;
+        st.count = '';
         emit();
         return true;
 
@@ -497,7 +727,7 @@ function create(opts = {}) {
         return true;
     }
 
-    st.count = '';
+    st.count = st.opCount = '';
     if (st.mode === 'normal') st.cur = clampNormal(st.cur);
     st.want = col(text, st.cur);
     emit();
@@ -511,7 +741,7 @@ function create(opts = {}) {
 
   function reset() {
     st.op = null;
-    st.count = '';
+    st.count = st.opCount = '';
     st.await = null;
     if (st.mode !== 'insert') st.mode = 'normal';
     st.cur = clampNormal(st.cur);
@@ -524,11 +754,13 @@ function create(opts = {}) {
     set text(v) { text = v; },
     setCursor(i) { st.cur = i; st.want = col(text, i); },
     label() {
+      if (st.search !== null) return '/' + st.search;
       if (st.cmd !== null) return ':' + st.cmd;
       if (st.mode === 'insert') return 'INSERT';
+      const pend = (st.opCount || '') + (st.op || '') + (st.count || '') + (st.await || '');
       if (st.mode === 'visual') return 'VISUAL';
       if (st.mode === 'vline') return 'V-LINE';
-      return (st.count || '') + (st.op || '') + (st.await || '') || 'NORMAL';
+      return pend || 'NORMAL';
     },
   };
 }
@@ -547,9 +779,10 @@ const setOn = (on) => {
 
 /* Attaches to a textarea. Returns handles the editor uses; enabling and
    disabling is a live toggle, so the reader can flip it mid-exercise. */
-function attach(ta, { paint, onRun, badge }) {
+function attach(ta, { paint, onRun, badge, gutter }) {
   const vim = create({ onRun });
   let on = false;
+  let lastJ = 0;   // when a `j` was typed in insert mode, for the jk mapping
 
   const render = () => {
     ta.value = vim.text;
@@ -569,6 +802,10 @@ function attach(ta, { paint, onRun, badge }) {
     }
     const cls = on ? 'vim-' + (m === 'vline' ? 'visual' : m) : '';
     ta.parentElement.parentElement.dataset.vim = cls;
+    // relativenumber + number, as the config sets them: distances from the
+    // cursor, with the cursor's own line showing its absolute number. That
+    // pairing is what makes 7j and d4k something you can read off the screen.
+    if (gutter) gutter(on ? lineNo(vim.text, vim.state.cur) : null);
     if (badge) {
       badge.hidden = !on;
       badge.textContent = vim.label();
@@ -580,20 +817,51 @@ function attach(ta, { paint, onRun, badge }) {
 
   function onKeyDown(e) {
     if (!on) return;
+
+    // `jk` to leave insert mode. This is a personal mapping, not stock Vim, and
+    // it only fires when the j was typed a moment ago: `jk` inside a word you
+    // are deliberately writing must survive.
+    if (vim.state.mode === 'insert' && e.key === 'k' && !e.ctrlKey && !e.metaKey) {
+      const at = ta.selectionStart;
+      if (ta.value[at - 1] === 'j' && Date.now() - lastJ < 400) {
+        e.preventDefault();
+        ta.setRangeText('', at - 1, at, 'end');
+        vim.text = ta.value;
+        vim.setCursor(Math.max(0, at - 1));
+        vim.key('Escape');
+        render();
+        return;
+      }
+    }
+    if (vim.state.mode === 'insert' && e.key === 'j') lastJ = Date.now();
+
+    const CTRL = { a: 'A_INC', x: 'A_DEC', r: 'R' };
+    const ctrlCmd = e.ctrlKey && !e.metaKey ? CTRL[e.key] : null;
     // Let the browser's own shortcuts through untouched.
-    if (e.metaKey || (e.ctrlKey && e.key !== 'r' && e.key !== '[')) return;
+    if (e.metaKey || (e.ctrlKey && !ctrlCmd && e.key !== '[')) return;
 
     vim.text = ta.value;
     vim.setCursor(ta.selectionStart);
     // setCursor resets `want`; restore what the machine was tracking so a run of
     // j/k through short lines keeps its column.
-    const k = e.ctrlKey && e.key === 'r' ? 'R' : e.key;
-    const allowLong = ['Escape', 'Enter', 'Backspace'];
+    const k = ctrlCmd || e.key;
+    const allowLong = ['Escape', 'Enter', 'Backspace', 'A_INC', 'A_DEC', 'R'];
+    if (k === 'Tab' && vim.state.mode !== 'insert') {
+      // Not a command, but it must not reach the editor's own Tab handler
+      // and indent the line. `>>` is how you indent in normal mode.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     if (k.length > 1 && !allowLong.includes(k)) return;  // arrows, Home, F-keys: leave alone
 
     const consumed = vim.key(k, { ctrl: e.ctrlKey });
     if (!consumed) return;
     e.preventDefault();
+    // mountEditor has its own keydown listener on this same textarea, and
+    // preventDefault does not stop a sibling. Without this, Enter in normal mode
+    // was consumed here and THEN inserted a newline down there.
+    e.stopImmediatePropagation();
 
     render();
   }
@@ -624,6 +892,7 @@ function attach(ta, { paint, onRun, badge }) {
     disable() {
       on = false;
       setOn(false);
+      if (gutter) gutter(null);
       if (badge) badge.hidden = true;
       ta.parentElement.parentElement.dataset.vim = '';
       const c = ta.selectionStart;

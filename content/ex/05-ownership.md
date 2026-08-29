@@ -10,7 +10,7 @@ unit: 05-ownership
 
 `describe` only wants to know how long the string is. But look at its signature: it
 takes `String` **by value**, which means calling it hands over ownership. When
-`describe` returns, its parameter goes out of scope and the buffer is freed — so by
+`describe` returns, its parameter goes out of scope and the buffer is freed. By
 the time `run` tries to format `s`, there is nothing there.
 
 Make this compile. There is more than one correct answer, and one of them is
@@ -53,15 +53,15 @@ pub fn run() -> String {
 
 @hint `describe` never modifies the string and never needs to keep it. It only reads it.
 @hint Change the parameter type so the function borrows instead of taking ownership, then pass `&s` at the call site.
-@hint `pub fn describe(s: &str) -> usize` — and `&String` coerces to `&str` automatically, so `describe(&s)` just works.
+@hint `pub fn describe(s: &str) -> usize`, and `&String` coerces to `&str` automatically, so `describe(&s)` just works.
 
 @diagnose E0382
 Read the three underlines rustc gave you, because together they are a complete
 story:
 
-- `move occurs because s has type String, which does not implement the Copy trait` — this is the *reason*. A `String` owns a heap buffer, so duplicating its three-word handle would produce two owners of one allocation. Rust will not do that silently.
-- `value moved here` under `describe(s)` — this is *where* ownership left. Passing by value to a function is a move, the same as an assignment.
-- `value borrowed here after move` — this is *what broke*. The `{s}` inside `format!` needs to read `s`, and `s` no longer owns anything to read.
+- `move occurs because s has type String, which does not implement the Copy trait` is the *reason*. A `String` owns a heap buffer, so duplicating its three-word handle would produce two owners of one allocation. Rust will not do that silently.
+- `value moved here` under `describe(s)` is *where* ownership left. Passing by value to a function is a move, the same as an assignment.
+- `value borrowed here after move` is *what broke*. The `{s}` inside `format!` needs to read `s`, and `s` no longer owns anything to read.
 
 The compiler is not objecting to the `format!`. It is objecting to the
 combination: you gave the string away on one line and read it on the next. Fix
@@ -70,7 +70,7 @@ either half and it is happy.
 @after
 The fix you want is `&str`, not `&String`, and the reason is worth internalising
 early. A `&String` can only ever point at a heap-allocated `String`. A `&str`
-points at *any* run of UTF-8 bytes — one inside a `String`, a literal baked into
+points at *any* run of UTF-8 bytes: one inside a `String`, a literal baked into
 the binary, or a slice of either. Taking `&str` makes `describe` callable with
 `describe("hi")` as well as `describe(&s)`, at no cost.
 
@@ -84,7 +84,7 @@ the owned form; accept the borrowed one.
 @concept move
 @expect E0382
 
-No function call this time. Just an assignment — and an assignment of a
+No function call this time. Just an assignment, and an assignment of a
 non-`Copy` type is a move.
 
 Both names are supposed to be usable at the end. Make that true.
@@ -116,14 +116,14 @@ pub fn run() -> String {
 }
 ```
 
-@hint You genuinely need two usable `String` values here, so borrowing will not do — you need a second buffer.
+@hint You genuinely need two usable `String` values here, so borrowing will not do. You need a second buffer.
 @hint `clone()` asks the allocator for a fresh buffer and copies the bytes in, leaving the original untouched.
 
 @diagnose E0382
 `let b = a;` copied the three-word handle out of `a` and into `b`, and then the
 compiler retired `a`. It had to. If both bindings stayed live, both would be
 dropped at the end of `run`, and both drops would hand the same heap buffer back
-to the allocator — a double free, which is exactly the class of bug this rule
+to the allocator. That is a double free, exactly the class of bug this rule
 exists to make unwriteable.
 
 Nothing was scrubbed from `a` at runtime; its bytes are still sitting in the
@@ -196,7 +196,7 @@ bytes produces a genuinely complete, independent second value, so both bindings
 can stay live.
 
 `String` cannot implement `Copy`, and this is structural rather than a design
-preference. `Copy` and `Drop` are mutually exclusive — a type that needs a
+preference. `Copy` and `Drop` are mutually exclusive: a type that needs a
 destructor cannot be silently duplicated, because then the destructor would run
 twice on one resource. `String` has a destructor that frees its buffer.
 Therefore `String` can never be `Copy`. The same argument rules out `Vec<T>`,
@@ -207,8 +207,8 @@ The useful shorthand: **a type is `Copy` only if it owns nothing that needs
 cleaning up.** Integers, floats, `bool`, `char`, shared references `&T`, and
 arrays and tuples built entirely out of those.
 
-Notably `&T` is `Copy` — copying a reference is just copying an address, and the
-reference does not own the thing it points at, so no destructor is involved.
+Notably `&T` is `Copy`. Copying a reference copies an address, and the reference
+does not own the thing it points at, so no destructor is involved.
 That is why you can pass a `&str` to five functions in a row without a single
 complaint, and it is a large part of why borrowing feels so much lighter than
 owning.
@@ -268,14 +268,14 @@ pub fn run() -> (i32, usize) {
 ```
 
 @hint `total` only reads the numbers. It has no reason to take ownership of the vector.
-@hint Take `&[i32]` and iterate with `for x in v` — iterating a reference yields references, and `sum += x` still works because `i32` arithmetic auto-dereferences here.
+@hint Take `&[i32]` and iterate with `for x in v`. Iterating a reference yields references, and `sum += x` still works because `i32` arithmetic auto-dereferences here.
 @hint `pub fn total(v: &[i32]) -> i32`, called as `total(&v)`. A `&Vec<i32>` coerces to `&[i32]` for free.
 
 @diagnose E0382
 Two moves are hiding here and it is worth separating them.
 
-The first is `total(v)` in `run` — passing by value moves the vector into the
-function, which is the move rustc is complaining about.
+The first is `total(v)` in `run`. Passing by value moves the vector into the
+function, and that is the move rustc is complaining about.
 
 The second is inside `total` itself: `for x in v` calls `IntoIterator::into_iter`,
 which takes `self` by value and consumes the vector. That one is not the error
@@ -289,8 +289,8 @@ Iterating comes in three flavours and the difference is exactly this:
 @after
 `&[i32]` rather than `&Vec<i32>` for the same reason exercise 1 wanted `&str`.
 A slice is a pointer plus a length, so `total` now also accepts arrays, other
-slices, and sub-ranges like `total(&v[1..3])` — none of which a `&Vec<i32>`
-would have allowed. The function got strictly more useful and no slower.
+slices, and sub-ranges like `total(&v[1..3])`, none of which a `&Vec<i32>`
+would have allowed. The function got strictly more useful at the same speed.
 
 ## 5. into_ means it takes self
 
@@ -341,21 +341,21 @@ pub fn run() -> usize {
 ```
 
 @hint Look up `String::into_bytes` and read its signature. What is the receiver?
-@hint `into_bytes(self)` consumes the string to hand you its buffer as a `Vec<u8>`. You do not want to consume anything — you only want to look.
+@hint `into_bytes(self)` consumes the string to hand you its buffer as a `Vec<u8>`. You only want to look, so consuming is the wrong receiver.
 @hint `as_bytes(&self)` borrows and gives you `&[u8]`. Swap the call.
 
 @diagnose E0382
 `use of moved value: s` inside a loop is almost always this: a method that takes
 `self` rather than `&self`, called on a binding that has to survive the next
 iteration. The compiler is right even though the first iteration would have
-worked — it must be correct on iteration two.
+worked, because it must also be correct on iteration two.
 
 The standard library encodes the receiver in the method name, and learning the
 convention saves you an enormous amount of time:
 
-- `as_*` borrows — `&self` in, a cheap view out, no allocation
-- `to_*` clones — `&self` in, a new owned value out, usually allocates
-- `into_*` consumes — `self` in, the receiver is gone afterwards
+- `as_*` borrows: `&self` in, a cheap view out, no allocation
+- `to_*` clones: `&self` in, a new owned value out, usually allocates
+- `into_*` consumes: `self` in, the receiver is gone afterwards
 
 `into_bytes` is in the third group. `as_bytes` is in the first. You wanted the
 first.
@@ -363,9 +363,9 @@ first.
 @after
 The `into_*` family is not a trap; it is how Rust expresses a conversion that
 should not cost an allocation. `String::into_bytes` hands you the *same* heap
-buffer reinterpreted as a `Vec<u8>` — zero copying, which is only sound because
-the `String` is destroyed in the process. Consuming the receiver is the price of
-the free conversion, and it is usually a good deal.
+buffer reinterpreted as a `Vec<u8>`, with nothing copied, which is only sound
+because the `String` is destroyed in the process. Consuming the receiver is the
+price of the free conversion, and it is usually a good deal.
 
 ## 6. Give it back
 
@@ -373,7 +373,7 @@ the free conversion, and it is usually a good deal.
 @concept ownership
 @expect E0382
 
-Sometimes a function really does need ownership — here `shout` has to consume
+Sometimes a function really does need ownership. Here `shout` has to consume
 the string to build the new one. The caller still wants a value afterwards.
 
 Write `shout` so that this works. It takes ownership, uppercases, appends an
@@ -418,7 +418,7 @@ pub fn run() -> (String, String) {
 
 @hint Two problems: `shout` is unwritten, and `run` uses `s` after giving it away.
 @hint `to_uppercase` borrows and returns a fresh `String`, so it is a good starting point inside `shout`. Then `push` the exclamation mark onto it.
-@hint For `run`, the tests demand you still hold the original — so give `shout` something it is allowed to eat. `s.clone()`.
+@hint For `run`, the tests demand you still hold the original, so give `shout` something it is allowed to eat. `s.clone()`.
 
 @diagnose E0382
 `run` hands `s` to `shout` and then puts `s` in the returned tuple. Once
@@ -426,13 +426,13 @@ pub fn run() -> (String, String) {
 
 Two shapes fix this and they say different things. `shout(s.clone())` says *I
 need my own copy, take yours*. Rewriting `shout` to take `&str` and return a new
-`String` says *you never needed to own it in the first place* — which here is
+`String` says *you never needed to own it in the first place*, which here is
 arguably truer, since `to_uppercase` allocates a fresh string anyway. Either
 passes; the second is what you would write in real code.
 
 @diagnose E0308
 Your `shout` is returning something that is not a `String`. `to_uppercase()`
-gives you a `String`, but `push` returns `()` — so if you wrote
+gives you a `String`, but `push` returns `()`. So if you wrote
 `s.to_uppercase().push('!')` as the final expression, the function's value is
 `()`, not `String`. Bind it to a `mut` variable first, push onto it, then name
 the variable on its own line as the tail expression.
@@ -445,7 +445,7 @@ borrowing the default in real code, and it is the whole subject of the next unit
 
 Worth noticing: `todo!()` type-checks as anything at all. It has type `!`, the
 never type, so it slots into any position and lets a half-written program still
-compile — and panics loudly if it is ever reached.
+compile, and it panics loudly if it is ever reached.
 
 ## 7. A struct that cannot be Copy
 
@@ -456,7 +456,7 @@ compile — and panics loudly if it is ever reached.
 This one fails before you have written any logic at all. The derive itself is
 rejected, and the error explains a rule that is easy to state and easy to forget.
 
-Make the struct usable — you should still be able to duplicate a `User`
+Make the struct usable. You should still be able to duplicate a `User`
 explicitly.
 
 ```starter
@@ -508,9 +508,10 @@ pub fn run() -> (User, User) {
 implement Copy`.
 
 `Copy` means "duplicating my bytes produces a complete, independent second
-value". For `User` that would duplicate `id` — fine, four bytes with nothing
-behind them — and the three-word handle inside `name`, which would leave two
-`User` values pointing at one heap buffer. Both would drop it. Double free.
+value". For `User` that would duplicate `id`, which is fine: four bytes with
+nothing behind them. It would also duplicate the three-word handle inside `name`,
+leaving two `User` values pointing at one heap buffer. Both would drop it. That
+is a double free.
 
 So the rule is inherited: **a struct can be `Copy` only if every one of its
 fields is `Copy`.** One `String`, `Vec`, or `Box` anywhere in the type is enough
@@ -525,8 +526,8 @@ between a pointer copy and a trip to the allocator.
 
 If you had wanted `Copy` badly enough, the move is to change the data rather
 than the derive: `id: u32` plus `name: &'static str`, or an interned handle
-instead of an owned string. That is a real design, not a workaround — but it is
-a decision about your data, which is exactly the point.
+instead of an owned string. That is a real design rather than a workaround, and
+it is a decision about your data, which is exactly the point.
 
 ## 8. Drop runs in reverse
 
@@ -538,7 +539,7 @@ a decision about your data, which is exactly the point.
 function below is supposed to produce a log of what happened, in order.
 
 Work out what the order actually is, and make the test pass. Note the move on
-the second-to-last line — it changes the answer.
+the second-to-last line, because it changes the answer.
 
 ```starter
 pub struct Noisy(pub &'static str, pub std::rc::Rc<std::cell::RefCell<Vec<String>>>);
@@ -607,7 +608,7 @@ pub fn run() -> Vec<String> {
 ```
 
 @hint `let _moved = second;` moves the value. Reading `second.0` on the next line is the error.
-@hint The value did not disappear — it is in `_moved` now. Read the name through its new owner.
+@hint The value did not disappear. It is in `_moved` now, so read it through its new owner.
 @hint Give the new binding a real name and use it: `let moved = second;` then `moved.0`.
 
 @diagnose E0382
@@ -616,7 +617,7 @@ alive and well under a different name.
 
 The interesting part is what the test asserts about *when* things drop. Inside
 the block there are two live values at the end: `_first` and `_moved`. They drop
-in reverse declaration order — `_moved` first, then `_first` — so the log reads
+in reverse declaration order, `_moved` first and then `_first`, so the log reads
 `drop second` before `drop first`.
 
 The binding `second` is **not** dropped, because it no longer owns anything. Had
@@ -626,8 +627,8 @@ visible: the same value released twice.
 
 @after
 Reverse order is not an arbitrary choice. Later bindings are the ones most likely
-to depend on earlier ones — a guard borrowed from a lock declared above it, a
-writer wrapping a file opened before it — so unwinding in the opposite order to
+to depend on earlier ones: a guard borrowed from a lock declared above it, a
+writer wrapping a file opened before it. Unwinding in the opposite order to
 construction is the only sequence that is always safe.
 
 A related trap worth knowing now: a binding named `_` is dropped **immediately**,

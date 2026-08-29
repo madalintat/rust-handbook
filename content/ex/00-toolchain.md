@@ -55,7 +55,7 @@ pub fn run() -> String {
 @diagnose E0432
 `unresolved import ansi_paint` means name resolution walked the crate graph
 looking for a crate called `ansi_paint` and found nothing. Read the note rustc
-attaches: *maybe a missing crate?* — that is the compiler guessing correctly.
+attaches: *maybe a missing crate?* That is the compiler guessing correctly.
 
 Worth being precise about who is at fault here. `rustc` was told which crates
 to link when `cargo` invoked it, and cargo builds that list from the
@@ -67,8 +67,8 @@ the graph.
 @after
 The habit worth forming: when a name will not resolve, decide first whether the
 crate is *missing* or *misspelled*. Missing means `cargo add`. Misspelled means
-check `Cargo.toml` — crate names use hyphens on crates.io and underscores in
-code, so `serde-json` in the manifest is `serde_json` in a `use`.
+check `Cargo.toml`, because crate names use hyphens on crates.io and underscores
+in code: `serde-json` in the manifest is `serde_json` in a `use`.
 
 And before either, ask whether you need the crate at all. A dependency is
 permanent: it is compile time on every clean build, a line in your lock file,
@@ -140,7 +140,7 @@ of the types and the promotion quietly starts truncating in the other
 direction.
 
 @diagnose E0277
-`cannot multiply u16 by u8` — the same disagreement said in trait terms. The `*`
+`cannot multiply u16 by u8`, the same disagreement said in trait terms. The `*`
 operator is sugar for the `Mul` trait, and `u16` implements `Mul<u16>`, not
 `Mul<u8>`. When an operator fails, rustc reports the missing trait
 implementation, which is why arithmetic errors sometimes arrive as trait-bound
@@ -153,7 +153,7 @@ Both fixes are legitimate and they say different things. Changing the type of
 Prefer the first: a cast at every use site is a sign the type was wrong at the
 declaration.
 
-Note also what a `const` does not do — it does not infer. A local can be
+Note also what a `const` will not do for you. It never infers. A local can be
 `let n = 3;` and let the compiler work out the type from context. Items cannot,
 because their type is part of an interface other crates may depend on.
 
@@ -165,7 +165,7 @@ because their type is part of an interface other crates may depend on.
 @expect E0080
 
 A sampling window divided into intervals. Nothing here reads a file or takes
-input, and yet `cargo check` fails — no test ran, no binary was produced.
+input, and yet `cargo check` fails before a test runs or a binary exists.
 
 Make it build, and make the interval come out at 1500 ms.
 
@@ -209,7 +209,7 @@ pub fn run() -> u32 {
 
 The important word is *evaluation*. A `const` initialiser is run by an
 interpreter inside rustc at compile time, so `WINDOW_MS / SAMPLES` was actually
-executed — with `SAMPLES` at zero — while the compiler was type-checking. What
+executed, with `SAMPLES` at zero, while the compiler was type-checking. What
 would have been a runtime panic became a build failure.
 
 That is a genuinely useful trade. The same expression inside a function body
@@ -226,7 +226,7 @@ const _: () = assert!(WINDOW_MS % SAMPLES == 0);
 ```
 
 If the assertion fails, the crate does not build. That is a compile-time test
-that costs nothing at runtime and needs no test harness — and the anonymous
+that costs nothing at runtime and runs without a test harness. The anonymous
 `const _` is there precisely because you want the evaluation and not the value.
 
 ## 4. A tutorial from 2016
@@ -279,20 +279,20 @@ pub fn run() -> String {
 ```
 
 @hint A trait is not a type. `&Display` is asking for a reference to a trait, which is not a thing that exists.
-@hint The type you want is "some value, unknown at compile time, that implements `Display`" — and since 2021 that has to be spelled out loud.
+@hint The type you want is "some value, unknown at compile time, that implements `Display`", and since 2021 that has to be spelled out loud.
 
 @diagnose E0782
 `expected a type, found a trait`. `Display` names a set of behaviours, not a
 layout, so `&Display` on its own does not say how big the thing is or where its
 methods live. The type you meant is `&dyn Display`: a **trait object**, which is
-two pointers wide — one to the value and one to a table of its method
+two pointers wide: one to the value and one to a table of its method
 addresses.
 
 Bare `Trait` was accepted in the 2015 and 2018 editions and quietly meant
-`dyn Trait`. It was made an error in 2021 because the two readings —
-`&dyn Display`, a runtime lookup, and `impl Display`, a compile-time
-specialisation — cost wildly different amounts, and a bare name gave you no clue
-which one you had written.
+`dyn Trait`. It was made an error in 2021 because the two readings cost wildly
+different amounts. `&dyn Display` is a runtime lookup and `impl Display` is a
+compile-time specialisation, and a bare name gave you no clue which one you had
+written.
 
 @after
 This is what an **edition** is for. The old spelling could not simply be
@@ -353,7 +353,7 @@ pub fn run() -> u32 {
 ```
 
 @hint The error is attached to the very first line, not to `div_ceil`.
-@hint `div_ceil` was unstable when that snippet was written. It has since been stabilised, so the gate that unlocked it is no longer needed — and on stable, is no longer permitted.
+@hint `div_ceil` was unstable when that snippet was written. It has since been stabilised, so the gate that unlocked it is redundant, and on stable it is forbidden outright.
 
 @diagnose E0554
 `#![feature] may not be used on the stable release channel`. This is not a
@@ -365,9 +365,9 @@ compiles on stable today compiles on stable forever" would be false, and the
 whole six-week release train would stop being safe to ride. So rustc refuses
 the attribute outright, before it looks at anything else.
 
-Two ways forward. Switch toolchain — `rustup toolchain install nightly`, then
-`cargo +nightly build` — or find out whether the feature was stabilised, which
-is what happened here.
+Two ways forward. Switch toolchain, with `rustup toolchain install nightly` and
+then `cargo +nightly build`. Or find out whether the feature was stabilised,
+which is what happened here.
 
 @after
 Channels are a schedule, not a quality ladder. A feature lands on nightly,
@@ -375,7 +375,7 @@ soaks, rides beta for six weeks, and appears on stable. Nightly is not
 "unstable Rust"; it is next year's stable with the gates still on.
 
 The practical rule: build on stable. Reach for nightly deliberately and
-temporarily — a specific tool, a specific unstable API — and pin it with a
+temporarily, for a specific tool or a specific unstable API, and pin it with a
 `rust-toolchain.toml` so everyone on the project gets the same compiler rather
 than whatever they happened to install.
 
@@ -433,7 +433,7 @@ pub fn run() -> u32 {
 ```
 
 @hint Ask what type `n` has. The `*` is only legal if `n` is a reference.
-@hint Before 2021, `array.into_iter()` yielded `&u32`. Since 2021 it yields `u32` — the values themselves, moved out of the array.
+@hint Before 2021, `array.into_iter()` yielded `&u32`. Since 2021 it yields `u32`: the values themselves, moved out of the array.
 
 @diagnose E0614
 `type {integer} cannot be dereferenced`. `n` is already a `u32`; there is
@@ -451,9 +451,9 @@ So the same expression means two different things depending on one line in
 it.
 
 @after
-Note that `for n in counts` — no method call — has always yielded values on
-every edition, and is what you would write today. The `.into_iter()` here is
-redundant: `for` calls `IntoIterator::into_iter` for you.
+Note that `for n in counts`, with no method call at all, has always yielded
+values on every edition, and is what you would write today. The `.into_iter()`
+here is redundant: `for` calls `IntoIterator::into_iter` for you.
 
 The general lesson is worth more than the specific one. An edition can change
 *method resolution*, not just syntax, so a build failure after an edition bump
@@ -521,7 +521,7 @@ pub fn run() -> &'static str {
 @hint You need a second `mode`, gated on the opposite condition, returning `"debug"`. Two functions, two `cfg`s, only one of them ever compiled.
 
 @diagnose E0425
-`cannot find function mode in this scope` — and there it is, six lines up, in
+`cannot find function mode in this scope`. And there it is, six lines up, in
 plain sight. That is what makes this error confusing the first time.
 
 `#[cfg]` is evaluated before name resolution and physically removes the item
@@ -556,12 +556,12 @@ check both.
 parameter. That is exactly what a major version bump is allowed to mean, and
 your call site is now wrong.
 
-Repair the call. Put the timeout in a named constant rather than a literal —
-2000 ms — so the next bump has one place to edit.
+Repair the call. Put the timeout in a named constant rather than a literal
+(2000 ms) so the next bump has one place to edit.
 
 ```starter
 pub mod netlib {
-    // netlib 2.0 — `connect` now requires an explicit timeout.
+    // netlib 2.0: `connect` now requires an explicit timeout.
     pub fn connect(url: &str, timeout_ms: u32) -> String {
         format!("{url} (timeout {timeout_ms}ms)")
     }
@@ -586,7 +586,7 @@ mod tests {
 
 ```solution
 pub mod netlib {
-    // netlib 2.0 — `connect` now requires an explicit timeout.
+    // netlib 2.0: `connect` now requires an explicit timeout.
     pub fn connect(url: &str, timeout_ms: u32) -> String {
         format!("{url} (timeout {timeout_ms}ms)")
     }
@@ -605,7 +605,7 @@ pub fn run() -> String {
 
 @diagnose E0061
 `this function takes 2 arguments but 1 argument was supplied`. rustc underlines
-the call, then points at the definition and names the parameter you left out —
+the call, then points at the definition and names the parameter you left out:
 `timeout_ms`. Arity is part of a function's type, so there is no defaulting and
 no overloading to fall back on.
 
@@ -618,13 +618,13 @@ Nothing moved on its own, either. Cargo pinned 1.4 in `Cargo.lock` and kept
 building it until somebody ran `cargo update`.
 
 @after
-Rust has no default arguments, on purpose — they interact badly with type
-inference and with traits, and they hide arity changes at the call site. The
+Rust has no default arguments, and that is deliberate. They interact badly with
+type inference and with traits, and they hide arity changes at the call site. The
 idiomatic replacements are a builder (`Client::new().timeout(2000).connect(url)`)
 or a config struct with a `Default` impl.
 
 Which is why the constant was worth asking for. `DEFAULT_TIMEOUT_MS` gives the
 number a name, one definition, and a type; the literal `2000` sprinkled through
 six call sites gives you a search-and-replace waiting to go wrong. A `const` is
-inlined at every use, so this costs nothing at runtime — the name exists
-entirely for the reader.
+inlined at every use, so this costs nothing at runtime. The name exists entirely
+for the reader.

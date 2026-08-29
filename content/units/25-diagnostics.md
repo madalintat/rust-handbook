@@ -8,7 +8,7 @@ needs: 05-ownership, 06-borrowing, 12-errors, 14-traits, 15-lifetimes
 blurb: Every other unit teaches a topic. This one teaches the skill that makes the next error survivable, including the ones this book never covers.
 ---
 
-%% Rust's error messages are the best teacher in the language, and almost nobody is taught to read them. People skim for the red line, guess, paste the `help:` suggestion, and move on — which works often enough to never build the habit. A diagnostic is a structured argument with a claim, evidence, and a proposed remedy, and each part is in a fixed place.
+%% Rust's error messages are the best teacher in the language, and almost nobody is taught to read them. People skim for the red line, guess, paste the `help:` suggestion, and move on. That works often enough that the habit never forms. A diagnostic is a structured argument with a claim, evidence, and a proposed remedy, and each part is in a fixed place.
 
 Learn the shape once and every future error becomes a puzzle with a method rather than a wall.
 
@@ -44,11 +44,11 @@ Every line has a job:
 | line | what it is |
 |---|---|
 | `error[E0502]` | **severity** and a stable **error code** you can look up |
-| `cannot borrow ... as mutable` | the **claim** — one sentence, always true, never the whole story |
+| `cannot borrow ... as mutable` | the **claim**: one sentence, always true, never the whole story |
 | `--> src/main.rs:4:5` | file, line, column of the *primary* span |
 | the `\|` gutter | your source, quoted back with real line numbers |
-| `^^^^` | the **primary span** — where the compiler stopped |
-| `----` | a **secondary span** — another place that participates |
+| `^^^^` | the **primary span**: where the compiler stopped |
+| `----` | a **secondary span**: another place that participates |
 | `For more information` | the code has a page with a worked example |
 
 ### Primary versus secondary
@@ -62,14 +62,14 @@ the rest of the time it is at one of the secondaries, and the primary is only
 the first place the consequence became visible.
 :::
 
-In the E0502 above, `names.push(...)` carries the carets — but `push` is not
+In the E0502 above, `names.push(...)` carries the carets, but `push` is not
 wrong. It is wrong *given* line 3 and line 5. Delete line 5 and the same `push`
 compiles, because the borrow made on line 3 would then end before it. Three
 markers, one story: a borrow starts, a conflicting one begins, and the first is
 still needed afterwards.
 
-The label on the last secondary — `immutable borrow later used here` — is the
-one to read first in every borrow error. It is the compiler telling you which
+The label on the last secondary, `immutable borrow later used here`, is the one
+to read first in every borrow error. It is the compiler telling you which
 use is keeping the borrow alive, and shortening or moving that use is usually the
 whole fix.
 
@@ -90,8 +90,8 @@ help: trait `Write` which provides `write_fmt` is implemented but not in scope
 ```
 
 :::gotcha
-`help:` is a guess, and it optimises for making the error go away — not for
-making your program right. When it suggests `.clone()`, it is proposing an
+`help:` is a guess, and it optimises for making the error go away rather than
+for making your program right. When it suggests `.clone()`, it is proposing an
 allocation to end an argument about ownership you have not had yet. When it
 suggests `&` on an argument, it may be papering over a function signature that
 wants changing.
@@ -128,8 +128,8 @@ means debugging a phantom.
 one. This single habit saves more time than any other in this unit.
 :::
 
-Scroll up. Terminals show you the *end* of the output, which is the summary line
-and the last error — the least useful one. `cargo check 2>&1 | head -40` is a
+Scroll up. Terminals show you the *end* of the output: the summary line and the
+last error, which is the least useful one. `cargo check 2>&1 | head -40` is a
 reasonable reflex, and `cargo check` is several times faster than `cargo build`
 because it stops before code generation.
 
@@ -151,18 +151,18 @@ first year.
 | **E0515** | you returned a reference to a local, which is about to stop existing |
 | **E0597** | a borrow outlives the thing it points at |
 | **E0621** | a lifetime is needed on an input to justify the one on the output |
-| **E0308** | expected one type, found another — by far the most common of all |
+| **E0308** | expected one type, found another; by far the most common of all |
 | **E0277** | a required trait is not implemented for this type |
-| **E0599** | no such method **in scope** — usually a missing bound or `use` |
+| **E0599** | no such method **in scope**; usually a missing bound or `use` |
 | **E0433** | a path does not resolve; the crate or module is not where you said |
 | **E0425** | a name is not in scope: typo, wrong module, or declared after use |
 | **E0061** | wrong number of arguments |
 | **E0004** | a `match` does not cover every case |
-| **E0005** | a `let` pattern is refutable — it can fail, and `let` cannot |
+| **E0005** | a `let` pattern is refutable: it can fail, and `let` cannot |
 | **E0603** | the item exists but is private |
 | **E0428** | two definitions with the same name in one scope |
 | **E0117** | the **orphan rule**: neither the trait nor the type is yours |
-| **E0119** | two impls of one trait for one type — **coherence** forbids it |
+| **E0119** | two impls of one trait for one type, which **coherence** forbids |
 | **E0133** | this operation requires an `unsafe` block |
 
 Six groups: ownership and borrows, lifetimes, types and traits, patterns, items
@@ -171,7 +171,7 @@ which question to ask.
 
 ## Three that mean something other than what they say
 
-### E0599 — "no method named X found"
+### E0599: "no method named X found"
 
 Reads like a typo report. Almost never is one. It has three causes, and the
 `help:` line distinguishes them:
@@ -190,14 +190,14 @@ fn summarise<T>(items: &[T]) -> String {
 
 `Retry` implements `Describe`. Irrelevant: inside `summarise` the compiler knows
 only what the signature declared about `T`, which is nothing, so `T` might be
-`u8` and `u8` has no `describe`. The fix is `<T: Describe>` — a promise, not a
-cast.
+`u8` and `u8` has no `describe`. The fix is `<T: Describe>`, which is a promise
+rather than a cast.
 
 The second cause catches everyone once: `write!(f, "hi")` on a `File` fails with
 E0599 until `use std::io::Write;` is at the top. The method was always
 implemented. You had not imported the vocabulary to name it.
 
-### E0277 — "the trait bound is not satisfied"
+### E0277: "the trait bound is not satisfied"
 
 True but unhelpfully abstract. In practice it usually means one of:
 
@@ -208,12 +208,12 @@ True but unhelpfully abstract. In practice it usually means one of:
 
 :::gotcha
 The line to read is `note: required by a bound in ...`. It names *who* wanted
-the trait — usually a standard library function several layers down. Without it
+the trait, usually a standard library function several layers down. Without it
 you are guessing at which of your types is the guilty one; with it, the
 requirement has an address.
 :::
 
-### E0106 — "missing lifetime specifier"
+### E0106: "missing lifetime specifier"
 
 Sounds like you forgot to type `'a` somewhere. It is a question: **which input
 does the output borrow from?**
@@ -224,7 +224,7 @@ fn longer(a: &str, b: &str) -> &str {
 }
 ```
 
-**Lifetime elision** normally answers this silently — one input reference, or a
+**Lifetime elision** normally answers this silently: one input reference, or a
 `&self`, and the output borrows from it. Two candidates and no `self` is exactly
 the case the rules refuse to guess, because guessing wrong would let a caller
 hold a dangling reference. `<'a>(a: &'a str, b: &'a str) -> &'a str` is not
@@ -239,7 +239,7 @@ it".
 | lint | what it usually indicates |
 |---|---|
 | `unused_variables` | a typo, or a parameter you forgot to use |
-| `unused_must_use` | **an ignored `Result`** — a real bug class |
+| `unused_must_use` | **an ignored `Result`**, a real bug class |
 | `dead_code` | an item nothing reaches: a stale branch, or a missing `pub` |
 | `unused_mut` | the `mut` is wrong, or the mutation you intended is missing |
 
@@ -256,12 +256,12 @@ Every lint has three levels you can set with an attribute:
 #[deny(unused_must_use)]         // make it an error
 ```
 
-Prefer the narrowest scope that works — on the item, not the crate — and leave a
-comment saying why. A crate-wide `#![allow(dead_code)]` hides the next real one.
+Prefer the narrowest scope that works, on the item rather than the crate, and
+leave a comment saying why. A crate-wide `#![allow(dead_code)]` hides the next real one.
 
 :::gotcha
 `#![deny(warnings)]` in a published crate is a trap. New rustc releases add new
-lints, so code that built clean in April fails to build in July — for everyone
+lints, so code that built clean in April fails to build in July, for everyone
 depending on you, on a compiler you never tested against. Nothing about their
 program changed.
 
@@ -278,7 +278,7 @@ have. It ships with the toolchain and knows around seven hundred lints.
 |---|---|
 | `needless_range_loop` | `for i in 0..v.len()` where `for x in &v` reads better |
 | `redundant_clone` | a `.clone()` whose result is dropped or never aliased |
-| `or_fun_call` | `unwrap_or(expensive())` — eagerly evaluated; use `unwrap_or_else` |
+| `or_fun_call` | `unwrap_or(expensive())` is eagerly evaluated; use `unwrap_or_else` |
 | `large_enum_variant` | one huge variant making every value of the enum huge |
 | `collapsible_if` | nested `if`s that are one `&&` |
 
@@ -291,19 +291,19 @@ missing context, and `#[allow(...)]` with a reason is a legitimate answer.
 Most of them, at first. The procedure is the same every time.
 
 :::note
-1. **Read the headline as a claim.** "You cannot borrow `names` as mutable." Not
-   a category — an assertion about your program.
+1. **Read the headline as a claim.** "You cannot borrow `names` as mutable."
+   That is an assertion about your program, not a category.
 2. **Find the primary span.** The `^^^^` and the `-->`. This is where the
    compiler stopped, which is not necessarily where you went wrong.
 3. **Ask what would have to be true for the claim to hold.** For E0502: some
    other borrow must still be live. Where is it?
 4. **Check the secondary spans and the notes for that belief.** They are the
    evidence. Every `----` is one of the compiler's reasons.
-5. **Only now read `help:`** — and judge whether it fixes your problem or just
+5. **Only now read `help:`**, and judge whether it fixes your problem or only
    its symptom.
 :::
 
-Three tools for when that is not enough:
+Two moves are left when that is not enough.
 
 `rustc --explain E0502` prints a page with a minimal broken example, a fixed one,
 and the rule. It is offline, instant, and better written than most blog posts.
@@ -314,16 +314,16 @@ skimming end to end once.
 function into an empty file or the playground and delete everything that is not
 required to keep the error. Half the time the error disappears while deleting,
 and the last thing you removed was the cause. The other half you are left with
-ten lines you can actually reason about — and a question worth asking someone
+ten lines you can actually reason about, plus a question worth asking someone
 else, because you have already done the work of removing the noise.
 
 :::compare
-**C++** — you have learned to skim template errors for the one line naming your
+**C++.** You have learned to skim template errors for the one line naming your
 type, because the rest is instantiation backtrace. That skimming instinct is
 counterproductive here: rustc's secondary spans and notes are hand-written for
 this specific case, and they are the part with the answer in it.
 
-**Python / Java** — a stack trace tells you where a program *was* when it broke.
+**Python / Java.** A stack trace tells you where a program *was* when it broke.
 A diagnostic tells you what the compiler *could not prove* before it ever ran.
 There is no "line that threw"; there is a claim and its evidence.
 :::

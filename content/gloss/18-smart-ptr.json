@@ -1,8 +1,8 @@
 {"terms": [
-{"t": "smart pointer", "x": "a pointer that owns and cleans up", "p": "A value that points at something, owns it, and does extra work when it is dropped — freeing a buffer, decrementing a count, releasing a lock."},
+{"t": "smart pointer", "x": "a pointer that owns and cleans up", "p": "A value that points at something, owns it, and does extra work when it is dropped: freeing a buffer, decrementing a count, releasing a lock."},
 {"t": "Deref", "x": "the trait behind the star operator", "p": "The trait a type implements to say what it points at, which is what makes the star operator and method lookup reach through it."},
 {"t": "deref coercion", "x": "the compiler inserting the derefs", "p": "The compiler silently converting a reference to a pointer-like type into a reference to what it points at, repeatedly, until the expected type is reached."},
-{"t": "Weak", "x": "a handle that does not own", "p": "A reference-counted handle that does not keep the value alive, and which must be upgraded to a strong handle before use — returning nothing if the value has already gone."},
+{"t": "Weak", "x": "a handle that does not own", "p": "A reference-counted handle that does not keep the value alive. It must be upgraded to a strong handle before use, and the upgrade returns nothing if the value has already gone."},
 {"t": "reference cycle", "x": "counts that never reach zero", "p": "Two or more reference-counted values holding handles to each other, so each keeps the other's count above zero and neither is ever freed."},
 {"t": "Cell", "x": "interior mutability without any check", "p": "A wrapper allowing a value to be replaced through a shared reference by only ever copying whole values in and out, so no reference to the inside ever escapes."},
 {"t": "memory leak", "x": "memory never handed back", "p": "Memory that stays allocated with nothing able to reach it, which wastes space but is not unsafe, so Rust permits it in safe code."}

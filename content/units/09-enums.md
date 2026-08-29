@@ -5,12 +5,12 @@ title: Enums and pattern matching
 accent: moss
 concepts: enum, variant, sum type, match, exhaustiveness, pattern matching, match guard, binding mode, state machine
 needs: 05-ownership, 08-structs
-blurb: A value that is exactly one of these, and a compiler that will not let you forget one — the best refactoring property in the language.
+blurb: A value that is exactly one of these, and a compiler that will not let you forget a case. The best refactoring property in the language.
 ---
 
 %% A struct says *and*: a user has an id and a name and an email. An enum says *or*: a payment is a card or a transfer or a voucher, and never two at once. Most languages can only say *and* properly, so *or* gets encoded as a tag field plus three optional fields plus a comment, and every reader has to remember which combinations are legal.
 
-Rust makes *or* a type. The compiler then knows the list of possibilities is complete — and that turns out to be worth more than the type itself.
+Rust makes *or* a type. The compiler then knows the list of possibilities is complete, and that turns out to be worth more than the type itself.
 
 ## One of these, and only one
 
@@ -43,7 +43,7 @@ pub enum Payment {
 
 Each variant has its own shape: struct-like, tuple-like, or nothing at all.
 There is no syntax for a `Payment` holding both a card number and an IBAN, so
-the illegal states are not checked — they are unrepresentable.
+the illegal states are not caught at runtime. They cannot be written down.
 
 :::note
 An enum is a **sum type**: the set of values it can hold is the *sum* of its
@@ -106,7 +106,7 @@ pattern. A `&T` is never null, so `Option<&T>` uses `0` to mean `None`:
 
 :::memory Option<&T> is the same size as &T
   &T           ┌──────────────────────┐
-               │ 0x7ffd_e4a0          │   never 0 — references are non-null
+               │ 0x7ffd_e4a0          │   never 0, references are non-null
                └──────────────────────┘   8 bytes
 
   Option<&T>   ┌──────────────────────┐
@@ -117,15 +117,16 @@ pattern. A `&T` is never null, so `Option<&T>` uses `0` to mean `None`:
 
 This is **niche optimisation**, and it applies to `Box<T>`, `&mut T`, `NonZeroU32`,
 `char`, and any enum with an unused pattern in its own tag. It is why wrapping a
-pointer in `Option` to make nullability explicit is genuinely free — you get the
-compiler's insistence that you handle the empty case, and pay nothing for it.
+pointer in `Option` to make nullability explicit is genuinely free. You get the
+compiler's insistence that you handle the empty case, and the value does not
+grow by a byte.
 
 | type | size on 64-bit |
 |---|---|
 | `&T`, `Box<T>` | 8 |
 | `Option<&T>`, `Option<Box<T>>` | 8 |
 | `u8` | 1 |
-| `Option<u8>` | 2 — every bit pattern of `u8` is a real value, so a tag is needed |
+| `Option<u8>` | 2, because every bit pattern of `u8` is a real value and the tag needs its own |
 
 ## `match`, and exhaustiveness as a tool
 
@@ -145,10 +146,11 @@ fn fee(p: &Payment) -> u32 {
 
 Now the payoff. Six months later someone adds `Payment::Crypto`. Every `match`
 in the codebase that has to change becomes a compile error, with a file and a
-line number. Nothing to grep for, nothing missed in review.
+line number. The compiler hands you the list of sites that you would otherwise
+be grepping for and hoping review would catch.
 
 :::compare
-**Java / C++** — adding a subclass is a silent success everywhere. Existing code
+**Java / C++**: adding a subclass is a silent success everywhere. Existing code
 keeps compiling and quietly takes the base-class path, and you find out in
 production. Adding an enum variant is a loud failure everywhere it matters.
 
@@ -160,7 +162,7 @@ author knows all the cases, and wants to be told when that list changes.
 `_ => ...` switches exhaustiveness off, permanently, for that match. Adding a
 variant then compiles and silently falls into the catch-all.
 
-Use `_` for genuinely open sets — a `u8`, an `io::ErrorKind`, an enum from
+Use `_` for genuinely open sets: a `u8`, an `io::ErrorKind`, an enum from
 another crate marked `#[non_exhaustive]`. Spell out the variants of your own
 types, however tedious it feels the first time. That tedium is the feature you
 are paying for.
@@ -207,7 +209,7 @@ match code {
 ```
 
 :::gotcha
-A bare lowercase name in a pattern always binds — it never compares against a
+A bare lowercase name in a pattern always binds. It never compares against a
 variable of that name.
 
 ```rust,bad
@@ -235,7 +237,7 @@ Together those two guards obviously cover every `i32`. The compiler does not
 agree, and it is not being lazy: a guard is an arbitrary expression that can
 call functions and read the world, so deciding whether a set of guards is
 complete is undecidable in general. Rather than special-case simple arithmetic,
-the rule is uniform — **a guarded arm covers nothing**.
+the rule is uniform: **a guarded arm covers nothing**.
 
 Guards are still the right tool when the condition is not a shape. Write the
 last arm unguarded.
@@ -271,7 +273,7 @@ if matches!(state, State::Running | State::Paused) {
 
 `let else` is the one that changes how code reads. Guard clauses stack at the
 top of the function, each removing a case, and the body below is written as if
-nothing could be missing — because nothing can.
+nothing could be missing, which by that point is true.
 
 ## Matching through a reference
 
@@ -308,7 +310,7 @@ Worse, if the value is behind a reference already you get `error[E0507]: cannot
 move out of ... which is behind a shared reference`.
 
 Three fixes, in order of preference: match on `&msg`, call `msg.as_ref()` to get
-an `Option<&String>`, or — if you really do want it out — `msg.take()`.
+an `Option<&String>`, or, when you really do want the `String` out of it, `msg.take()`.
 :::
 
 The `ref` keyword you will see in older code (`Some(ref s)`) forced by-reference
@@ -341,7 +343,7 @@ enum Connection {
 }
 ```
 
-Four states, each carrying exactly the data it needs and nothing it does not.
+Four states, each carrying exactly the data that state has any use for.
 The transition function takes the old state **by value**:
 
 ```rust

@@ -8,7 +8,7 @@ unit: 10-option
 @concept Option
 @expect E0308
 
-`first_even` promises to return an `Option<i32>` — a value that might not be
+`first_even` promises to return an `Option<i32>`, a value that might not be
 there. The early `return` inside the loop hands back a bare `i32` instead, and
 those are not the same type.
 
@@ -72,7 +72,7 @@ the mismatch is caught the moment you type it rather than at the caller's first
 dereference.
 
 @after
-`Some(n)` is a constructor call — it takes an `i32` and builds an `Option<i32>`
+`Some(n)` is a constructor call: it takes an `i32` and builds an `Option<i32>`
 around it. Because it is an ordinary function value, it composes:
 `v.iter().copied().map(Some)` is legal, and `ok_or` and friends take it the same
 way.
@@ -93,8 +93,8 @@ normal outcome, not an error.
 @expect E0599
 
 `shout` wants an uppercase name. It calls a `String` method on something that is
-not a `String` — it is an `Option<String>`, and the whole point of that type is
-that the value might not be there.
+not a `String`. The receiver is an `Option<String>`, and the whole point of that
+type is that the value might not be there.
 
 Uppercase the name when there is one, and produce `"ANONYMOUS"` when there is
 not.
@@ -140,7 +140,7 @@ pub fn run() -> (String, String) {
 }
 ```
 
-@hint You cannot call a `String` method on an `Option<String>` — first you have to say what happens when it is `None`.
+@hint You cannot call a `String` method on an `Option<String>` until you have said what happens when it is `None`.
 @hint `map` applies a closure to the value inside, if there is one, and leaves `None` alone. That gets you an `Option<String>`.
 @hint Then collapse it: `.unwrap_or_else(|| String::from("ANONYMOUS"))`. A `match` with two arms is equally correct.
 
@@ -150,7 +150,7 @@ scope`, with the note `method not found in Option<String>`.
 
 Rust does not auto-unwrap. There is no implicit "if it is there, use it"
 anywhere in the language, because that is exactly the behaviour that makes null
-dangerous — it lets code that never considered absence compile.
+dangerous: it lets code that never considered absence compile.
 
 The methods that *do* exist on `Option` are the ones that make you say what
 happens in both cases: `map` transforms the present case, `unwrap_or` supplies
@@ -160,7 +160,7 @@ intent; there is no way to say nothing.
 @diagnose E0308
 Your `map` closure and your fallback are producing different types, or the chain
 is still an `Option<String>` where a `String` was promised. `map` leaves you
-inside the `Option` — something has to take you out of it. `unwrap_or`,
+inside the `Option`, and something has to take you out of it. `unwrap_or`,
 `unwrap_or_else` and `unwrap_or_default` all do.
 
 @after
@@ -171,7 +171,7 @@ happy path, because arguments are evaluated before the call.
 
 The rule: `unwrap_or` for values already sitting there (an integer, a `&'static
 str`), `unwrap_or_else` for anything that has to be built,
-`unwrap_or_default()` when the fallback is the type's own default — `0`, `""`,
+`unwrap_or_default()` when the fallback is the type's own default: `0`, `""`,
 `vec![]`.
 
 ## 3. One Option too many
@@ -181,7 +181,7 @@ str`), `unwrap_or_else` for anything that has to be built,
 @expect E0308
 
 `first_number` takes the first string in the slice and parses it. Both steps can
-fail, so both produce an `Option` — and stacking them the obvious way gives you
+fail, so both produce an `Option`. Stacking them the obvious way gives you
 an `Option` inside an `Option`.
 
 Return a single `Option<i32>`: `None` if the slice is empty *or* the first entry
@@ -235,8 +235,9 @@ pub fn run() -> (Option<i32>, Option<i32>, Option<i32>) {
 
 `map` has signature `fn map<U>(self, f: impl FnOnce(T) -> U) -> Option<U>`. It
 always wraps the closure's result in one `Option`. Your closure returns
-`Option<i32>`, so `U` is `Option<i32>` and you get `Option<Option<i32>>` — the
-outer layer meaning "the slice was empty", the inner meaning "it did not parse".
+`Option<i32>`, so `U` is `Option<i32>` and you get `Option<Option<i32>>`, where
+the outer layer means "the slice was empty" and the inner means "it did not
+parse".
 
 `and_then` is the one whose closure is allowed to fail:
 `fn and_then<U>(self, f: impl FnOnce(T) -> Option<U>) -> Option<U>`. It does not
@@ -253,8 +254,8 @@ thing.
 
 Worth knowing `.ok()` too. `str::parse` returns a `Result<i32, ParseIntError>`,
 and `.ok()` throws the error away and gives you an `Option<i32>`. That is a
-deliberate loss of information — reach for it only when *why* it failed genuinely
-does not matter.
+deliberate loss of information, so reach for it only when *why* it failed
+genuinely does not matter.
 
 ## 4. Propagate, do not nest
 
@@ -263,7 +264,7 @@ does not matter.
 @expect E0308
 
 `initials` uses `?` to bail out early when either string is empty. The two `?`s
-are correct. The last line is not — a function returning `Option<String>` has to
+are correct. The last line is not: a function returning `Option<String>` has to
 hand back an `Option`.
 
 ```starter
@@ -333,7 +334,7 @@ flat.
 
 One boundary to remember: `?` on an `Option` only works in a function that
 returns an `Option`. It does not work in one returning `Result`. To cross over,
-convert first — `opt.ok_or("no first character")?` turns the `None` into an
+convert first: `opt.ok_or("no first character")?` turns the `None` into an
 `Err` and then propagates that.
 
 ## 5. Look, do not take
@@ -409,7 +410,7 @@ pub fn run() -> (String, String, bool) {
 ```
 
 @hint `Some(n)` on an owned scrutinee means "move the `String` out and call it `n`". You are only borrowing `c`.
-@hint You want an `Option` whose payload is a reference — `Option<&String>` or `Option<&str>` — rather than the owned one.
+@hint You want an `Option` whose payload is a reference (`Option<&String>` or `Option<&str>`) rather than the owned one.
 @hint `c.name.as_ref()` gives `Option<&String>`; `c.name.as_deref()` gives `Option<&str>`. Either works, and `match &c.name` does too.
 
 @diagnose E0507
@@ -422,21 +423,21 @@ The pattern is asking for the `String` itself. Granting that would leave
 caller. So it is refused.
 
 rustc suggests `c.name.as_ref()` in the help text, and that is the right answer.
-`as_ref` maps `&Option<T>` to `Option<&T>` — the tag is copied, the payload
-becomes a borrow, nothing moves. `as_deref` does the same and then derefs the
+`as_ref` maps `&Option<T>` to `Option<&T>`: it copies the tag and turns the
+payload into a borrow, moving nothing. `as_deref` does the same and then derefs the
 payload, giving `Option<&str>`.
 
 @diagnose E0308
 The two arms are no longer producing the same type, or the arm's value is not
 the `String` the function promised. After `as_ref()`, `n` is a `&String`; after
 `as_deref()`, it is a `&str`. Both interpolate fine in `format!`, which produces
-an owned `String` — so the fix is usually in the `None` arm, which must also
-produce an owned `String`, not a `&str`.
+an owned `String`, so the fix is usually in the `None` arm, which must also
+produce an owned `String` rather than a `&str`.
 
 @after
 `&Option<T>` and `Option<&T>` are genuinely different and the difference is worth
 holding on to. The first is one pointer to the whole enum, tag included. The
-second is an enum 8 bytes wide whose payload is a borrow — and it is `Copy`, so
+second is an enum 8 bytes wide whose payload is a borrow, and it is `Copy`, so
 you can pass it around freely.
 
 `Option<&T>` is the form you want in a function signature. It says "I may be
@@ -454,7 +455,7 @@ an owned `Option<T>`.
 @expect E0596
 
 `pop` should hand back whatever is in `head` and leave the queue empty. The
-method it needs exists and is already written here — the problem is the
+method it needs exists and is already written here. The problem is the
 receiver.
 
 ```starter
@@ -506,7 +507,7 @@ pub fn run() -> (Option<String>, Option<String>) {
 }
 ```
 
-@hint `take` does not just read — it writes `None` back into the field.
+@hint `take` does not only read; it writes `None` back into the field.
 @hint Writing to a field through `&self` is impossible. Look at the receiver in the signature.
 @hint `pub fn pop(&mut self) -> Option<String>`.
 
@@ -531,8 +532,8 @@ You reached for `self.head` directly instead of `self.head.take()`. Moving the
 hole, so the struct is always in a valid state.
 
 @after
-`take` is a two-word swap — `mem::replace(&mut self.head, None)` — with no
-allocation and no clone. It is how every linked structure in Rust is written,
+`take` is a two-word swap, `mem::replace(&mut self.head, None)`, with nothing
+allocated and nothing cloned. It is how every linked structure in Rust is written,
 because it is the only way to move a value out of a field you only have `&mut`
 access to while leaving the field valid.
 
@@ -541,7 +542,7 @@ Its siblings: `replace(v)` puts `v` in and returns the old contents;
 overwrites and returns a `&mut T` to the new value.
 
 Note the caller needed `let mut q` too. `&mut self` at the method is only half
-of it — the binding has to be mutable for the borrow to be available.
+of it: the binding has to be mutable for the borrow to be available.
 
 ## 7. Two values at once
 
@@ -550,7 +551,7 @@ of it — the binding has to be mutable for the borrow to be available.
 @expect E0593
 
 `area` needs both a width and a height. `zip` is the combinator for "I need both
-of these to be present" — but it produces a single value, not two, and the
+of these to be present". It produces a single value though, not two, and the
 closure below was written as if it produced two.
 
 Return `Err("missing dimension")` when either is absent.
@@ -587,7 +588,7 @@ pub fn run() -> (Result<u32, &'static str>, Result<u32, &'static str>) {
 ```
 
 @hint What is the type of `w.zip(h)`? Write it out.
-@hint It is `Option<(u32, u32)>` — one value, which happens to be a pair. So the closure receives one argument.
+@hint It is `Option<(u32, u32)>`: one value, which happens to be a pair. So the closure receives one argument.
 @hint Destructure it in the parameter list: `|(a, b)| a * b`.
 
 @diagnose E0593
@@ -595,8 +596,8 @@ pub fn run() -> (Result<u32, &'static str>, Result<u32, &'static str>) {
 the `|a, b|` and pointing at `map` with `expected closure that takes 1 argument`.
 
 `zip` has signature `fn zip<U>(self, other: Option<U>) -> Option<(T, U)>`. It
-returns `Some` only when both inputs are `Some`, and the payload is a **tuple** —
-one value. `map` therefore hands your closure one argument.
+returns `Some` only when both inputs are `Some`, and the payload is a **tuple**,
+which is one value. `map` therefore hands your closure one argument.
 
 A closure parameter can be any irrefutable pattern, so `|(a, b)|` destructures
 the tuple in place. That is a pattern, not a two-parameter list, and the
@@ -633,7 +634,7 @@ use `ok_or_else(|| ...)` and it only happens on the failing path.
 takes the process down. This draft avoids the panic and instead tries to add an
 `Option<i64>` to an `i64`, which is not a thing.
 
-Make it return `None` if any entry fails to parse, and `Some(sum)` otherwise —
+Make it return `None` if any entry fails to parse, and `Some(sum)` otherwise,
 without a single `unwrap`.
 
 ```starter
@@ -685,7 +686,7 @@ pub fn run() -> (Option<i64>, Option<i64>, Option<i64>) {
 
 @hint `.ok()` gives you an `Option<i64>`, and you cannot add that to an `i64`. Something has to get the number out.
 @hint The function already returns `Option<i64>`, so there is an operator that unwraps and bails out of the whole function in one character.
-@hint `sum += s.parse::<i64>().ok()?;` — `?` inside a loop returns from the *function*, not the loop.
+@hint `sum += s.parse::<i64>().ok()?;` and remember that `?` inside a loop returns from the *function*, not the loop.
 
 @diagnose E0277
 `cannot add-assign Option<i64> to i64`, with the note
@@ -693,7 +694,7 @@ pub fn run() -> (Option<i64>, Option<i64>, Option<i64>) {
 
 Trait errors read backwards from syntax errors. `+=` is `AddAssign::add_assign`,
 the compiler went looking for an implementation that accepts an `Option<i64>` on
-the right, and there is none — deliberately. Adding "maybe a number" to a number
+the right, and there is none, deliberately. Adding "maybe a number" to a number
 has no defined answer, so the standard library declines to invent one.
 
 You have to say what absence means here. `?` says "it means the whole function
@@ -704,8 +705,8 @@ for.
 @diagnose E0308
 Your `?` is in a function whose return type is not an `Option`, or the tail
 expression lost its `Some`. `?` on an `Option` requires the enclosing function to
-return `Option` too, and the final `Some(sum)` must stay — `?` unwraps on the way
-in and never wraps on the way out.
+return `Option` too, and the final `Some(sum)` must stay, because `?` unwraps on
+the way in and never wraps on the way out.
 
 @after
 `?` inside a loop returns from the **function**, not from the loop. That is what
@@ -721,4 +722,4 @@ raw.iter().map(|s| s.parse::<i64>().ok()).sum::<Option<i64>>()
 ```
 
 `Sum` is implemented for `Option<T>`, so a single `None` anywhere makes the whole
-sum `None`. Same semantics, one line, no mutable accumulator.
+sum `None`. Same semantics in one line, with no mutable accumulator to keep straight.

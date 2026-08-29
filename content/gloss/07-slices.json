@@ -1,4 +1,4 @@
 {"terms": [
-{"t": "deref coercion", "x": "automatic &Vec to &[T]", "p": "The compiler quietly turning a reference into a reference to what it derefs to — &String into &str, &Vec<T> into &[T] — wherever a function argument or an annotated let asks for the second one."},
+{"t": "deref coercion", "x": "automatic &Vec to &[T]", "p": "The compiler quietly turning a reference into a reference to what it derefs to, &String into &str or &Vec<T> into &[T], wherever a function argument or an annotated let asks for the second one."},
 {"t": "char boundary", "x": "a byte offset you may slice at", "p": "A byte position in a string that sits at the start of a character rather than in the middle of one, which is the only kind of position a string slice is allowed to begin or end at."}
 ]}

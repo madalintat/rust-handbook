@@ -8,9 +8,9 @@ unit: 11-collections
 @concept capacity
 @expect E0596
 
-`with_capacity` buys the buffer up front, which is exactly right here — the size
-is known before the loop starts. But the vector as written cannot accept a
-single element.
+`with_capacity` buys the buffer up front, which is exactly right here: the size
+is known before the loop starts. The vector as written cannot accept a single
+element, though.
 
 One word is missing. Find it, and notice that the missing word is not on the
 line the error points at.
@@ -53,7 +53,7 @@ pub fn run() -> Vec<i32> {
 `cannot borrow squares as mutable, as it is not declared as mutable`.
 
 Read the two spans. The error is reported at `squares.push(...)`, because that is
-where a `&mut` was needed — `push` is declared `fn push(&mut self, value: T)`.
+where a `&mut` was needed, and `push` is declared `fn push(&mut self, value: T)`.
 But the *fix* is at the `let`, and rustc says so with a second span:
 `help: consider changing this to be mutable: mut squares`.
 
@@ -64,7 +64,7 @@ type. `Vec::with_capacity(5)` produces the same vector either way; `let` versus
 @after
 `with_capacity` is the cheapest performance win in the language and most code
 skips it. Starting from `Vec::new()`, filling five elements costs one allocation
-and then reallocations at 4 — with the copying that implies. Starting from
+and then reallocations at 4, with the copying that implies. Starting from
 `with_capacity(5)` costs exactly one allocation and no copying at all.
 
 The rule: if you know how many elements are coming, say so. If you are
@@ -128,13 +128,13 @@ be the whole of `h` or the first third of `€`. There is no answer `name[0]`
 could return that is right in both cases, so the standard library declines to
 guess.
 
-What `str` *does* implement is `Index<Range<usize>>`, so `&name[0..1]` compiles
-— and panics at runtime if that byte boundary splits a character. That is the
+What `str` *does* implement is `Index<Range<usize>>`, so `&name[0..1]` compiles,
+and panics at runtime if that byte boundary splits a character. That is the
 trade: byte ranges are O(1) and can panic, `chars()` is O(n) and cannot.
 
 @diagnose E0308
 Your expression has the wrong type for a `char`. `name.chars().next()` is an
-`Option<char>`, not a `char` — you still have to get the value out of it, with
+`Option<char>`, not a `char`, so you still have to get the value out of it with
 `unwrap`, `expect`, or a `match`. And `&name[0..1]` is a `&str` of length one,
 which is also not a `char`; those are different types in Rust and neither
 coerces to the other.
@@ -147,7 +147,7 @@ before it.
 
 That is the cost UTF-8 imposes and Rust refuses to hide it. Languages that let
 you write `s[3]` in constant time are either storing four bytes per character or
-quietly giving you a code unit rather than a character — which is where the
+quietly giving you a code unit rather than a character, which is where the
 emoji bugs come from.
 
 ## 3. Counting words
@@ -212,7 +212,7 @@ pub fn run() -> (u32, u32) {
 ```
 
 @hint `or_insert` does not return the number. Look up its return type.
-@hint It returns `&mut V` — a mutable reference pointing into the map's own storage. You cannot add one to a reference.
+@hint It returns `&mut V`, a mutable reference pointing into the map's own storage. You cannot add one to a reference.
 @hint Dereference it: `*counts.entry(word).or_insert(0) += 1;`
 
 @diagnose E0368
@@ -237,7 +237,7 @@ Count what the fixed line does: one hash of `word`, one bucket probe, and then
 either an insert of `0` or nothing. That is it.
 
 Compare the version people write first: `contains_key` (hash #1), then
-`get_mut(...).unwrap()` (hash #2), or `insert` (hash #3) — three passes over the
+`get_mut(...).unwrap()` (hash #2), or `insert` (hash #3). That is three passes over the
 same key, plus an `unwrap` that can never fail but which you now have to justify
 to a reviewer.
 
@@ -253,7 +253,7 @@ million allocations you did not need.
 
 @expect E0308
 
-The lookup must not panic on a missing name — a missing name scores zero. The
+The lookup must not panic on a missing name: a missing name scores zero. The
 signature is right; the body has not accepted what `get` actually returns.
 
 ```starter
@@ -300,7 +300,7 @@ pub fn run() -> (u32, u32) {
 
 @hint `get` returns `Option<&u32>`. There are two things wrong with that as a `u32`: the `Option` and the `&`.
 @hint `unwrap_or(0)` handles the `Option`. `copied()` turns an `Option<&u32>` into an `Option<u32>` by copying the four bytes out.
-@hint `scores.get(name).copied().unwrap_or(0)` — or equivalently `*scores.get(name).unwrap_or(&0)`.
+@hint `scores.get(name).copied().unwrap_or(0)`, or equivalently `*scores.get(name).unwrap_or(&0)`.
 
 @diagnose E0308
 `mismatched types: expected u32, found Option<&u32>`.
@@ -309,7 +309,7 @@ Two mismatches stacked in one message, and it is worth separating them.
 
 The `Option` is there because absence is not an error, it is a normal answer.
 `get` cannot return a `u32` for a key that is not in the map, and it will not
-invent a zero for you — that would be `HashMap` guessing what your program
+invent a zero for you, because that would be `HashMap` guessing what your program
 means.
 
 The `&` is there because the value belongs to the map. Handing you a `u32` by
@@ -317,7 +317,7 @@ value would be a copy the map cannot know you wanted; handing you a reference
 costs nothing. For a `Copy` type, `.copied()` takes the copy explicitly.
 
 @after
-Indexing exists — `scores["ada"]` — and it panics on a missing key. It is right
+Indexing exists, as `scores["ada"]`, and it panics on a missing key. It is right
 for exactly one situation: you have already proven the key is present, and a
 missing key means your program is broken. Everywhere else, use `get`.
 
@@ -333,7 +333,7 @@ you intend to write.
 @expect E0502
 
 Nothing here is unsafe, and in C++ the equivalent code compiles and usually
-works — until the day the vector is one element longer and it does not.
+works. Then one day the vector is one element longer and it does not.
 
 Keep both the first reading and the final length.
 
@@ -379,7 +379,7 @@ across the second.
 The reason is `Vec`'s growth strategy. `push` may find `len == capacity`, ask
 the allocator for a buffer twice the size, copy the elements across, and **free
 the old buffer**. If that happens, `first` points into memory that has been
-handed back — a use after free.
+handed back: a use after free.
 
 The compiler is not predicting whether this particular `push` reallocates; it
 cannot know that. It rejects the shape, because `push` takes `&mut self` and a
@@ -393,9 +393,9 @@ do not. Here it is a compile error with three underlines.
 
 The general habit: hold a reference into a collection for as short a time as
 possible, and never across a call that could modify it. If you need a value out
-of a collection and then want to change the collection, take the value out first
-— by copying it if it is `Copy`, by cloning if you must, or by `remove`/`pop`
-if you wanted it gone anyway.
+of a collection and then want to change the collection, take the value out first:
+copy it if it is `Copy`, clone it if you must, or use `remove`/`pop` if you
+wanted it gone anyway.
 
 ## 6. Taking one out
 
@@ -403,7 +403,7 @@ if you wanted it gone anyway.
 @concept swap_remove
 @expect E0507
 
-`take_any` is supposed to pull one job out of the queue and hand it over — the
+`take_any` is supposed to pull one job out of the queue and hand it over, so the
 caller then owns it. Order does not matter here; any job will do.
 
 Indexing does not work for this, and the error says why in one line.
@@ -466,7 +466,7 @@ pub fn run() -> (String, usize) {
 `cannot move out of index of Vec<String>`, with `move occurs because value has
 type String, which does not implement the Copy trait`.
 
-`v[0]` is a *place*, not a value — it names a slot the vector owns. Returning it
+`v[0]` is a *place*, not a value: it names a slot the vector owns. Returning it
 by value would move the `String` out of that slot, leaving the vector holding
 three elements one of which is uninitialised memory. `Vec` has no way to
 represent that, and its destructor would later try to drop it.
@@ -478,7 +478,7 @@ Exercise 5 worked because `i32` is `Copy`: moving out of a place is fine when
 @diagnose E0308
 Your fix returns the wrong type. `v.remove(0)` and `v.swap_remove(0)` both return
 `String`, but `v.get(0)` returns `Option<&String>` and `v.first()` returns
-`Option<&String>` — neither is a `String`, and neither takes the element out of
+`Option<&String>`. Neither is a `String`, and neither takes the element out of
 the vector.
 
 @after
@@ -486,8 +486,8 @@ the vector.
 there. Two pointer-sized writes, O(1), and the order of the remaining elements
 is destroyed.
 
-`remove(0)` would also have compiled and would also have passed the first test —
-and it shifts every later element down one slot, O(n). On a three-element vector
+`remove(0)` would also have compiled and would also have passed the first test.
+It shifts every later element down one slot, though, which is O(n). On a three-element vector
 that is invisible. On a hundred-thousand-element work queue popped from the
 front in a loop, it is quadratic, and it is one of the most common accidental
 performance bugs in Rust.
@@ -572,8 +572,8 @@ This is not a missing import or a typo. The method does not exist on `HashMap`
 and could not: a hash map deliberately destroys the relationship between a key
 and its position. `hash(1_700_000_100)` and `hash(1_700_000_101)` land in
 unrelated buckets, so there is nowhere to start scanning and nothing to scan
-towards. Answering a range query would mean visiting every bucket — O(n), which
-is what a `Vec` already gives you.
+towards. Answering a range query would mean visiting every bucket, which
+is the O(n) a `Vec` already gives you.
 
 `BTreeMap` stores keys sorted in a search tree, so `range` walks to the lower
 bound in O(log n) and then iterates. Ordered iteration is free; single lookups
@@ -588,7 +588,7 @@ line of the function.
 @after
 Iterating a `HashMap` yields entries in an order that is not just unspecified
 but *different on every run of the program*, because the SipHash seed is drawn
-at startup. That is deliberate — a stable order would leak information about the
+at startup. That is deliberate: a stable order would leak information about the
 hash and reopen the collision-flooding attack the random seed exists to prevent.
 
 The practical consequence is that a test asserting on `HashMap` iteration order
@@ -699,7 +699,7 @@ same bucket, because different values can and do hash to the same number.
 They also carry a contract the compiler cannot check for you: **equal values
 must hash equally.** Derive both and it holds automatically. Hand-write one of
 them and get it wrong, and your key will be filed in one bucket and looked for
-in another — an entry that is present and unfindable, with no error anywhere.
+in another. The entry is present and unfindable, and nothing reports an error.
 
 @diagnose E0277
 `the trait bound Dept: Eq is not satisfied`, pointing at
@@ -715,11 +715,11 @@ the equality traits. `Eq` is a marker with no methods of its own and it requires
 @after
 `or_default()` is doing real work in that one line. On the first sighting of a
 department it inserts an empty `Vec` and returns `&mut Vec<&str>`; on every
-later sighting it returns the existing one. One hash, no `unwrap`, no
-`contains_key`.
+later sighting it returns the existing one. That is one hash, with no `unwrap`
+and no `contains_key` anywhere.
 
 The `Eq`/`Hash` pair is worth carrying forward as a rule: **a type used as a map
 key or a set element must implement both, and if you write either by hand you
-must write both to agree.** That is why `f64` is not usable as a `HashMap` key —
-`NaN != NaN`, so it cannot implement `Eq` at all, and a key you can never look
+must write both to agree.** That is why `f64` is not usable as a `HashMap` key:
+`NaN != NaN`, so it cannot implement `Eq` at all, and a key you could never look
 up again would be worse than a compile error.

@@ -6,9 +6,9 @@ unit: 07-slices
 
 What is `std::mem::size_of::<&[i32]>()` on a 64-bit machine?
 
-- A. 8 — it is a pointer
-- *B. 16 — a pointer and a length
-- C. 24 — a pointer, a length and a capacity
+- A. 8, because it is a pointer
+- *B. 16, a pointer and a length
+- C. 24, a pointer, a length and a capacity
 - D. It depends on how many elements the slice has
 
 @why
@@ -17,7 +17,7 @@ words, sixteen bytes. The length has to be carried because `[i32]` has no fixed
 width, so an address alone would not describe it.
 
 C is the tempting one, and it is the answer for `Vec<i32>` and `String`. Those
-own their buffer, so they also track capacity — how much room the allocation has
+own their buffer, so they also track capacity: how much room the allocation has
 before it must grow. A slice owns nothing and can never grow, so a capacity
 would be meaningless.
 
@@ -37,15 +37,15 @@ fn main() {
 }
 ```
 
-- A. Yes — a literal is a string
-- *B. No — a literal is a `&str`, and `&str` does not coerce to `&String`
-- C. No — `to_uppercase` is not defined on `String`
+- A. Yes, a literal is a string
+- *B. No, a literal is a `&str`, and `&str` does not coerce to `&String`
+- C. No, `to_uppercase` is not defined on `String`
 - D. Yes, but it allocates twice
 
 @why
 `error[E0308]: expected `&String`, found `&str``. The coercion runs one way only:
 `&String` derefs to `&str`, never the reverse. There is no `String` here for a
-`&String` to point at — the bytes of `"ferris"` sit in the executable's read-only
+`&String` to point at. The bytes of `"ferris"` sit in the executable's read-only
 data, with no heap allocation and no capacity field anywhere.
 
 A is the intuition from Python or Java, where there is one string type. Rust has
@@ -56,7 +56,7 @@ The fix is to take `&str`, which then accepts both.
 
 ## 3
 
-`let s = String::from("héllo");` — what is `s.len()`?
+`let s = String::from("héllo");` What is `s.len()`?
 
 - A. 5
 - *B. 6
@@ -73,7 +73,7 @@ the whole string, and the difference in cost is exactly why they are separate
 methods with honest names.
 
 Worth internalising before you write a length check on user input: every byte
-index in Rust's string API — `len`, ranges, `is_char_boundary`, `find` — is a
+index in Rust's string API (`len`, ranges, `is_char_boundary`, `find`) is a
 byte offset.
 
 ## 4
@@ -85,7 +85,7 @@ let s = "héllo";
 let part = &s[0..2];
 ```
 
-- A. It fails to compile — `str` cannot be indexed
+- A. It fails to compile, because `str` cannot be indexed
 - B. `part` is `"hé"`
 - *C. It compiles, then panics at runtime
 - D. `part` is `"h"` and the extra byte is dropped
@@ -95,9 +95,9 @@ Range indexing on a `str` **is** implemented, so this compiles. Byte 2 is the
 second half of the two-byte `é`, so the slice would be invalid UTF-8, and the
 runtime check panics: *byte index 2 is not a char boundary*.
 
-A is the near-miss. `s[0]` — a bare integer — really does not compile, because
-`Index<usize>` is not implemented for `str`. `s[0..2]` — a range — is a different
-trait impl and it exists.
+A is the near-miss. `s[0]` with a bare integer really does not compile, because
+`Index<usize>` is not implemented for `str`. `s[0..2]` with a range goes through
+a different trait impl, and that one exists.
 
 D is what a language that silently repairs input would do. Rust will not hand
 back a `&str` that is not valid UTF-8, because every other function in the
@@ -114,7 +114,7 @@ Why is the panic in the previous question a panic rather than a compile error?
 
 @why
 `&s[..n]` for an `n` that comes from a file, a socket or a subtraction cannot be
-checked before the program runs — that would need types that carry values.
+checked before the program runs, which would need types that carry values.
 
 So the design question was only what to do at runtime, and there the choice is
 between returning an invalid `&str` and stopping. An invalid `&str` is undefined
@@ -122,7 +122,7 @@ behaviour, not a wrong answer, so the panic is the conservative option. `get`
 exists for when failure is expected rather than a bug: it returns `None` for both
 out-of-range and mid-character.
 
-D is wrong on the facts — a `str` knows its length perfectly well; that is the
+D is wrong on the facts. A `str` knows its length perfectly well; that is the
 second word of the fat pointer.
 
 ## 6
@@ -142,17 +142,17 @@ let a: [i32; 3] = [1, 2, 3];
 
 @why
 All four references work. A and B go through **deref coercion** and an unsized
-coercion respectively — `Vec<i32>` derefs to `[i32]`, and `[i32; 3]` coerces to
+coercion respectively: `Vec<i32>` derefs to `[i32]`, and `[i32; 3]` coerces to
 `[i32]` by forgetting its compile-time length into the pointer's second word. C
 is already a slice. D is a reference to a temporary array, coerced the same way
 as B.
 
-E is the odd one out: `v` is a `Vec<i32>` by value, and a `Vec` is not a slice —
-it is an owner. You would be moving the vector into a parameter that wants a
+E is the odd one out: `v` is a `Vec<i32>` by value, and a `Vec` is an owner
+rather than a view. You would be moving the vector into a parameter that wants a
 borrow.
 
-This is the whole argument for writing `&[T]` in signatures. One parameter type,
-four call shapes, no allocations.
+This is the whole argument for writing `&[T]` in signatures. One parameter type
+covers four call shapes, and none of them allocate.
 
 ## 7
 
@@ -171,7 +171,7 @@ for exactly the same reason and sorts three elements in place.
 
 The same reasoning puts `reverse`, `swap`, `fill`, `binary_search` and
 `rotate_left` on the slice. The methods on `Vec` itself are the ones that need
-ownership or the capacity field — `push`, `pop`, `insert`, `reserve`,
+ownership or the capacity field: `push`, `pop`, `insert`, `reserve`,
 `truncate`.
 
 ## 8
@@ -186,14 +186,14 @@ fn first(v: &Vec<i32>) -> i32 {
 ```
 
 - A. Yes
-- *B. No — `sort` needs `&mut`, and `v` is behind a shared reference
-- C. No — `sort` is not a method on `Vec`
+- *B. No, `sort` needs `&mut`, and `v` is behind a shared reference
+- C. No, `sort` is not a method on `Vec`
 - D. Yes, but the sort has no effect outside the function
 
 @why
 `error[E0596]: cannot borrow `*v` as mutable, as it is behind a `&` reference`.
 `sort` takes `&mut self`, and a shared reference cannot be upgraded to a unique
-one — shared references can be duplicated freely, so allowing the upgrade would
+one. Shared references can be duplicated freely, so allowing the upgrade would
 permit two writers at once.
 
 D is the intuition from a language with copied parameters, and it is worth
@@ -216,9 +216,9 @@ println!("{} {}", v.chunks(2).count(), v.windows(2).count());
 - D. `4 3`
 
 @why
-`chunks(2)` partitions into disjoint pieces: `[1,2]` and `[3,4]` — two of them.
-`windows(2)` slides one element at a time: `[1,2]`, `[2,3]`, `[3,4]` — three, and
-in general `len - n + 1`.
+`chunks(2)` partitions into disjoint pieces, `[1,2]` and `[3,4]`, so two of them.
+`windows(2)` slides one element at a time, `[1,2]`, `[2,3]` and `[3,4]`, so
+three, and in general `len - n + 1`.
 
 Reach for `windows` when you are comparing neighbours (is this sequence sorted,
 where are the jumps) and `chunks` when you are batching (rows of a grid, records
@@ -238,8 +238,8 @@ when the slice is shorter than `n`.
 
 @why
 Indexing panics on a bad index or a bad range; `get` returns `None` for both.
-That is the whole distinction, and it is repeated all over the standard library —
-`HashMap`, `str`, `VecDeque` all have the pair.
+That is the whole distinction, and it is repeated all over the standard library:
+`HashMap`, `str` and `VecDeque` all have the pair.
 
 `first` returns `Option<&i32>` and never panics, even on an empty slice.
 
@@ -259,9 +259,9 @@ let right = &mut v[2..];
 left[0] += right[0];
 ```
 
-- A. Yes — the ranges do not overlap
-- *B. No — two mutable borrows of `v` at once
-- C. No — you cannot index with a range
+- A. Yes, the ranges do not overlap
+- *B. No, two mutable borrows of `v` at once
+- C. No, you cannot index with a range
 - D. Yes, but only in release mode
 
 @why
@@ -275,7 +275,8 @@ types and regions, not about arithmetic on range endpoints; a rule that could se
 
 `v.split_at_mut(2)` is the answer: one borrow in, two disjoint slices out, with
 the non-overlap guaranteed by construction. Inside, it is a small `unsafe` block
-in the standard library — which is the normal shape of things, not a cheat.
+in the standard library, which is the normal shape of things rather than a
+cheat.
 
 ## 12
 
@@ -292,7 +293,7 @@ Given `let s = "héllo";`, which expression yields `'é'`?
 A and D are the same mistake written two ways: the second *byte* of `"héllo"` is
 `0xC3`, the first half of the two-byte sequence for `é`. Casting a `u8` to `char`
 reinterprets it as a Unicode code point, giving `Ã`. It compiles, it is wrong,
-and it is wrong only for non-ASCII input — so it passes every test you wrote in
+and it is wrong only for non-ASCII input, so it passes every test you wrote in
 English.
 
 C panics rather than misbehaving: byte 2 is not a character boundary.
@@ -314,7 +315,7 @@ A string literal's bytes are laid into the read-only section of the executable,
 mapped before `main` starts and never released. A reference to them is valid for
 the whole run, and `'static` is the name for that.
 
-D is a genuinely common misreading. `'static` is a claim, not an exemption — the
+D is a genuinely common misreading. `'static` is a claim, not an exemption. The
 compiler checks it, and it will refuse `&'static str` built from a local
 `String`, because that heap buffer really is freed when the function returns.
 
@@ -328,7 +329,7 @@ What is the cost of `&v[1..4]` on a `Vec<i32>` with a thousand elements?
 
 - *A. A bounds check and two words written to the stack
 - B. A heap allocation and three elements copied
-- C. Nothing at all — slices are a compile-time concept
+- C. Nothing at all, since slices are a compile-time concept
 - D. Proportional to the length of the vector
 
 @why
@@ -336,7 +337,7 @@ A slice expression adds the start offset to the base pointer and stores that plu
 the length. Three elements are not copied and no allocator is touched, which is
 why passing sub-ranges around is free enough to do in a loop.
 
-B is the Python intuition — `v[1:4]` there builds a new list. The consequence of
+B is the Python intuition, where `v[1:4]` builds a new list. The consequence of
 Rust's choice is that the slice **borrows**: it cannot outlive `v`, and `v`
 cannot be pushed to or dropped while it is alive. That restriction is the price
 of the zero cost, and the borrow checker is where you pay it.
@@ -365,7 +366,7 @@ literal has to allocate one just to make the call. `&String` is the worst of
 both: it demands a heap-allocated `String` behind the reference and gives you no
 extra ability once you have it.
 
-D is not a type — `AsRef<str>` is a trait, so it would have to be
+D is not a type. `AsRef<str>` is a trait, so it would have to be
 `impl AsRef<str>` or a generic parameter. That is a real pattern and it buys you
 `String`, `&str` and `PathBuf` in one signature, at the cost of monomorphising a
 copy per argument type. `&str` first; reach for the generic when you actually

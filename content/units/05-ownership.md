@@ -8,7 +8,7 @@ needs: 01-bindings, 03-expressions
 blurb: One owner, one drop. What a move actually copies, what it does not, and which bug the whole rule exists to prevent.
 ---
 
-%% Every language answers one question: when is it safe to free this memory? C makes you answer by hand and punishes mistakes. Java and Python refuse to answer and pay a collector to keep asking. Rust answers at compile time, for free — and the price is that you say who owns what.
+%% Every language answers one question: when is it safe to free this memory? C makes you answer by hand and punishes mistakes. Java and Python refuse to answer and pay a collector to keep asking. Rust answers at compile time, for free, and the price is that you say who owns what.
 
 Three bullet points on a slide will not get you there. The machine underneath them will.
 
@@ -31,8 +31,8 @@ int main(void) {
 }
 ```
 
-Compiles clean. Might even print `hi` twice — the worst outcome, because then it
-ships.
+Compiles clean. It might even print `hi` twice, which is the worst outcome,
+because then it ships.
 
 The root cause is neither bad line. It is that after `takes(s)` there were **two
 pointers to one buffer and no agreement about which was responsible**. Both
@@ -61,8 +61,8 @@ rather than remembered.
 
 :::note
 Every value has one **owner**. When the owner goes out of scope, the value is
-dropped. Ownership can be given away — a **move** — and afterwards the old
-binding is statically dead: naming it is a compile error.
+dropped. Ownership can be given away; that is a **move**. Afterwards the old
+binding is statically dead, and naming it is a compile error.
 :::
 
 ```rust,bad
@@ -77,16 +77,16 @@ fn main() {
 }
 ```
 
-Notice what got caught: not the `free` — there is no `free` to get wrong. The
-**read**, at compile time, before the program ran.
+Notice what got caught. It was not the `free`, because there is no `free` here
+to get wrong. It was the **read**, at compile time, before the program ran.
 
 :::compare
-**C++** — this is `unique_ptr` promoted to the whole language, with the hole
+**C++.** This is `unique_ptr` promoted to the whole language, with the hole
 closed. A moved-from `unique_ptr` is left null and using it is legal, so your bug
 becomes a runtime null deref. A moved-from binding in Rust is *unnameable*.
 
-**Python / Java** — the shock is that `b = a` does not always mean both names see
-the object. Sometimes it means the second has it and the first is gone.
+**Python and Java.** The shock is that `b = a` does not always mean both names
+see the object. Sometimes it means the second has it and the first is gone.
 :::
 
 ## What a value actually is
@@ -109,15 +109,15 @@ holds a handle.
 :::
 
 That split is why ownership needs rules. **The three words are trivially
-copyable — they are just numbers. The buffer is not.** Copy the words without
+copyable, being just numbers. The buffer is not.** Copy the words without
 copying the buffer and you have two handles to one allocation: the C bug,
 rebuilt.
 
 | | lives | duplicating it costs |
 |---|---|---|
-| `i32` `bool` `char` `f64` | stack | nothing — it *is* the value |
+| `i32` `bool` `char` `f64` | stack | nothing; it *is* the value |
 | `[u8; 16]` | stack | 16 bytes |
-| `&T` | stack | nothing — an address |
+| `&T` | stack | nothing; it is an address |
 | `String` `Vec<T>` `Box<T>` | handle on stack, contents on heap | a heap allocation and a copy |
 
 That last row is where moves happen.
@@ -127,9 +127,9 @@ That last row is where moves happen.
 ### A move copies 24 bytes, not the string
 
 :::note
-A move copies the **handle**, bit for bit. No allocation, no user code, no heap
-traffic. Moving a `String` is a 24-byte `memcpy` — and the optimiser usually
-removes even that.
+A move copies the **handle**, bit for bit. The allocator is never called, no
+user code runs, and nothing on the heap is read or written. Moving a `String`
+is a 24-byte `memcpy`, and the optimiser usually removes even that.
 :::
 
 ```rust
@@ -151,7 +151,7 @@ let b = a;               // 24 bytes. That is all.
 :::
 
 `a`'s bytes are physically still there. Nothing scrubbed them. The compiler
-simply marked `a` moved-from and will not let you name it — bookkeeping that
+simply marked `a` moved-from and will not let you name it. That bookkeeping
 costs nothing at runtime because it does not exist at runtime.
 
 Moves are cheap. People write `clone()` everywhere to dodge a cost that was never
@@ -162,7 +162,7 @@ there; `clone` is the one that actually calls the allocator.
 If both `a` and `b` stayed live, both would drop at end of scope, and both drops
 would free the same buffer. So the compiler picks one. New binding wins.
 
-One owner, one drop, no runtime check.
+One owner, one drop, and the whole thing settled before the program starts.
 
 ### Moves in disguise
 
@@ -197,7 +197,7 @@ The most common beginner error in the language:
 ```rust,bad
 let s = String::from("hi");
 for _ in 0..3 {
-    let n = s.into_bytes();   // into_* takes self — s is gone
+    let n = s.into_bytes();   // into_* takes self, so s is gone
 }                             // iteration 2: nothing left
 ```
 
@@ -221,7 +221,7 @@ value, so both bindings stay live. There is no shared buffer to argue over.
 Run it yourself: if `String` were `Copy`, `let b = a;` leaves both live → two
 owners → two drops → double free.
 
-So it cannot be, and this is structural rather than a preference — **`Copy`
+So it cannot be, and the reason is structural rather than a preference: **`Copy`
 requires `Clone` and forbids `Drop`**. A type with a destructor cannot be
 silently duplicated. That rules out `Vec<T>`, `Box<T>`, `HashMap`, `File`, and
 everything else holding a resource.
@@ -231,7 +231,7 @@ everything else holding a resource.
 `bool`, `char`, `&T`, and arrays and tuples built entirely from those.
 
 `&T` being `Copy` is why you can pass a `&str` to five functions without a single
-complaint — copying a reference copies an address, and it owns nothing.
+complaint: copying a reference copies an address, and an address owns nothing.
 :::
 
 ### Clone is the visible one
@@ -245,7 +245,7 @@ println!("{a} {b}");     // both live, two buffers
 | | when | cost |
 |---|---|---|
 | `Copy` | implicitly, on every assignment | a byte copy, always cheap |
-| `Clone` | only where you wrote `.clone()` | whatever the type says — often an allocation |
+| `Clone` | only where you wrote `.clone()` | whatever the type says, often an allocation |
 
 That visibility is the point. In a language where duplication is implicit, an
 accidental deep copy in a hot loop is invisible until you profile.
@@ -261,9 +261,9 @@ fn main() {
 }   // b dropped, then a
 ```
 
-No `free`, no `close`, no `finally`, no `with`, no `defer`. The compiler emits
-the drops where the value is provably last owned — including on an early
-`return` and on a panic unwinding through the frame.
+Nothing in that function says `free`, `close`, `finally`, `with` or `defer`. The
+compiler emits the drops where the value is provably last owned, including on an
+early `return` and on a panic unwinding through the frame.
 
 Reverse order is not arbitrary: later bindings are the ones that depend on
 earlier ones (a guard from a lock above it, a writer around a file opened
@@ -272,7 +272,7 @@ before it), so unwinding backwards is the only always-safe sequence.
 ### RAII, and why the double free is now impossible
 
 A `String`'s destructor returns its buffer. A `File` closes its descriptor. A
-`MutexGuard` unlocks. This is **RAII** — the resource is tied to the value's
+`MutexGuard` unlocks. This is **RAII**: the resource is tied to the value's
 lifetime.
 
 Put the halves together:
@@ -281,13 +281,14 @@ Put the halves together:
 - drop runs when *the owner* leaves scope
 - therefore drop runs exactly once
 
-No collector, no reference count. The machine code has the right number of frees
-in the right places — the code a careful C programmer would have written by hand.
+There is no collector and no reference count. The machine code has the right
+number of frees in the right places: the code a careful C programmer would have
+written by hand.
 
 :::gotcha
 A moved-from binding is **not** dropped. That would be the double free.
 
-Where the compiler cannot tell statically — a move inside one arm of an `if` —
+Where the compiler cannot tell statically (a move inside one arm of an `if`, say)
 it inserts a hidden boolean **drop flag** and checks it. One byte and a branch,
 usually optimised away, and the entire runtime cost of ownership.
 :::
@@ -329,7 +330,7 @@ takes(s.clone());
 One allocation, honest about it. Right when you genuinely need two independent
 values.
 
-### 3. Borrow it — the usual answer
+### 3. Borrow it, the usual answer
 
 ```rust
 fn takes(s: &str) {

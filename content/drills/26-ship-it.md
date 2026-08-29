@@ -16,7 +16,7 @@ A file in `tests/` is compiled as its own crate that depends on your library, so
 it sees exactly what any external user sees: the public API of `lib.rs`.
 
 C is the answer that catches people. `main.rs` is a separate crate with no
-library interface at all — nothing can `use` anything from it. That is the
+library interface at all, so nothing can `use` anything from it. That is the
 mechanical reason for the bin/lib split: code left in `main.rs` is code no test
 can reach, except by running the whole binary as in D.
 
@@ -30,9 +30,9 @@ pub fn search(pattern: &str, contents: &str) -> Vec<&str> {
 }
 ```
 
-- A. Yes — elision ties the output to the first argument
-- *B. No — with two input references, elision cannot choose
-- C. No — `lines()` cannot be collected into a `Vec`
+- A. Yes, because elision ties the output to the first argument
+- *B. No, because with two input references elision cannot choose
+- C. No, because `lines()` cannot be collected into a `Vec`
 - D. Yes, but the results borrow from `pattern`
 
 @why
@@ -41,7 +41,7 @@ input reference; with two, rustc will not guess, because the choice is
 load-bearing. If the output borrowed from `pattern`, the caller could drop
 `contents` while still holding the results.
 
-A describes a rule that does not exist for free functions — that one is for
+A describes a rule that does not exist for free functions. That one is for
 methods, where `&self` wins. The fix here is
 `search<'a>(pattern: &str, contents: &'a str) -> Vec<&'a str>`: tie only the
 argument the slices are actually cut from.
@@ -85,7 +85,7 @@ pub ignore_case: bool,
 with underscores turned into hyphens. A `bool` field becomes a flag: present is
 true, absent is false.
 
-A is what you get if you *omit* the attribute — a bare `bool` field is a
+A is what you get if you *omit* the attribute. A bare `bool` field is a
 positional argument, and the tool then demands `minigrep pattern path true`,
 which is a confusing bug because it still compiles and still runs.
 
@@ -96,13 +96,13 @@ which is a confusing bug because it still compiles and still runs.
 - A. `anyhow` in the library, `thiserror` in the binary
 - *B. `thiserror` in the library, `anyhow` in the binary
 - C. Either, they do the same job
-- D. `anyhow` in both — `thiserror` is only for async code
+- D. `anyhow` in both, since `thiserror` is only for async code
 
 @why
 They sit on opposite sides of the file boundary because the two halves want
 different things. A library's caller needs to `match` on what went wrong, so the
 library returns a concrete enum, and `thiserror` derives the `Display` and `Error`
-impls for it. `main` never matches — it prints and exits — so it wants one type
+impls for it. `main` never matches; it prints and exits. So it wants one type
 that absorbs every error and carries human context, which is `anyhow::Error`.
 
 C is tempting because both crates are "error handling". The distinction is not
@@ -125,8 +125,9 @@ A plain enum of integers already satisfies the last three; `Error` is the one yo
 have to write, and `Error` has `Debug + Display` as supertraits, so `Display` comes
 with it.
 
-A is the intuition from ordinary `?` conversions, and it is not just unnecessary —
-`anyhow` already provides that blanket impl, and yours would collide with it.
+A is the intuition from ordinary `?` conversions, and it is worse than
+unnecessary. `anyhow` already provides that blanket impl, and yours would
+collide with it.
 
 ## 7
 
@@ -140,7 +141,7 @@ What does `format!("{e}")` print?
 
 @why
 `{}` prints only the outermost message. `{:#}` prints the chain joined with
-colons — the A answer. `{:?}` prints it multi-line with a backtrace if one was
+colons, which is answer A. `{:?}` prints it multi-line with a backtrace if one was
 captured, which is the form `main` uses when it returns `anyhow::Result`.
 
 The trap is shipping a tool that prints `{e}` and wondering why the error
@@ -150,13 +151,13 @@ messages are useless: the *cause* is the half you dropped.
 
 What is the cost of `println!` inside a loop over a million lines?
 
-- A. Nothing — the macro is compiled away
+- A. Nothing; the macro is compiled away
 - *B. A million lock acquisitions on stdout, plus a flush policy you did not choose
 - C. A heap allocation per call
 - D. One system call per character
 
 @why
-`println!` calls `io::stdout()`, which locks, writes and unlocks — every time.
+`println!` calls `io::stdout()`, which locks, writes and unlocks on every call.
 Taking the lock once with `let mut out = io::stdout().lock();` and using
 `writeln!` removes a million lock/unlock pairs, and is often several times faster
 in a tool whose whole job is printing lines.
@@ -198,7 +199,7 @@ Cargo sets that environment variable when compiling an integration test, so
 was built first. No path guessing, no `target/debug/` hard-coded, and it is
 correct under `--release` too.
 
-C is the natural worry and it is unfounded — the dependency is part of the build
+C is the natural worry and it is unfounded. The dependency is part of the build
 graph, which is exactly why this is the right way to test a CLI.
 
 ## 11
@@ -212,8 +213,8 @@ Which of these measurably shrink a release binary? Choose all that apply.
 - E. `debug = true`
 
 @why
-`strip` removes the symbol table and often roughly halves the file — the biggest
-single win, and free apart from losing symbol names in backtraces. `lto` lets the
+`strip` removes the symbol table and often roughly halves the file. That is the
+biggest single win, and free apart from losing symbol names in backtraces. `lto` lets the
 linker discard code across crate boundaries. `panic = "abort"` deletes the
 unwinding tables and landing pads, at the price of `catch_unwind` and of tests
 that expect a panic.
@@ -237,7 +238,7 @@ The default profiles disagree on exactly one runtime check: `overflow-checks` is
 on in debug and off in release. A subtraction that goes below zero panics loudly
 during development and silently wraps to a huge number in the binary you ship.
 
-D would be a compiler bug — safe Rust does not have undefined behaviour. The fix
+D would be a compiler bug, since safe Rust does not have undefined behaviour. The fix
 for B is to say what you meant: `checked_sub`, `saturating_sub` or `wrapping_sub`
 mean three different things and all three are explicit.
 
@@ -251,10 +252,10 @@ mean three different things and all three are explicit.
 - D. It will not compile inside a test
 
 @why
-`parse()` reads `std::env::args_os()` — which under `cargo test` is the test
-harness's own arguments — and on a mismatch calls `std::process::exit`. That kills
-the test binary rather than failing a test, so you get a confusing abort with no
-useful output.
+`parse()` reads `std::env::args_os()`, which under `cargo test` means the test
+harness's own arguments, and on a mismatch it calls `std::process::exit`. That
+kills the test binary rather than failing a test, so you get a confusing abort
+with no useful output.
 
 Use `parse_from(argv)` to supply the arguments yourself, or `try_parse_from` when
 you want the parse error back as a value. The general shape is the same as the
@@ -291,7 +292,7 @@ Why return `ExitCode` from `main` rather than `anyhow::Result<()>`?
 @why
 Returning `Result` is a perfectly good default: on `Err` it prints the error with
 `{:?}` and exits 1. What it cannot express is a *successful* run with a non-zero
-status, and a search tool needs exactly that — `grep` has used 0 for found, 1 for
+status, and a search tool needs exactly that. `grep` has used 0 for found, 1 for
 not found and 2 for an error for forty years, and scripts branch on it.
 
 So `main` returns `ExitCode`, matches on the library's `Result`, prints the error

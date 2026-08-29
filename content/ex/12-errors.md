@@ -69,15 +69,15 @@ so a function returning one must produce a *variant*, not a bare `T`. The `Err`
 branch already does, which is why rustc says nothing about it.
 
 Both arms of an `if` must also have the same type, so once one arm is a
-`Result`, the other has to be too — that is the second reason this cannot be
-left as it is.
+`Result`, the other has to be too. That is the second reason this cannot stand
+as it is.
 
 @after
 Because `Result` is a value rather than a control-flow mechanism, a few things
 fall out for free. It can be stored in a `Vec`, returned from a closure, sent
 down a channel, or matched on later. It is marked `#[must_use]`, so ignoring one
 is a warning rather than silence. And the function's signature tells the caller
-exactly what can go wrong — something no exception-based signature does.
+exactly what can go wrong, which an exception-based signature never does.
 
 The cost is that you write `Ok(...)` on the happy path. That is the entire tax.
 
@@ -152,7 +152,7 @@ a `match`.
 
 @diagnose E0308
 Once `port_number` returns a `Result`, `run`'s `Ok(port_number(...))` is wrapping
-a `Result` in another `Result` — `expected u16, found Result<u16, ParseIntError>`.
+a `Result` in another `Result`, giving `expected u16, found Result<u16, ParseIntError>`.
 Drop the `Ok` and return the call directly.
 
 @after
@@ -251,7 +251,7 @@ variant you left out and offers to write the arm for you.
 
 `match` is exhaustive by construction. The compiler knows every variant the enum
 has, checks that every one is reachable by some arm, and refuses the match
-otherwise. That is not pedantry — it is the mechanism that turns "somebody added
+otherwise. That is not pedantry. It is the mechanism that turns "somebody added
 an error variant" from a runtime surprise into a build failure, in every place
 that handles the type.
 
@@ -261,8 +261,8 @@ references automatically.
 
 @after
 The tempting fix is `_ => String::from("unknown error")`, and on an error enum
-it is usually the wrong one. It compiles today and it silently absorbs every
-variant added tomorrow — which is precisely the notification you wanted.
+it is usually the wrong one. It compiles today and silently absorbs every
+variant added tomorrow, swallowing precisely the notification you wanted.
 
 Keep the wildcard for enums you do not own and that are marked
 `#[non_exhaustive]`, where new variants are promised and a catch-all is
@@ -380,7 +380,7 @@ produces a `ParseIntError` starts working, with no annotation at the call site.
 problem wearing a different hat, and it appears when you drop the turbofish:
 `let n: u32 = text.trim().parse()?;`. With nothing pinning the error type,
 inference works backwards from `?` and concludes the parse must fail with
-`ConfigError` — which `u32`'s `FromStr` impl does not do. The fix is the same
+`ConfigError`, which `u32`'s `FromStr` impl does not do. The fix is the same
 `From` impl.
 
 @after
@@ -391,7 +391,7 @@ next to the type, rather than repeated at every call.
 It also explains `Box<dyn Error>`. That type has a blanket
 `impl<E: Error + 'static> From<E> for Box<dyn Error>`, so *every* error already
 converts into it and every `?` works with no impls of your own. You have traded
-the ability to match on the error for zero boilerplate — a good trade in a
+the ability to match on the error for zero boilerplate: a good trade in a
 binary, a bad one in a library.
 
 ## 5. An error has to be printable
@@ -401,7 +401,7 @@ binary, a bad one in a library.
 @expect E0277
 
 `RetryLimit` is declared to be an error. The `impl` block is empty, which is
-allowed — `std::error::Error` has no required methods. It still will not compile,
+allowed, since `std::error::Error` has no required methods. It still will not compile,
 because the trait requires something else.
 
 ```starter
@@ -463,8 +463,8 @@ pub fn run() -> String {
 @hint The body is `write!(f, "gave up after {} attempts", self.attempts)`.
 
 @diagnose E0277
-`the trait bound RetryLimit: std::fmt::Display is not satisfied`, reported twice
-— once at the `impl ... Error` line and once at `format!("{e}")`.
+`the trait bound RetryLimit: std::fmt::Display is not satisfied`, reported twice:
+once at the `impl ... Error` line and once at `format!("{e}")`.
 
 The first is the interesting one. `std::error::Error` is declared
 `pub trait Error: Debug + Display`, so `Debug` and `Display` are
@@ -473,12 +473,12 @@ empty `impl` block is fine, but the bounds are not optional.
 
 That requirement is the trait's whole contract. `Debug` is what a panic message
 and `{:?}` print, aimed at you. `Display` is what a user sees, aimed at them.
-Anything generic over `E: Error` — `Box<dyn Error>`, `anyhow`, a logger — relies
+Anything generic over `E: Error` (`Box<dyn Error>`, `anyhow`, a logger) relies
 on both being there.
 
 @diagnose E0599
 `no method named to_string found`. `to_string` comes from `ToString`, which has
-a blanket impl for every `T: Display`. No `Display`, no `to_string` — the same
+a blanket impl for every `T: Display`. With no `Display` there is no `to_string`: the same
 missing impl, surfacing somewhere else.
 
 @after
@@ -486,7 +486,7 @@ Conventions for a `Display` message, all of which exist because the caller is
 going to wrap it:
 
 lowercase, no trailing full stop, and no `Error:` prefix. Say what failed, not
-what the program did about it — `gave up after 5 attempts`, not
+what the program did about it: `gave up after 5 attempts`, not
 `Error: Retry limit exceeded!`.
 
 Then implement `source()` when your error wraps another. That builds the chain
@@ -547,7 +547,7 @@ pub fn run() -> (u16, String) {
 @hint `use anyhow::Context;` at the top.
 
 @diagnose E0599
-`no method named context found for enum Result in the current scope` — and then
+`no method named context found for enum Result in the current scope`, and then
 the help that gives it away: *items from traits can only be used if the trait is
 in scope*, with `use anyhow::Context;` suggested directly.
 
@@ -568,7 +568,7 @@ that type instead, and no `From` impl exists. Put the signature back.
 @after
 Look at what the test asserts: the `Display` of the resulting error is
 `port must be a number`, and the underlying `invalid digit found in string` has
-not vanished — it moved down the chain. Printing with `{:?}`, which is what
+not vanished; it moved down the chain. Printing with `{:?}`, which is what
 `main` does when it returns an `Err`, gives:
 
 ```
@@ -580,7 +580,7 @@ Caused by:
 
 That is the entire argument for `anyhow` in a binary. `invalid digit found in
 string` on its own is a bug report nobody can act on. Add context at every layer
-that knows something the layer below did not — which file, which key, which
+that knows something the layer below did not: which file, which key, which
 request.
 
 ## 7. From, generated
@@ -670,15 +670,15 @@ pub fn run() -> (u32, String, String) {
 `type mismatch resolving <u32 as FromStr>::Err == LoadError`, pointing at
 `parse`, with `expected LoadError, found ParseIntError`.
 
-The wording is confusing until you see where inference went. `parse` is generic
-— `fn parse<F: FromStr>(&self) -> Result<F, F::Err>` — so its error type is
+The wording is confusing until you see where inference went. `parse` is generic,
+`fn parse<F: FromStr>(&self) -> Result<F, F::Err>`, so its error type is
 decided by whatever `F` turns out to be. Here `let n: u32` pins `F = u32`, and
 then `?` demands that the error be convertible to `LoadError`. With no `From`
 impl in sight, the solver tries the only other route: assuming `u32::Err` *is*
 `LoadError`. It is not, so you get an equality mismatch rather than a missing
 trait bound.
 
-Write the turbofish — `parse::<u32>()` — and the same problem reports as
+Write the turbofish, `parse::<u32>()`, and the same problem reports as
 `error[E0277]: ? couldn't convert the error`, which is the clearer message.
 Either way the fix is a `From` impl, and `#[from]` generates one.
 
@@ -693,7 +693,7 @@ The split between the two crates is the point, and it follows from who reads the
 error.
 
 `thiserror` generates impls and disappears. What you ship is a plain enum with
-`Display`, `Error` and some `From` impls — nothing in your public API mentions
+`Display`, `Error` and some `From` impls. Nothing in your public API mentions
 the crate, and a caller can still `match` on `LoadError::Empty` and do something
 specific. That is what a **library** owes its users.
 
@@ -777,7 +777,7 @@ pub fn run() -> (u16, String, bool) {
 
 @diagnose E0277
 `the ? operator can only be used on Results, not Options, in a function that
-returns Result` — reported once per offending `?`, with the fix in the span:
+returns Result`, reported once per offending `?`, with the fix in the span:
 *use `.ok_or(...)?` to provide an error compatible with
 `Result<u16, Box<dyn Error>>`*.
 
@@ -787,8 +787,8 @@ requires inventing that reason, and only you know what it should be. If `?`
 picked one for you, every missing key in the program would fail with the same
 blank error.
 
-Going the other way is `.ok()`, which throws the error away — also something you
-should have to write down.
+Going the other way is `.ok()`, which throws the error away, and that is also
+something you should have to write down.
 
 @diagnose E0599
 `no method named ok_or found` usually means it is on the wrong side: `ok_or` is a
@@ -800,7 +800,7 @@ method on `Option`, not on `Result`. `config.lines().find(...)` gives an
 `impl<E: Error + 'static> From<E> for Box<dyn Error>`, plus an impl from `&str`
 and `String`, so all three of these error sources convert with no work from you.
 
-The price is that the caller has lost the ability to tell them apart — every
+The price is that the caller has lost the ability to tell them apart. Every
 failure is one opaque box, and distinguishing "no such key" from "not a number"
 would mean downcasting or matching on the message. That is fine in a binary,
 where the next step is printing a line and exiting. It is not fine in a library,

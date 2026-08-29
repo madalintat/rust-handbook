@@ -9,7 +9,7 @@ unit: 26-ship-it
 @expect E0106
 
 The first function in `src/lib.rs`. It takes the pattern and the file contents,
-and returns the lines that matched — as slices *into* the contents, so nothing is
+and returns the lines that matched, as slices *into* the contents, so nothing is
 copied.
 
 That last part is the problem. The compiler cannot work out which of the two
@@ -65,7 +65,7 @@ contents`.
 
 Elision has one rule that could have saved you here: with exactly one input
 reference, the output borrows from it. There are two, so the rule does not apply
-and rustc will not pick. It is not being pedantic — the choice is load-bearing.
+and rustc will not pick. It is not being pedantic. The choice is load-bearing.
 If the output borrowed from `pattern`, the caller could drop `contents` while
 holding the results.
 
@@ -80,8 +80,8 @@ per match; a hit is a pointer and a length into the buffer you already read. On 
 
 It is also why the search logic lives in `src/lib.rs` and not in `main`. A
 function taking `&str` and returning `Vec<&str>` needs no filesystem, no
-arguments, no process — so it can be tested. `main` cannot be tested. Push
-everything you can across that line.
+arguments and no process, so it can be tested. `main` cannot be. Push everything
+you can across that line.
 
 ## 2. Case-insensitive, and one type off
 
@@ -142,8 +142,8 @@ pub fn search_insensitive<'a>(pattern: &str, contents: &'a str) -> Vec<&'a str> 
 `contains` is generic: `fn contains<P: Pattern>(&self, pat: P) -> bool`. That is
 what lets you write `.contains('x')`, `.contains("xy")` and
 `.contains(char::is_numeric)` with one method. The impls cover `char`, `&str`,
-`&String`, `&[char]` and closures — every cheap, borrowed way of describing a
-needle. `String` by value is deliberately not among them, because taking the
+`&String`, `&[char]` and closures, which covers every cheap, borrowed way of
+describing a needle. `String` by value is deliberately not among them, because taking the
 needle by value would mean consuming it on every call.
 
 rustc's `help: consider borrowing here` is the fix verbatim. Note the second
@@ -157,7 +157,7 @@ MB of allocation churn to answer a yes/no question.
 
 The cheap alternative for ASCII is `eq_ignore_ascii_case`, and the correct one for
 Unicode is a crate that does caseless matching without materialising a new string.
-Correct first, then measure — but know that this line is where the time goes.
+Correct first, then measure. But know that this line is where the time goes.
 
 ## 3. Line numbers, and the shape of a tuple
 
@@ -224,13 +224,13 @@ pub fn search(pattern: &str, contents: &str) -> Vec<Hit> {
 
 @hint `enumerate` changes the item type. What does `filter` receive now?
 @hint The `map` closure already destructures the pair with `|(i, line)|`. The `filter` closure did not.
-@hint `.filter(|(_, line)| line.contains(pattern))` — the index is not needed for the decision.
+@hint `.filter(|(_, line)| line.contains(pattern))`, since the index plays no part in the decision.
 
 @diagnose E0599
 `no method named contains found for reference &(usize, &str)`.
 
 Read the receiver type in the message, not the method name. `enumerate` wraps
-each item in a pair, so the closure's parameter is `&(usize, &str)` — a tuple,
+each item in a pair, so the closure's parameter is `&(usize, &str)`, a tuple,
 which has no `contains`. The `map` on the next line already handles this by
 destructuring in the pattern position, which is why only one of the two closures
 is complaining.
@@ -331,12 +331,12 @@ pub fn parse_context(arg: &str) -> Result<usize, ConfigError> {
 }
 ```
 
-@hint `?` does not just propagate — it converts. Which conversion is it looking for?
+@hint `?` does not only propagate. It converts. Which conversion is it looking for?
 @hint It calls `From::from` on the error. There is no `From<ParseIntError>` for `ConfigError`, so write one.
 @hint `impl From<ParseIntError> for ConfigError { fn from(e: ParseIntError) -> Self { ConfigError::BadContext(e) } }`
 
 @diagnose E0271
-`type mismatch resolving <usize as FromStr>::Err == ConfigError` — with
+`type mismatch resolving <usize as FromStr>::Err == ConfigError`, with
 `expected ConfigError, found ParseIntError` under the `parse` call.
 
 An unusual phrasing for what is a very ordinary problem. Because the function's
@@ -357,13 +357,13 @@ match expr {
 
 That `From::from` is the entire mechanism. `?` will happily carry an error across
 a type boundary, but only along a conversion you have written down. Writing the
-`impl From` is not boilerplate you are appeasing the compiler with — it is you
-deciding which variant a parse failure becomes, which is a real decision the
-compiler cannot make.
+`impl From` is not boilerplate for appeasing the compiler. It is you deciding
+which variant a parse failure becomes, which is a real decision the compiler
+cannot make.
 
 @diagnose E0277
 `the trait bound ConfigError: From<ParseIntError> is not satisfied`. The same
-missing conversion, reported the plainer way — you get this wording when the
+missing conversion, reported the plainer way. You get this wording when the
 error type reaches `?` from a function call rather than from an inference
 variable rustc was still resolving. Write the `impl From<ParseIntError> for
 ConfigError` and both spellings go away.
@@ -380,8 +380,8 @@ This is the library half of the split the whole unit is about. `ConfigError` is 
 type: a caller can `match` on it, log `BadContext` differently from
 `ContextTooLarge`, and recover from one and not the other.
 
-The application half wants the opposite thing. `main` does not match on errors —
-it prints them and exits — so there it is `anyhow::Error`, which flattens every
+The application half wants the opposite thing. `main` does not match on errors;
+it prints them and exits. So there it is `anyhow::Error`, which flattens every
 error into one type carrying a chain of human-readable context. Same `?`, two
 different jobs. Libraries return types; applications return `anyhow::Result`.
 
@@ -392,7 +392,7 @@ different jobs. Libraries return types; applications return `anyhow::Result`.
 @expect E0599
 
 Now the application half. `anyhow` lets any error be wrapped with a sentence
-explaining what the program was trying to do — which is what a user staring at
+explaining what the program was trying to do, which is what a user staring at
 `invalid digit found in string` actually needs.
 
 The call is right and the compiler cannot find it.
@@ -444,8 +444,8 @@ pub fn parse_port(arg: &str) -> Result<u16> {
 @hint `use anyhow::{Context, Result};`
 
 @diagnose E0599
-`no method named context found for enum Result` — and then, crucially, `the
-following trait is implemented but not in scope: anyhow::Context`.
+`no method named context found for enum Result`, and then the line that matters:
+`the following trait is implemented but not in scope: anyhow::Context`.
 
 That second line is the whole answer, and it is the standard shape of this error.
 Rust will not let a trait's methods appear on a type unless you have imported the
@@ -457,7 +457,7 @@ Whenever E0599 names a method you are sure exists, look for `implemented but not
 in scope` before you doubt the method.
 
 @after
-`format!("{e:#}")` on an `anyhow::Error` prints the whole chain on one line —
+`format!("{e:#}")` on an `anyhow::Error` prints the whole chain on one line:
 `--port must be...: invalid digit found in string`. Plain `{e}` prints only the
 outermost message, and `{e:?}` prints the chain multi-line with a backtrace if
 one was captured. `main` returning `anyhow::Result<()>` uses the `{:?}` form,
@@ -533,14 +533,14 @@ pub fn parse(argv: Vec<&str>) -> Args {
 ```
 
 @hint `parse_from` is not a method anybody wrote. It arrives with a derive.
-@hint Add `Parser` to the derive list. Then decide how `ignore_case` should appear on the command line — by default a `bool` field is still a positional.
+@hint Add `Parser` to the derive list. Then decide how `ignore_case` should appear on the command line, because by default a `bool` field is still a positional.
 @hint `#[derive(Parser, Debug)]`, and `#[arg(short, long)]` above `ignore_case` to make it `-i` / `--ignore-case`.
 
 @diagnose E0599
 `no function or associated item named parse_from found for struct Args`.
 
-`Parser` is a trait with a set of provided methods — `parse`, `parse_from`,
-`try_parse_from` — and `#[derive(Parser)]` is what generates the impl. Without the
+`Parser` is a trait with a set of provided methods (`parse`, `parse_from`,
+`try_parse_from`) and `#[derive(Parser)]` is what generates the impl. Without the
 derive there is no impl, so there is no method, and the error is about a missing
 function rather than a missing import.
 
@@ -557,7 +557,7 @@ name it.
 @after
 `parse_from` takes the argument list as a parameter; `parse` reads
 `std::env::args_os()`. The first is testable and the second is not, which is the
-same split as `lib.rs` versus `main.rs` at a smaller scale — and it is why
+same split as `lib.rs` versus `main.rs` at a smaller scale. It is also why
 `main` should be four lines: parse, build config, call into the library, map the
 result to an exit code.
 
@@ -655,21 +655,22 @@ pub fn report(
 `the ? operator can only be used in a function that returns Result or Option (or
 another type that implements FromResidual)`.
 
-`?` is not a shorthand for "ignore this" — it is an early return of an `Err`, and
+`?` is not a shorthand for "ignore this". It is an early return of an `Err`, and
 a function returning `u8` has no way to express one. rustc says as much:
 `this function should return Result or Option to accept ?`.
 
 Two fixes exist and only one is honest. Changing the return type propagates the
-failure to a caller who can decide. Replacing `?` with `.unwrap()` makes a broken
-pipe — `minigrep foo big.txt | head -3` — into a panic with a backtrace, which is
-the single most common way a small tool embarrasses itself.
+failure to a caller who can decide. Replacing `?` with `.unwrap()` turns a
+broken pipe, which is what `minigrep foo big.txt | head -3` produces, into a
+panic with a backtrace. That is the single most common way a small tool
+embarrasses itself.
 
 @after
 Taking `&mut impl Write` rather than calling `println!` is what made this
 testable: the test passes two `Vec<u8>` and reads back exactly what would have
 been printed. In `main` you pass `io::stdout().lock()` and `io::stderr().lock()`,
-and lock them once rather than per line — `println!` locks and unlocks on every
-call, which is measurable in a loop.
+and lock them once rather than per line, because `println!` locks and unlocks on
+every call, which is measurable in a loop.
 
 The `u8` becomes the exit status: `ExitCode::from(code)`, returned from `main`,
 where the convention is 0 found, 1 not found, 2 something went wrong. `grep` has
@@ -681,7 +682,7 @@ used exactly those three for forty years, and scripts depend on it.
 @concept error type
 @expect E0277
 
-The last seam. `search` is library code, so it returns `SearchError` — a type a
+The last seam. `search` is library code, so it returns `SearchError`, a type a
 caller can match on. `run` is application code, so it returns `anyhow::Result`
 and `?` should absorb anything.
 
@@ -779,7 +780,7 @@ pub fn run(pattern: &str, contents: &str) -> anyhow::Result<usize> {
 
 @hint Read what `anyhow` requires of an error before it will hold one. The error message names the trait.
 @hint `std::error::Error` has a supertrait: nothing can implement `Error` without implementing `Display` first. Write the `Display` impl and the tests tell you the exact wording.
-@hint `impl fmt::Display for SearchError` with a `match` over the two variants, then a bare `impl std::error::Error for SearchError {}` — every method on `Error` has a default.
+@hint `impl fmt::Display for SearchError` with a `match` over the two variants, then a bare `impl std::error::Error for SearchError {}`, since every method on `Error` has a default.
 
 @diagnose E0277
 `? couldn't convert the error: the trait std::error::Error is not implemented for
@@ -788,8 +789,8 @@ SearchError`.
 `anyhow::Error` can hold any error, but "any error" has a definition:
 `E: std::error::Error + Send + Sync + 'static`. That bound is what lets `anyhow`
 print a chain, downcast back to your type, and cross a thread boundary. Your enum
-satisfies `Send`, `Sync` and `'static` automatically — it holds only `usize`s —
-and fails on `Error`.
+satisfies `Send`, `Sync` and `'static` automatically, since it holds only
+`usize`s, and fails on `Error` alone.
 
 Implementing `Error` means implementing `Display` first, because `Error` has
 `Debug + Display` as supertraits. That is not ceremony: `Error` promises the value
@@ -797,9 +798,9 @@ can be shown to a human, and `Display` is that promise.
 
 @diagnose E0119
 Two `Display` impls for one type, or a `Display` impl clashing with a `derive`.
-`Display` is never derivable in std — the compiler cannot invent your wording —
-so if you wrote `#[derive(Display)]` it came from a crate that is not in scope
-here. Write the impl by hand.
+`Display` is never derivable in std, because the compiler cannot invent your
+wording, so if you wrote `#[derive(Display)]` it came from a crate that is not in
+scope here. Write the impl by hand.
 
 @after
 Real code does not write these impls by hand. `thiserror` derives both from

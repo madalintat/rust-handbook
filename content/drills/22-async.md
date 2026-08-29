@@ -11,7 +11,7 @@ let fut = fetch("https://example.com");   // fetch is an `async fn`
 ```
 
 - A. The request has been sent and is in flight
-- *B. Nothing — a state machine value was built and no body code ran
+- *B. Nothing; a state machine value was built and no body code ran
 - C. The request has been sent and completed
 - D. It does not compile without `.await`
 
@@ -20,8 +20,9 @@ let fut = fetch("https://example.com");   // fetch is an `async fn`
 constructs the state machine in its initial state and returns it. Not one
 instruction of the body has run.
 
-A is the JavaScript answer and it is right there — `const p = fetch(url)` really
-has sent the request, because a promise is a handle to work already in flight.
+A is the JavaScript answer, and there it is correct. `const p = fetch(url)`
+really has sent the request, because a promise is a handle to work already in
+flight.
 The Rust version has sent nothing, which is why dropping the future is a
 perfectly good way to cancel the request.
 
@@ -41,7 +42,7 @@ A, B and D are all consequences of one design decision: a future is an ordinary
 owned value rather than a running job.
 
 D catches people hardest. `.await` takes the future by `self`, so a second
-`f.await` is `E0382` — use of moved value. In JavaScript several places can await
+`f.await` is `E0382`, use of moved value. In JavaScript several places can await
 one promise and all get the same result; in Rust you either do the work twice or
 clone the result, and the language makes you say which.
 
@@ -59,9 +60,9 @@ fn summary(id: u32) -> String {
 }
 ```
 
-- A. Yes — `fetch` is async, so the await is fine
-- *B. No — `E0728`, await is only allowed inside an async function or block
-- C. No — `summary` must return a `Future`
+- A. Yes, because `fetch` is async, so the await is fine
+- *B. No: `E0728`, await is only allowed inside an async function or block
+- C. No, because `summary` must return a `Future`
 - D. Yes, but it blocks the thread
 
 @why
@@ -70,12 +71,12 @@ to my caller". A plain `fn` has one entry and one exit and no saved state, so
 there is nowhere to suspend to.
 
 C describes the *consequence* of the fix rather than the error. Adding `async` to
-`summary` does change its return type to `impl Future<Output = String>` — but you
+`summary` does change its return type to `impl Future<Output = String>`. But you
 write `async fn summary(id: u32) -> String`, not the future type by hand.
 
 ## 4
 
-`a.await; b.await;` — what does this do?
+`a.await; b.await;` does what?
 
 - A. Starts both and waits for both
 - *B. Drives `a` to completion, then constructs and drives `b`
@@ -95,14 +96,14 @@ each puts them on the pool.
 
 `tokio::join!(a, b)` gives you concurrency. Does it give you parallelism?
 
-- A. Yes — that is what a runtime is for
-- *B. No — it polls both futures from one task on one thread
+- A. Yes, since that is what a runtime is for
+- *B. No, because it polls both futures from one task on one thread
 - C. Only if the runtime is multi-threaded
 - D. Only if `a` and `b` are `Send`
 
 @why
 `join!` expands to a single future that polls each of its arguments in turn. One
-task, one thread, no `Send` bound needed — which is exactly why it can hold
+task, one thread, and no `Send` bound needed. That is exactly why it can hold
 non-`Send` data across awaits when a spawned task could not.
 
 For actual parallelism you need `tokio::spawn` per future, and then `Send +
@@ -122,7 +123,8 @@ happens?
 
 @why
 An executor parks a task on `Pending` and only re-queues it when `wake()` is
-called. No waker registered means no wake, so the task stops for good — silently.
+called. No waker registered means no wake, so the task stops for good, and
+silently.
 
 A is the tempting one because it describes what a naive loop would do, and
 `cx.waker().wake_by_ref()` before returning `Pending` really does produce that
@@ -140,9 +142,9 @@ Why does `Future::poll` take `self: Pin<&mut Self>` rather than `&mut self`?
 
 @why
 `let row = load().await; render(&row).await;` produces a state machine holding
-both `row` and a future built from `&row` — a self-referential value. Move it and
-the internal pointer still points at the old address, in safe code, which is not
-allowed to be possible.
+both `row` and a future built from `&row`, which is a self-referential value.
+Move it and the internal pointer still aims at the old address, in safe code,
+which the language does not permit.
 
 `Pin<&mut T>` is a type-level promise that the value will not move again, and
 `poll` demands it so no future can be polled before that promise exists. Types
@@ -164,7 +166,7 @@ future is `Send` only if every field is.
 
 C is the fix, not a failure: a value dropped before the await is never a field of
 any state, so it does not constrain the future at all. That is why "take the
-lock, touch the data, drop the guard, then await" works. D is a distractor — the
+lock, touch the data, drop the guard, then await" works. D is a distractor: the
 output is returned by value, not held across anything.
 
 ## 9
@@ -178,14 +180,14 @@ async fn countdown(n: u32) -> u32 {
 }
 ```
 
-- A. Yes — recursion is ordinary in Rust
-- *B. No — `E0733`, recursion in an async fn requires boxing
-- C. No — `async fn` cannot return a value from an early `return`
+- A. Yes, since recursion is ordinary in Rust
+- *B. No: `E0733`, recursion in an async fn requires boxing
+- C. No, because `async fn` cannot return a value from an early `return`
 - D. Yes, but it overflows the stack at runtime
 
 @why
-The value live across the `.await` is the future returned by `countdown` — so the
-state machine contains itself, and has no computable size. It is the same
+The value live across the `.await` is the future returned by `countdown`, so the
+state machine contains itself and has no computable size. It is the same
 infinite type as a recursive `struct` without a `Box`, arrived at from a
 different direction.
 
@@ -198,7 +200,7 @@ because `poll` needs a pinned receiver.
 What determines the size of a future?
 
 - A. The size of the stack frame of the `async fn`
-- *B. The largest of its states — the variables live across each suspension point
+- *B. The largest of its states, meaning the variables live across each suspension point
 - C. A fixed 4 KB, like a green thread
 - D. It is always boxed, so one pointer
 
@@ -222,7 +224,7 @@ Why does Rust ship no executor in the standard library?
 
 @why
 `std` has `Future`, `Poll`, `Context`, `Waker` and the syntax, and stops there.
-An executor is inherently platform-specific — epoll on Linux, kqueue on BSD, IOCP
+An executor is inherently platform-specific: epoll on Linux, kqueue on BSD, IOCP
 on Windows, and none of the above on a microcontroller or inside a WASM sandbox,
 all of which run async Rust today.
 
@@ -234,9 +236,9 @@ a server and a Cortex-M0.
 
 `tokio::spawn(async { data.iter().sum::<i32>() })` where `data` is a local `Vec`.
 
-- A. Compiles — the async block ends before `data` is dropped
-- *B. Fails — `spawn` requires `'static`, and the block borrows `data`
-- C. Fails — `Vec` is not `Send`
+- A. Compiles, because the async block ends before `data` is dropped
+- *B. Fails, because `spawn` requires `'static` and the block borrows `data`
+- C. Fails, because `Vec` is not `Send`
 - D. Compiles, but the sum may be wrong
 
 @why
@@ -267,8 +269,8 @@ let body = fetch(url).await?;
 @why
 The order is fixed: `.await` drives the future to completion and yields the
 `Result`, then `?` unwraps it. Version 1 applies `?` to the future itself, which
-asks for `Try` on a type that does not implement it — `E0277` with a different
-missing trait.
+asks for `Try` on a type that does not implement it: `E0277` again, with a
+different missing trait.
 
 Reading it aloud settles it: "await the request, then propagate its error". You
 cannot propagate an error from something that has not run yet.
@@ -284,7 +286,7 @@ thread each?
 - D. Futures avoid system calls entirely
 
 @why
-The executing code is the same speed either way — this is entirely about what an
+The executing code is the same speed either way. This is entirely about what an
 *idle* one costs. A parked thread holds 8 KB to 2 MB of stack it may never use,
 plus a kernel object, and switching to it is a context switch. A parked future is
 a struct the size of its widest state, and resuming it is a function call.
@@ -297,7 +299,7 @@ via one epoll for thousands of sockets, but it certainly makes them.
 You have a CPU-bound function that takes 200 ms. Where should it go in a tokio
 program?
 
-- A. Straight into an `async fn` — the runtime will schedule around it
+- A. Straight into an `async fn`, letting the runtime schedule around it
 - B. Inside a `join!` with the other work
 - *C. On a blocking thread pool, via `spawn_blocking` or a channel to a worker thread
 - D. Inside a loop with `yield_now().await` every iteration
@@ -305,7 +307,7 @@ program?
 @why
 A future only gives up control at an `.await`. A 200 ms computation with no await
 inside it holds its executor thread for 200 ms, and every other task assigned to
-that thread waits — including timers and I/O wakeups. B makes it worse, since
+that thread waits, timers and I/O wakeups included. B makes it worse, since
 `join!` runs everything on that one task.
 
 D genuinely works and is what you do when you cannot move the work, but it is

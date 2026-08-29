@@ -1,8 +1,8 @@
-# Rust Handbook — design
+# Rust Handbook, design
 
 A learning platform for Rust: the depth of the official books, the practice loop
 of rustlings, and a real compiler in the page. Static site, no framework, no
-build step at deploy time — `build.py` turns authored markdown into JSON once,
+build step at deploy time, `build.py` turns authored markdown into JSON once,
 and the browser fetches one unit at a time.
 
 Modelled on `/Users/madalintat/study_medicine`, which already proves the shape.
@@ -76,8 +76,8 @@ is not consulted, matching the medicine app.
 
 ## The unit
 
-A unit is the medicine app's chapter shape — `parts[] -> subs[]` of pre-rendered
-HTML, per-section reading minutes, collapsible sections, a sticky rail — with two
+A unit is the medicine app's chapter shape, `parts[] -> subs[]` of pre-rendered
+HTML, per-section reading minutes, collapsible sections, a sticky rail, with two
 more surfaces hanging off it.
 
 ```
@@ -140,17 +140,17 @@ The core object. One per exercise, in `data/ex/<slug>.json`.
 
 `kind` is one of:
 
-- `fix` — code that does not compile; make it compile and pass the tests
-- `fill` — a `todo!()` or `unimplemented!()` to replace
-- `write` — a signature and its tests, empty body
-- `predict` — read code, choose what it prints or which error it raises, then run
+- `fix`, code that does not compile; make it compile and pass the tests
+- `fill`: a `todo!()` or `unimplemented!()` to replace
+- `write`: a signature and its tests, empty body
+- `predict`, read code, choose what it prints or which error it raises, then run
   it and find out (no editing)
 
 `diagnose` is the differentiator. When a run fails, `workbench.js` parses
 `error[EXXXX]` out of stderr and renders our entry for that code next to rustc's
 own output. Codes not in the map fall back to rustc's text alone plus a link to
 the error index. The map is per-exercise, not global, because "what E0382 means"
-is not useful — "what E0382 means *here*" is.
+is not useful, "what E0382 means *here*" is.
 
 `hints` reveal one at a time, and revealing one is recorded, so the progress page
 can show which exercises needed help.
@@ -204,7 +204,7 @@ Highlighting is a hand-written Rust tokenizer of roughly sixty lines: keywords,
 lifetimes, macros, strings with escapes, char literals, numeric literals with
 suffixes and separators, attributes, line and block comments, type-position
 identifiers. The same function highlights the code blocks in the prose, so there
-is one tokenizer and two callers. No CodeMirror, no Monaco, no CDN — the medicine
+is one tokenizer and two callers. No CodeMirror, no Monaco, no CDN, the medicine
 app ships zero JavaScript libraries and that stays true.
 
 ## Vim mode
@@ -213,7 +213,7 @@ app ships zero JavaScript libraries and that stays true.
 zero-dependency rule rules out `@codemirror/vim` and that package would require
 replacing the editor wholesale.
 
-The motion and operator logic is pure — `(text, index) -> index` — so it is
+The motion and operator logic is pure (`(text, index) -> index`) so it is
 tested without a DOM. Only `attach` touches the textarea. Normal mode keeps its
 own cursor index and renders it as a one-character selection, which is what
 gives it a block cursor; the accent colour distinguishes it from a visual
@@ -240,7 +240,7 @@ Failures are written to `data/audit.json` and surfaced in the UI the way the
 medicine app surfaces its coverage check: a unit whose exercises do not all
 validate says so on its own card.
 
-This is the test suite. It is a real one — it catches an exercise whose claimed
+This is the test suite. It is a real one. It catches an exercise whose claimed
 error code drifted when the compiler changed its diagnostics, and it catches a
 solution that stopped compiling. Results are cached by content hash in
 `data/.validate-cache.json` so a rebuild only re-sends what changed, and the
@@ -276,24 +276,24 @@ grid of every exercise in the track. Nothing leaves the browser.
 
 ## Carried over from the medicine app
 
-- **Password gate** (`gate.js`) — salted SHA-256 in the browser, a styled front
+- **Password gate** (`gate.js`), salted SHA-256 in the browser, a styled front
   door in front of Vercel Deployment Protection. Same caveat: a front door, not a
   vault.
-- **Companion voices** (`companion.js`) — retuned for Ferris. Fires on a passed
+- **Companion voices** (`companion.js`), retuned for Ferris. Fires on a passed
   exercise, a long session, a return after a break.
-- **Glossary with hover popovers** — around 400 Rust terms. Bolded terms in the
+- **Glossary with hover popovers**, around 400 Rust terms. Bolded terms in the
   prose carry their gloss in a data attribute; hover shows it, and each term has
   its own entry listing the units that use it.
-- **Progress and streaks** — new; the medicine app has none.
+- **Progress and streaks**, new; the medicine app has none.
 
 ## Scope
 
-**Phase 1** — the shell, the compiler, the workbench, and three units finished to
+**Phase 1**, the shell, the compiler, the workbench, and three units finished to
 final quality: `05` Ownership, `06` Borrowing, `15` Lifetimes. The three hardest,
 chosen so the shape is stress-tested where it is most likely to break. The
 remaining 22 units exist in the manifest as stubs and say so.
 
-**Phase 1b** — the other 22 units, generated against the locked template:
+**Phase 1b**, the other 22 units, generated against the locked template:
 
 `00` toolchain · `01` bindings and mutability · `02` types and overflow ·
 `03` expressions · `04` control flow · `07` slices · `08` structs ·
@@ -303,7 +303,7 @@ remaining 22 units exist in the manifest as stubs and say so.
 `20` testing and rustdoc · `21` concurrency · `22` async · `23` unsafe ·
 `24` macros
 
-**Phase 2** — the reference library: the Reference, the Nomicon, the Cargo,
+**Phase 2**, the reference library: the Reference, the Nomicon, the Cargo,
 rustdoc and rustc books, the error index (around 500 codes, deep-linked from
 every diagnostic the workbench shows), the CLI book, the Embedded book, and the
 Unstable book. Read-only chapters in the existing reader, plus the error index as

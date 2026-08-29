@@ -10,7 +10,7 @@ unit: 06-borrowing
 @expect E0596
 
 `sort_in_place` asks for a `&mut Vec<i32>` and gets handed one. The compiler
-still refuses, and the complaint is not about the function — it is about where
+still refuses, and the complaint is not about the function. It is about where
 the vector is kept.
 
 ```starter
@@ -61,7 +61,7 @@ someone else that permission, exclusively, for a while*. The second cannot excee
 the first: you cannot lend out an authority you do not hold.
 
 Note that `mut` on a binding is not part of the type. `Vec<i32>` is `Vec<i32>`
-whether the binding is `mut` or not — which is why moving a value into a `mut`
+whether the binding is `mut` or not. That is why moving a value into a `mut`
 binding makes it mutable, and why the compiler will happily suggest adding `mut`
 and nothing else breaks.
 
@@ -72,7 +72,7 @@ writes to that value, and you did not have to read the rest of the function to
 learn that.
 
 The compiler also warns the other way. A `let mut` that is never mutated raises
-`unused_mut`, so the marker cannot rot into noise — which is what makes it worth
+`unused_mut`, so the marker cannot rot into noise. That is what makes it worth
 reading in the first place.
 
 ## 2. Read it before you change it
@@ -132,16 +132,16 @@ one is still in use (`first.len()`).
 The rule is not bureaucracy. `push` may find the vector at capacity, ask the
 allocator for a larger buffer, copy the elements across and free the old one.
 `first` points into the old buffer. In C++ this is the same three lines, it
-compiles, and it works right up until the capacity happens to run out — which is
+compiles, and it works right up until the capacity happens to run out. That is
 the worst possible failure mode, because the bug depends on the length of your
 data.
 
 @after
 The general move is the one you just made: **end the borrow before the
 mutation**. Since the 2018 edition a borrow's region stops at its last *use*, not
-at the end of the block, so extracting what you need — a length, a copy of a
-small field, an owned `clone` if you truly need the value — releases the
-collection immediately.
+at the end of the block. Extracting what you need (a length, a copy of a small
+field, an owned `clone` if you truly need the value) releases the collection
+immediately.
 
 Beginners reach for `.clone()` on the whole element here. It works, and it
 allocates a string to obtain an integer. Ask what you actually need out of the
@@ -196,7 +196,7 @@ pub fn run() -> Vec<i32> {
 }
 ```
 
-@hint `&mut` does not mean "mutable". It means "unique" — while one exists, it is the only way to reach the value.
+@hint `&mut` does not mean "mutable". It means "unique": while one exists, it is the only way to reach the value.
 @hint The two borrows only conflict because they overlap in time. Finish with the first before creating the second.
 @hint Move `a.push(2)` up so that `a` is last used before `let b = &mut queue;`.
 
@@ -275,14 +275,14 @@ pub fn run() -> (String, usize) {
 `cannot move out of name because it is borrowed`.
 
 This is the seam between the last unit and this one. A move retires the source
-binding — `name` is statically dead afterwards, and its three-word handle now
+binding. `name` is statically dead afterwards, and its three-word handle now
 belongs to `owned`. But `r` was pointing at `name`, so after the move `r` would
 name a binding that no longer owns anything. That is a dangling reference, which
 is precisely what references exist to make impossible.
 
 So the rule is: **a value cannot move while any reference to it is live.** Note
-what "live" means — not "in scope", but "still going to be used". Finish with `r`
-first and the borrow is over before the move happens.
+what "live" means. It is not "in scope" but "still going to be used". Finish with
+`r` first and the borrow is over before the move happens.
 
 @diagnose E0382
 You moved `name` and then tried to read it directly rather than through `r`.
@@ -306,8 +306,8 @@ and moving out requires that nothing is currently borrowing the collection.
 
 @expect E0507
 
-`display_name` gets a `&User` — permission to look. It tries to walk away with
-the name field.
+`display_name` gets a `&User`, which is permission to look. It tries to walk away
+with the name field.
 
 ```starter
 pub struct User {
@@ -378,8 +378,8 @@ by value if you really are consuming it.
 
 @diagnose E0308
 Your `display_name` is returning the wrong type. `&u.name` is a `&String` and
-the signature says `String`; either change the return type to `&str` — which is
-the better design — or produce an owned value with `.clone()` or `.to_string()`.
+the signature says `String`. Either change the return type to `&str`, which is
+the better design, or produce an owned value with `.clone()` or `.to_string()`.
 
 @after
 The best version of this function does not return `String` at all:
@@ -392,7 +392,7 @@ pub fn display_name(u: &User) -> &str {
 
 No allocation, and the caller clones only if it needs to keep the result. The
 lifetime is inferred: the returned `&str` borrows from `u`, so it cannot outlive
-the `User` — which is exactly the guarantee you want and exactly what unit 15 is
+the `User`. That is exactly the guarantee you want, and exactly what unit 15 is
 about.
 
 The rule of thumb: return borrowed data when the caller already owns the source,
@@ -473,13 +473,13 @@ pub fn run() -> Vec<String> {
 `cannot borrow lines as mutable because it is also borrowed as immutable`.
 
 The immutable borrow is `&lines` in the `for` header. It is not a borrow for one
-line — `for x in &lines` desugars to `IntoIterator::into_iter(&lines)`, and that
+line. `for x in &lines` desugars to `IntoIterator::into_iter(&lines)`, and that
 iterator holds the shared borrow for the entire loop, including the jump back to
 the top. So the `push` sits squarely inside a live shared borrow.
 
 The reason this rule exists: `push` may reallocate. If the vector is at
 capacity, it asks for a bigger buffer, copies the elements across and frees the
-old one — and the iterator is a pointer into the old one. Every subsequent
+old one, and the iterator is a pointer into that old one. Every subsequent
 iteration reads freed memory.
 
 @diagnose E0499
@@ -503,7 +503,7 @@ which operations invalidate which iterators, and why remembering that table is
 the programmer's job.
 
 Rust deletes the table. `push` takes `&mut self`, the loop holds a `&`, and the
-two cannot coexist. Same bug, caught at compile time, at no run-time cost — and
+two cannot coexist. Same bug, caught at compile time, at no run-time cost. And
 notice it is the *same rule* that stops two threads writing one vector.
 Aliasing plus mutation is one condition, whether the second access comes from a
 loop or from another core.
@@ -556,7 +556,7 @@ pub fn run() -> usize {
 @hint Declare `owned` in the outer scope so it lives at least as long as `label` is used.
 
 @diagnose E0597
-`owned does not live long enough` — with a note that the borrow is used at
+`owned does not live long enough`, with a note that the borrow is used at
 `label.len()`, and another marking the closing brace as where `owned` is
 dropped.
 
@@ -591,7 +591,7 @@ fn greeting() -> &String {
 ```
 
 There the message is `error[E0106]: missing lifetime specifier`, because the
-compiler is asking what the returned reference borrows *from* — and there is no
+compiler is asking what the returned reference borrows *from*, and there is no
 possible answer. Return the `String`.
 
 ## 8. Two fields, one struct, one angry compiler
@@ -695,7 +695,7 @@ another crate.
 
 Borrowing the fields directly works because the checker tracks **paths**, not
 variables. `ed.buffer` and `ed.log` are disjoint places, so a unique borrow of
-each is two unique borrows of two different things — no rule broken.
+each is two unique borrows of two different things. No rule is broken.
 
 @diagnose E0502
 You have mixed a shared and a unique borrow of `ed`. The same reasoning applies:
@@ -707,12 +707,12 @@ when they touch different fields.
 This is the most common real-world borrow frustration, and it is worth carrying
 all four escape routes:
 
-1. **Borrow fields directly** — free, and the usual answer inside the type's own `impl`.
-2. **Destructure once** — `let Editor { buffer, log } = &mut ed;` yields a `&mut` to every field at the same time, all disjoint.
-3. **Take what you need as arguments** — a free function `fn append(buf: &mut String, log: &mut Vec<String>)` states the disjointness in its signature, so callers can satisfy it.
-4. **Split the struct** — two fields never used together are two types. An hour lost to this usually means one struct is doing two jobs.
+1. **Borrow fields directly.** Free, and the usual answer inside the type's own `impl`.
+2. **Destructure once.** `let Editor { buffer, log } = &mut ed;` yields a `&mut` to every field at the same time, all disjoint.
+3. **Take what you need as arguments.** A free function `fn append(buf: &mut String, log: &mut Vec<String>)` states the disjointness in its signature, so callers can satisfy it.
+4. **Split the struct.** Two fields never used together are two types. An hour lost to this usually means one struct is doing two jobs.
 
 Slices ship a fifth: `split_at_mut` hands back two `&mut` halves of one slice.
 It is `unsafe` inside, and exists purely to assert a disjointness the checker
 cannot infer from index arithmetic. That is the shape of every legitimate
-`unsafe` block — a fact the human knows and the compiler cannot yet be told.
+`unsafe` block: a fact the human knows and the compiler cannot yet be told.

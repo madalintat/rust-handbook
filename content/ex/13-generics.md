@@ -47,13 +47,13 @@ pub fn run() -> (i32, char) {
 ```
 
 @hint The function body works for any element type. Only the signature disagrees.
-@hint Declare a type parameter after the name — `fn first<T>(...)` — and use `T` where `i32` appears.
+@hint Declare a type parameter after the name, as in `fn first<T>(...)`, and use `T` where `i32` appears.
 @hint Returning `T` by value out of a `&[T]` needs a way to duplicate it: `pub fn first<T: Copy>(v: &[T]) -> T`.
 
 @diagnose E0308
 `expected &[i32], found &[char; 4]`. rustc checked the second call against the
 signature it was given, and the signature says `i32`. Nothing about the body
-matters here — a signature is a contract, and the body does not get a vote.
+matters here: a signature is a contract, and the body does not get a vote.
 
 Note the shape of the fix. You are not making the function accept two types at
 once; you are making the *type itself* a parameter, so that `first::<i32>` and
@@ -133,7 +133,7 @@ formatted with the default formatter*.
 Read where the error points: at the **definition**, not at either call site. Both
 your calls pass perfectly printable types. rustc has not looked at them. It is
 checking the generic body once, on its own terms, and on its own terms `T` could
-be a `File`, a raw pointer or a closure — none of which can be displayed.
+be a `File`, a raw pointer or a closure, and none of those can be displayed.
 
 That is the deal generics make. The body may use only what the bounds promise;
 in exchange, once the body compiles it compiles for every `T` a caller can
@@ -158,7 +158,7 @@ in Rust are traits with punctuation for a name.
 @expect E0599
 
 `Cache` hands out a copy of the value it holds and counts how many times it was
-asked. Holding a `T` is fine. Duplicating one is not — not yet.
+asked. Holding a `T` is fine. Duplicating one is not, at least not yet.
 
 Fix the impl block, and leave the struct declaration alone.
 
@@ -239,7 +239,7 @@ pub fn run() -> (String, String, usize) {
 `` no method named `clone` found for type parameter `T` in the current scope ``.
 
 The method genuinely does not exist. `T` is unconstrained, so the only methods
-available on it are the ones every type in the language has — which is none.
+available on it are the ones every type in the language has, and there are none.
 rustc adds the note *the method is available for `T` if `T: Clone`*, which is the
 whole diagnosis.
 
@@ -249,8 +249,8 @@ usually means a bad name or a trait not in scope. A missing method on a **type
 parameter** almost always means a missing bound.
 
 @after
-Notice where the bound went. Putting it on the struct —
-`struct Cache<T: Clone>` — would compile too, and it is the wrong move. A bound
+Notice where the bound went. Putting it on the struct, as
+`struct Cache<T: Clone>`, would compile too, and it is the wrong move. A bound
 on a struct propagates: every `impl`, every function taking a `Cache`, every
 other struct holding one must now repeat it, and `Cache<File>` becomes
 unconstructible even though storing a file is perfectly sensible.
@@ -267,8 +267,8 @@ you be.
 @expect E0277
 
 `largest` asks an iterator for its maximum. That sounds like a property of
-iterators, but ordering is not something every type has — how would you order two
-closures? — so it is spelled as a bound.
+iterators, but ordering is not something every type has (how would you order two
+closures?), so it is spelled as a bound.
 
 ```starter
 pub fn largest<T>(v: &[T]) -> &T {
@@ -310,9 +310,9 @@ pub fn run() -> (i32, char) {
 `Iterator::max`, whose signature is `fn max(self) -> Option<Self::Item> where Self::Item: Ord`.
 
 The item type here is `&T`, because `v.iter()` yields references. The standard
-library provides `impl<T: Ord> Ord for &T` — a reference is ordered whenever what
-it points at is — so the requirement `&T: Ord` reduces to `T: Ord`, and that is
-the bound to write. rustc says as much in its help line.
+library provides `impl<T: Ord> Ord for &T`, so a reference is ordered whenever
+what it points at is. The requirement `&T: Ord` therefore reduces to `T: Ord`,
+and that is the bound to write. rustc says as much in its help line.
 
 Do not be thrown by the error naming a type you never wrote. `&T` came from
 `.iter()`. Following the chain from the reported bound back to the call that
@@ -321,7 +321,7 @@ demanded it is most of the skill in reading `E0277`.
 @diagnose E0369
 `` binary operation `>` cannot be applied to type `&T` ``. You rewrote the body
 as an explicit loop with `if x > best`, and comparison operators are trait
-methods like everything else — `>` is `PartialOrd::gt`.
+methods like everything else: `>` is `PartialOrd::gt`.
 
 The bound that fixes the loop is `T: PartialOrd`, which is weaker than the `Ord`
 that `max` wants. Both are correct for this exercise. The difference is that
@@ -331,8 +331,8 @@ than anything, including itself.
 
 @after
 `Ord` versus `PartialOrd` is a real distinction, not a historical accident.
-`Ord` promises a total order — any two values compare, and the result is
-consistent — which is what `sort`, `max` and `BTreeMap` need to be correct.
+`Ord` promises a total order, meaning any two values compare and the result is
+consistent, which is what `sort`, `max` and `BTreeMap` need to be correct.
 `PartialOrd` promises only that comparison is *possible*, and floats are the
 reason it exists.
 
@@ -347,7 +347,7 @@ You need `sort_by(|a, b| a.partial_cmp(b).unwrap())` or, better,
 @expect E0308
 
 `checksum` takes an array, not a slice, so its length is part of its type. Two
-call sites, two lengths, one signature — and arrays of different lengths are
+call sites, two lengths, one signature, and arrays of different lengths are
 different types.
 
 The parameter you need here is a value, not a type.
@@ -395,7 +395,7 @@ stack: the compiler needs the size to lay out the frame. `[u8; 4]` and `[u8; 6]`
 are unrelated types that happen to look similar.
 
 Two fixes, and they are genuinely different designs. `<const N: usize>` keeps the
-array — one monomorphised copy per distinct length, each with the bound baked in
+array: one monomorphised copy per distinct length, each with the bound baked in
 as a constant, which is how the loop gets fully unrolled. Taking `&[u8]` instead
 gives one function for all lengths, at the cost of carrying a length at runtime
 and losing the unrolling.
@@ -407,7 +407,7 @@ they landed, the standard library wrote out `impl Debug for [T; 0]`,
 simply did not implement the traits.
 
 The rule for choosing: take `[u8; N]` when the size is genuinely known at each
-call and you want it constant-folded — a fixed-size hash block, a matrix
+call and you want it constant-folded: a fixed-size hash block, a matrix
 dimension, an embedded buffer. Take `&[u8]` the rest of the time, which is most
 of the time.
 
@@ -447,7 +447,7 @@ pub fn run() -> String {
 
 @hint `str::parse` returns `Result<F, F::Err>` where `F` is chosen by the caller. Nothing on this line chooses it.
 @hint Two places can say it: an annotation on the binding, or an annotation on the call.
-@hint `"42".parse::<i64>()` — the `::<>` is the turbofish. `let n: i64 = "42".parse().unwrap();` works equally well.
+@hint `"42".parse::<i64>()`, where `::<>` is the turbofish. `let n: i64 = "42".parse().unwrap();` works equally well.
 
 @diagnose E0284
 `type annotations needed`, with the note *cannot satisfy
@@ -462,19 +462,19 @@ The specific complaint is about the *error* half. Before rustc can decide what
 until `F` is pinned down. That is why the message names a type you never wrote:
 it is the consequence, and `F` is the cause.
 
-Integer literals do fall back to `i32` when nothing else constrains them — that
+Integer literals do fall back to `i32` when nothing else constrains them, which
 is why `let x = 5;` needs no annotation. The fallback applies to *literals*, not
 to an unresolved generic parameter, so `n * 2` does not rescue this.
 
 @diagnose E0282
 `type annotations needed`, plainly, pointing at `let n`. The same cause reported
-without the associated-type detail — you will see this form when the unresolved
+without the associated-type detail. You will see this form when the unresolved
 parameter is not behind a `Result`. Name the type at the call with a turbofish,
 or on the binding with `let n: i64`.
 
 @after
-The name is a joke about the shape — `::<>` looks like a fish — but the syntax is
-load-bearing. `parse<i64>(x)` would be ambiguous with the expression
+The name is a joke about the shape, since `::<>` looks like a fish, but the
+syntax is load-bearing. `parse<i64>(x)` would be ambiguous with the expression
 `parse < i64 > (x)`, two comparisons. C++ resolves this with lookahead and an
 occasional `template` keyword; Rust resolves it with punctuation you can grep
 for.
@@ -555,7 +555,7 @@ Two errors, one per parameter, and they are worth reading separately.
 
 `` `A` doesn't implement `std::fmt::Display` `` comes from `{name}`. `` `B`
 doesn't implement `Debug` `` comes from `{value:?}`. The two format specifiers
-are two distinct traits, and a type may have one without the other — most types
+are two distinct traits, and a type may have one without the other. Most types
 derive `Debug` and never implement `Display`, because `Debug` is for programmers
 and `Display` is for users.
 
@@ -567,8 +567,8 @@ against the bounds it has, which here are none.
 out of the angle brackets and stop the signature wrapping.
 
 The one that matters more is expressiveness. A `where` clause can constrain types
-you did not declare — `where Vec<A>: Debug`, or `where T::Item: Display` on an
-associated type — and the inline `<T: Bound>` form simply cannot say those. Once
+you did not declare, such as `where Vec<A>: Debug` or `where T::Item: Display`
+on an associated type. The inline `<T: Bound>` form simply cannot say those. Once
 you are constraining anything other than a bare parameter, `where` is not a style
 choice.
 
@@ -579,7 +579,7 @@ choice.
 @expect E0599
 
 `Tally` counts occurrences of anything. Its storage is a `HashMap`, and a hash
-map cannot store a key it cannot hash or compare — so the capability has to be
+map cannot store a key it cannot hash or compare, so the capability has to be
 promised somewhere.
 
 Find the smallest place to put the promise. The struct declaration should stay
@@ -676,14 +676,14 @@ pub fn run() -> (usize, usize, usize) {
 
 @hint Look up what `HashMap::entry` and `HashMap::get` require of the key type. It is two traits, not one.
 @hint A hash map needs to hash a key to find its bucket, and to compare keys inside that bucket. `Hash` and `Eq`.
-@hint `impl<T: Eq + std::hash::Hash> Tally<T>` — and leave `struct Tally<T>` exactly as it is.
+@hint `impl<T: Eq + std::hash::Hash> Tally<T>`, and leave `struct Tally<T>` exactly as it is.
 
 @diagnose E0599
 `` no method named `entry` found for struct `HashMap<T, usize>` in the current
 scope ``, followed by *the following trait bounds were not satisfied:
 `T: Eq`, `T: Hash`*.
 
-This wording catches people out, because the method obviously exists — you have
+This wording catches people out, because the method obviously exists; you have
 used `entry` a hundred times. The subtlety is that it does not exist *on this
 type*. `HashMap<K, V>` is declared with no bounds on `K` at all, and `insert`,
 `get` and `entry` live inside `impl<K: Eq + Hash, V> HashMap<K, V>`. For a `K`
@@ -698,7 +698,7 @@ the fix, spelled out.
 @diagnose E0277
 `` the trait bound `T: Eq` is not satisfied ``, or the same for `Hash`. The other
 face of the same problem, raised when the requirement is checked directly rather
-than through method lookup — you will see this form once `entry` resolves but
+than through method lookup. You will see this form once `entry` resolves but
 `get` still does not, or after a partial fix.
 
 Both traits are needed, for reasons worth keeping straight: `Hash` picks the
@@ -708,7 +708,7 @@ let two different keys silently overwrite one another.
 @after
 The important habit is where the bound went, and it is exactly what the standard
 library does. `struct Tally<T>` stays unbounded, so the type is nameable and
-constructible in contexts that never touch a hash — and the bound sits on the one
+constructible in contexts that never touch a hash, and the bound sits on the one
 `impl` block whose methods actually hash something.
 
 Bounds on a struct declaration look tidier and are almost always a mistake. They

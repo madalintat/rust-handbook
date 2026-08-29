@@ -6,13 +6,13 @@ unit: 10-option
 
 What is `std::mem::size_of::<Option<&u8>>()` on a 64-bit machine?
 
-- *A. 8 — the same as `&u8`
-- B. 9 — a pointer plus a one-byte tag
-- C. 16 — a pointer plus a tag padded to alignment
-- D. 1 — it only has to store which variant it is
+- *A. 8, the same as `&u8`
+- B. 9, a pointer plus a one-byte tag
+- C. 16, a pointer plus a tag padded to alignment
+- D. 1, it only has to store which variant it is
 
 @why
-A reference is never null, so `0` is a bit pattern the payload can never hold —
+A reference is never null, so `0` is a bit pattern the payload can never hold:
 a **niche**. The compiler uses it to represent `None` and stores no tag at all,
 so `Option<&u8>` is exactly the size of `&u8`.
 
@@ -33,15 +33,15 @@ fn len_of(name: Option<String>) -> usize {
 }
 ```
 
-- A. Yes — it uses the string's length when present, 0 otherwise
-- *B. No — `error[E0599]`, no method `len` on `Option<String>`
+- A. Yes, it uses the string's length when present, 0 otherwise
+- *B. No, `error[E0599]`, no method `len` on `Option<String>`
 - C. Yes, but it panics on `None`
-- D. No — `String` has no `len` method
+- D. No, `String` has no `len` method
 
 @why
 `Option<String>` is a different type from `String` and has its own, much smaller
 set of methods. There is no implicit unwrapping anywhere in the language,
-because implicit unwrapping is exactly what makes null dangerous — it lets code
+because implicit unwrapping is exactly what makes null dangerous: it lets code
 that never thought about absence compile.
 
 A is the tempting answer because it is what several other languages' optional
@@ -85,13 +85,13 @@ all that apply.
 
 @why
 A and C pass an ordinary expression as an argument, and arguments are evaluated
-before the call — always, regardless of what the function does with them. So
+before the call, always, regardless of what the function does with them. So
 `expensive()` runs on the happy path too.
 
 B and D do not: `unwrap_or_else` takes a closure and only calls it on `None`, and
 `unwrap_or_default` builds `T::default()` only when needed.
 
-The rule: `unwrap_or` for values already sitting there — an integer, a `&'static
+The rule: `unwrap_or` for values already sitting there, an integer or a `&'static
 str`. `unwrap_or_else` for anything with a body. Same distinction for `ok_or`
 versus `ok_or_else`.
 
@@ -106,10 +106,10 @@ fn first_char(s: &str) -> Result<char, String> {
 }
 ```
 
-- A. Yes — `?` works on any fallible type
-- *B. No — `?` on an `Option` needs the function to return an `Option`
+- A. Yes, `?` works on any fallible type
+- *B. No, `?` on an `Option` needs the function to return an `Option`
 - C. Yes, and it returns `Err(String::new())` for an empty string
-- D. No — `chars().next()` returns a `char`, not an `Option`
+- D. No, `chars().next()` returns a `char`, not an `Option`
 
 @why
 `?` converts the *residual* of one `Try` type into the return type. An `Option`'s
@@ -132,12 +132,12 @@ What is the type of `cfg.name.as_ref()` where `cfg: &Config` and
 - D. `&String`
 
 @why
-`as_ref` maps `&Option<T>` to `Option<&T>` — the tag is copied and the payload
-becomes a borrow. That is the bridge between the two shapes, and the reason it
+`as_ref` maps `&Option<T>` to `Option<&T>`: it copies the tag and turns the
+payload into a borrow. That is the bridge between the two shapes, and the reason it
 exists is that `match cfg.name` would try to *move* the `String` out of a struct
 you only borrowed, which is `error[E0507]`.
 
-C is `as_deref`, which does the same and then derefs the payload —
+C is `as_deref`, which does the same and then derefs the payload, taking
 `Option<String>` to `Option<&str>`. That is the one you want for comparing
 against a literal: `cfg.name.as_deref() == Some("ferris")`.
 
@@ -158,7 +158,7 @@ If they have a plain `&T` and want to pass it, they must construct one first.
 It is also cheaper: one machine word thanks to the niche, and `Copy`, so it
 does not borrow the container for the duration of the call.
 
-D is false — both can be `None`; the second just spells it "the referenced
+D is false. Both can be `None`; the second just spells it "the referenced
 Option is None".
 
 ## 8
@@ -215,11 +215,11 @@ println!("{:?} {:?}", taken, head);
 - *A. `Some("a") None`
 - B. `Some("a") Some("a")`
 - C. `None Some("a")`
-- D. It does not compile — `take` needs ownership
+- D. It does not compile, since `take` needs ownership
 
 @why
 `take` is `mem::replace(&mut self, None)`: it swaps `None` into the place and
-hands you what was there. Two words moved, no allocation, no clone.
+hands you what was there. Two words move, and nothing is allocated or cloned.
 
 This matters because it is the only way to move a value out of a field you have
 only `&mut` access to while leaving that field valid. `self.head` on its own is
@@ -238,7 +238,7 @@ Which of these are true of `Option<T>`? Choose all that apply.
 - D. It requires a heap allocation
 
 @why
-`enum Option<T> { None, Some(T) }` — two lines you could have written yourself.
+`enum Option<T> { None, Some(T) }` is two lines you could have written yourself.
 Its variants are re-exported in the prelude, which is the only reason you write
 `Some(3)` rather than `Option::Some(3)`.
 
@@ -264,7 +264,7 @@ wraps whatever the closure returns, so a fallible closure gives you
 
 `zip` is worth noticing: it produces `Option<(T, U)>`, a single value that
 happens to be a tuple, so the following `map` closure takes one argument and
-destructures it — `|(a, b)| a * b`. Writing `|a, b|` is `error[E0593]`.
+destructures it: `|(a, b)| a * b`. Writing `|a, b|` is `error[E0593]`.
 
 ## 13
 
@@ -281,7 +281,7 @@ name.as_deref()
 - A. `""`
 - *B. `"ANONYMOUS"`
 - C. `"SOME"`
-- D. It does not compile — `filter` consumes the `Option`
+- D. It does not compile, since `filter` consumes the `Option`
 
 @why
 `as_deref` gives `Option<&str>` holding `Some("")`. `filter` applies the
@@ -305,7 +305,7 @@ handling is its most common real use.
 @why
 `Option<u8>` is 2 bytes: one for the payload, one for the tag, because a `u8`
 has no spare bit pattern. But that tag only uses two of its 256 values, so the
-*tag itself* has a niche — 254 spare patterns. The outer `Option` takes one of
+*tag itself* has a niche: 254 spare patterns. The outer `Option` takes one of
 them, and the whole thing stays 2 bytes.
 
 The general rule: the compiler looks for any unused bit pattern anywhere in the
@@ -318,7 +318,7 @@ to "save space".
 You have `fn find(&self, k: &str) -> Option<&Row>` and need a `Row` you can keep.
 Which is right?
 
-- A. `self.find(k).unwrap()` — you know it is there
+- A. `self.find(k).unwrap()`, since you know it is there
 - *B. `self.find(k).cloned().ok_or("row not found")?`
 - C. `self.find(k).map(|r| r).unwrap_or_default()`
 - D. `*self.find(k).unwrap()`
@@ -328,8 +328,8 @@ B says all three things that need saying: `cloned` turns `Option<&Row>` into
 `Option<Row>` by cloning the payload, `ok_or` names what absence means here, and
 `?` propagates it. The caller gets an error rather than a dead process.
 
-A is the claim from drill 8 that you cannot check by reading nearby code — a
-lookup by key depends on data.
+A is the claim from drill 8 that you cannot check by reading nearby code,
+because a lookup by key depends on data.
 
 D is `error[E0507]`: you cannot move a `Row` out from behind a shared reference.
 That is what `cloned` is for, and its sibling `copied` does the same for `Copy`

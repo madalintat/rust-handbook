@@ -31,9 +31,9 @@ fn longest(a: &str, b: &str) -> &str {
 }
 ```
 
-- A. Yes — elision assigns the first parameter's lifetime to the output
-- *B. No — `E0106`, the compiler cannot tell which input the output borrows from
-- C. No — you cannot return a reference from a function
+- A. Yes, elision assigns the first parameter's lifetime to the output
+- *B. No, `E0106`, the compiler cannot tell which input the output borrows from
+- C. No, you cannot return a reference from a function
 - D. Yes, but only if both arguments are string literals
 
 @why
@@ -61,7 +61,7 @@ exactly one input lifetime and assigns it to every elided output lifetime. The
 signature the compiler actually works with is
 `fn first_word<'a>(s: &'a str) -> &'a str`.
 
-A is a common and dangerous confusion. `&str` is not `'static` — string
+A is a common and dangerous confusion. `&str` is not `'static`. String
 *literals* are, because they are baked into the binary, but a slice of a
 `String` lives exactly as long as that `String`.
 
@@ -86,7 +86,7 @@ fn d(&self, other: &str) -> &str          // returns a slice of `other`
 `a` returns no reference, so nothing needs assigning. `b` has one input lifetime,
 so rule 2 handles it.
 
-`c` has two, and neither rule 2 nor rule 3 applies — that is `E0106`.
+`c` has two, and neither rule 2 nor rule 3 applies, which is `E0106`.
 
 `d` is the sneaky one. It *compiles*, because rule 3 assigns `self`'s lifetime to
 the output. It is simply wrong: the body returns a slice of `other`, so you get
@@ -102,10 +102,10 @@ struct Excerpt {
 }
 ```
 
-- A. Yes — the field borrows from whatever built the struct
-- *B. No — `E0106`; a struct field gets no elision
+- A. Yes, the field borrows from whatever built the struct
+- *B. No, `E0106`; a struct field gets no elision
 - C. Yes, but the struct can only hold literals
-- D. No — structs cannot contain references at all
+- D. No, structs cannot contain references at all
 
 @why
 All three elision rules are about `fn` signatures. A struct has no arguments, so
@@ -113,8 +113,8 @@ there is nothing for the compiler to infer a lifetime *from*. You must declare
 one: `struct Excerpt<'a> { part: &'a str }`.
 
 D is wrong and worth ruling out firmly. Structs holding references are the
-foundation of every zero-copy parser in Rust — the point of `<'a>` is to make
-them safe, not to forbid them.
+foundation of every zero-copy parser in Rust, and the point of `<'a>` is to make
+them safe rather than to forbid them.
 
 ## 6
 
@@ -131,7 +131,7 @@ It says: this value contains a borrow, so it must die before the thing it
 borrowed from does.
 
 C inverts the relationship, and that inversion is the heart of the confusion.
-Rust references never keep anything alive — that is reference counting, which is
+Rust references never keep anything alive. That is reference counting, which is
 `Rc` and `Arc`. A borrow only constrains the borrower.
 
 ## 7
@@ -145,10 +145,10 @@ fn greeting() -> &'static str {
 }
 ```
 
-- A. Yes — `'static` makes the string live for the whole program
-- *B. No — `E0515`, you cannot return a reference to a local
+- A. Yes, `'static` makes the string live for the whole program
+- *B. No, `E0515`, you cannot return a reference to a local
 - C. Yes, because string literals are `'static`
-- D. No — `String` cannot be borrowed as `&str`
+- D. No, `String` cannot be borrowed as `&str`
 
 @why
 `s` is dropped at the closing brace, so the returned reference would point at a
@@ -157,7 +157,7 @@ compiler checks claims.
 
 A is exactly the misconception to shed: writing a lifetime does not create one.
 No annotation makes a local outlive its own function. The fix is always to return
-an owned value — here, `-> String` and `String::from("hello")`.
+an owned value: here, `-> String` and `String::from("hello")`.
 
 ## 8
 
@@ -195,7 +195,7 @@ exactly what the bound rules out.
 
 The pattern: owning types are always `'static`; borrowing types are `'static`
 only when what they borrow is. This is why the fix for a stubborn `'static` bound
-is so often "own the data" — `String` instead of `&'a str`.
+is so often "own the data": `String` instead of `&'a str`.
 
 ## 10
 
@@ -209,9 +209,9 @@ impl Parser {
 }
 ```
 
-- A. Yes — the `impl` can elide the lifetime
-- *B. No — `E0726`; the `impl` must name the type's lifetime parameter
-- C. No — methods cannot return references to fields
+- A. Yes, the `impl` can elide the lifetime
+- *B. No, `E0726`; the `impl` must name the type's lifetime parameter
+- C. No, methods cannot return references to fields
 - D. Yes, but only for `&'static str`
 
 @why
@@ -237,16 +237,16 @@ let best;
 println!("{best}");
 ```
 
-- A. Yes — `best` holds a copy of the word
-- *B. No — `E0597`, `joined` does not live long enough
-- C. No — `max_by_key` returns an owned `String`
+- A. Yes, `best` holds a copy of the word
+- *B. No, `E0597`, `joined` does not live long enough
+- C. No, `max_by_key` returns an owned `String`
 - D. Yes, because `&str` is `Copy`
 
 @why
 Every slice from `split` points into `joined`'s heap buffer, which is freed at
 the closing brace. `best` is read after that.
 
-D is the trap, and it is true but irrelevant. `&str` *is* `Copy` — copying it
+D is the trap, and it is true but irrelevant. `&str` *is* `Copy`. Copying it
 duplicates a pointer and a length, and both copies still point at the same dead
 buffer. Copying a reference never copies what it refers to. The fix is to move
 `joined` out to the outer scope, or to call `.to_string()`.
@@ -255,7 +255,7 @@ buffer. Copying a reference never copies what it refers to. The fix is to move
 
 What is the runtime cost of a lifetime annotation?
 
-- *A. None — lifetimes are erased before code generation
+- *A. None, lifetimes are erased before code generation
 - B. One word per reference, to store the region
 - C. A check on every dereference
 - D. It depends on how many lifetime parameters the function has
@@ -266,7 +266,7 @@ code they are gone, and a `&'a str` is what it always was: a pointer and a
 length. Two functions differing only in their annotations compile to identical
 instructions.
 
-That is why lifetimes can be strict without being expensive — the entire analysis
+That is why lifetimes can be strict without being expensive: the entire analysis
 is a compile-time proof, and a proof does not need to be carried around at
 runtime.
 
@@ -274,7 +274,7 @@ runtime.
 
 Why is `&'long T` accepted where `&'short T` is expected?
 
-- *A. Covariance — a reference valid for longer is valid for shorter
+- *A. Covariance: a reference valid for longer is valid for shorter
 - B. The compiler shortens the referenced value's life to match
 - C. It is not accepted; the lifetimes must match exactly
 - D. Because `&T` is `Copy`
@@ -325,5 +325,5 @@ wanted to be a returned `String`, produces exactly this kind of pile-up.
 
 A does not work: `'static` is a claim, and adding it to something that is not
 `'static` moves the error rather than removing it. D compiles and is how you get
-use-after-free back. The annotation was faithfully describing a constraint — the
+use-after-free back. The annotation was faithfully describing a constraint. The
 real decision is whether you wanted the constraint.

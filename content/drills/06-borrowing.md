@@ -13,9 +13,9 @@ log.push(String::from("ready"));
 println!("{first}");
 ```
 
-- A. Yes — `first` and `log` are separate variables
-- *B. No — `log` is borrowed immutably and then borrowed mutably
-- C. No — you cannot index a `Vec` with `0`
+- A. Yes, `first` and `log` are separate variables
+- *B. No, `log` is borrowed immutably and then borrowed mutably
+- C. No, you cannot index a `Vec` with `0`
 - D. Yes, but `first` prints garbage
 
 @why
@@ -25,7 +25,7 @@ immutable`. The shared borrow starts at `&log[0]` and is still in use at the
 
 D describes exactly what the C++ version of these four lines does. `push` may
 find the vector at capacity, allocate a bigger buffer, copy the elements across
-and free the old one — leaving `first` pointing into freed memory. That version
+and free the old one, leaving `first` pointing into freed memory. That version
 compiles silently and usually works, until the length of your data changes.
 
 ## 2
@@ -39,9 +39,9 @@ println!("{first}");
 log.push(String::from("ready"));
 ```
 
-- *A. Yes — the borrow ends at its last use
-- B. No — `first` is still in scope at the `push`
-- C. No — for the same reason as the previous question
+- *A. Yes, the borrow ends at its last use
+- B. No, `first` is still in scope at the `push`
+- C. No, for the same reason as the previous question
 - D. Only with an explicit `drop(first)` first
 
 @why
@@ -51,7 +51,7 @@ still in scope at the `push`; it is simply no longer borrowed.
 
 B and D are the pre-2018 answers, and they are why old tutorials tell you to wrap
 borrows in `{ }` blocks that exist only to appease the compiler. Non-lexical
-lifetimes removed a large fraction of everyday borrow-checker friction — check
+lifetimes removed a large fraction of everyday borrow-checker friction, so check
 the date on any advice that reaches for braces.
 
 ## 3
@@ -65,9 +65,9 @@ let b = &mut config;
 a.push(2);
 ```
 
-- A. Yes — both are just pointers
-- *B. No — only one `&mut` to a value may be live at a time
-- C. No — `config` must be `static`
+- A. Yes, both are just pointers
+- *B. No, only one `&mut` to a value may be live at a time
+- C. No, `config` must be `static`
 - D. Yes, because `b` is never used
 
 @why
@@ -77,7 +77,7 @@ stops being surprising: a second one is a second claim to something defined as
 exclusive.
 
 D is close to something true and lands wrong. If `a` were never used *after* `b`
-was created, the first borrow would have ended and the code would compile — the
+was created, the first borrow would have ended and the code would compile. The
 conflict is about overlap in time, not about existence. Here `a.push(2)` comes
 after `let b`, so both are live at once.
 
@@ -98,17 +98,17 @@ reference, never both.
 C and D are the two rejected rows, and they are exactly the two access pairs
 that make a data race: read-with-write, and write-with-write. Read-with-read is
 harmless and is the row that stays legal. That is why nothing extra had to be
-added to the language for threads — the rule that stops you invalidating your own
+added to the language for threads. The rule that stops you invalidating your own
 iterator is the rule that stops two threads writing one `Vec`.
 
 ## 5
 
 On a 64-bit machine, what is `size_of::<&String>()`?
 
-- *A. 8 — a reference is one address
-- B. 24 — the same as a `String`
-- C. 16 — a pointer and a length
-- D. 32 — the `String` plus a header
+- *A. 8; a reference is one address
+- B. 24; the same as a `String`
+- C. 16; a pointer and a length
+- D. 32; the `String` plus a header
 
 @why
 A reference is an address and nothing else. No reference count, no header, no
@@ -116,7 +116,7 @@ run-time check: the machine code is the pointer you would have written in C, and
 everything in this unit happens in the compiler and leaves nothing behind.
 
 C is the right answer to a different question. `&str` and `&[T]` are 16 bytes
-because they are **fat pointers** — an address plus a length — which is the
+because they are **fat pointers**, an address plus a length, which is the
 subject of the next unit.
 
 Because a reference owns nothing, copying one copies only an address, so `&T` is
@@ -134,9 +134,9 @@ let count = 0;
 bump(&mut count);
 ```
 
-- A. Yes — `&mut` makes it mutable
-- *B. No — `count` is not declared `mut`
-- C. No — `bump` should take `&i32`
+- A. Yes, `&mut` makes it mutable
+- *B. No, `count` is not declared `mut`
+- C. No, `bump` should take `&i32`
 - D. Yes, but `count` is still 0 afterwards
 
 @why
@@ -146,7 +146,7 @@ may be written through, and `&mut x` lends that permission out exclusively. You
 cannot lend an authority you do not hold.
 
 A is the trap, and the giveaway is that `mut` on a binding is not part of the
-type — `i32` is `i32` either way. It is a statement about the binding, which is
+type. `i32` is `i32` either way. It is a statement about the binding, which is
 why moving a value into a `mut` binding makes it mutable and why nothing else
 breaks when you add the keyword.
 
@@ -161,9 +161,9 @@ let owned = name;
 println!("{r}");
 ```
 
-- A. Yes — `r` and `owned` both see the string
-- *B. No — `name` cannot move while it is borrowed
-- C. No — `String` cannot be printed with `{}`
+- A. Yes, `r` and `owned` both see the string
+- *B. No, `name` cannot move while it is borrowed
+- C. No, `String` cannot be printed with `{}`
 - D. Yes, and it prints `ferris`
 
 @why
@@ -191,15 +191,15 @@ fn take_name(u: &User) -> String {
 }
 ```
 
-- A. Yes — `name` is a field, so reading it is free
-- *B. No — that would move a `String` out of a shared reference
-- C. No — the function needs a lifetime parameter
+- A. Yes, `name` is a field, so reading it is free
+- *B. No, that would move a `String` out of a shared reference
+- C. No, the function needs a lifetime parameter
 - D. Yes, and the caller's `User` keeps its name
 
 @why
 `error[E0507]: cannot move out of u.name which is behind a shared reference`.
 `String` is not `Copy`, so producing one by value transfers the buffer and
-retires the source — and the source is a field of a struct the *caller* owns.
+retires the source, and the source is a field of a struct the *caller* owns.
 The caller would be left holding a `User` whose `name` owns nothing, and two
 values would free one buffer.
 
@@ -222,15 +222,15 @@ b.push_str("hi");
 l.push(String::from("typed"));
 ```
 
-- *A. Yes — the two fields are disjoint places
-- B. No — `ed` is borrowed mutably twice
-- C. No — you cannot borrow a field, only a whole struct
+- *A. Yes, the two fields are disjoint places
+- B. No, `ed` is borrowed mutably twice
+- C. No, you cannot borrow a field, only a whole struct
 - D. Only if `Editor` derives `Clone`
 
 @why
 Yes. The borrow checker tracks **paths**, not variables. `ed.buffer` and
 `ed.log` are different places at different addresses, so a unique borrow of each
-is two unique borrows of two different things — no rule broken.
+is two unique borrows of two different things. No rule is broken.
 
 B is the answer to the *next* question, and the difference between the two is
 worth carrying around: this works, and the same thing routed through two
@@ -251,15 +251,15 @@ let l = ed.log_mut();
 b.push_str("hi");
 ```
 
-- A. Yes — the methods touch different fields
-- *B. No — each method borrows all of `ed`, so the two borrows overlap
-- C. No — a method cannot return a `&mut` to a field
+- A. Yes, the methods touch different fields
+- *B. No, each method borrows all of `ed`, so the two borrows overlap
+- C. No, a method cannot return a `&mut` to a field
 - D. Yes, because the borrows are inside method calls
 
 @why
 `error[E0499]: cannot borrow ed as mutable more than once at a time`. The
-signature says `&mut self` — the whole struct — and the returned `&mut String`
-keeps that borrow alive as long as `b` is used.
+signature says `&mut self`, meaning the whole struct, and the returned
+`&mut String` keeps that borrow alive as long as `b` is used.
 
 A is true of the bodies and irrelevant. The borrow checker never looks inside a
 function body when checking a call, and that is deliberate: it is what makes a
@@ -289,7 +289,7 @@ forbidding `&T` alongside `&mut T`, and two `&mut T`, forbids precisely the othe
 two.
 
 D is the interesting mistake. **Aliasing plus mutation** is one condition, and
-being on one thread does not make it safe — it makes it iterator invalidation
+being on one thread does not make it safe. It makes it iterator invalidation
 instead of a race. Same rule, same bug, two costumes.
 
 ## 12
@@ -303,10 +303,10 @@ fn greeting() -> &String {
 }
 ```
 
-- A. Yes — `s` is moved into the return value
-- *B. No — the compiler cannot tell what the returned reference borrows from
+- A. Yes, `s` is moved into the return value
+- *B. No, the compiler cannot tell what the returned reference borrows from
 - C. Yes, but the reference dangles at run time
-- D. No — you cannot return a reference from a function
+- D. No, you cannot return a reference from a function
 
 @why
 `error[E0106]: missing lifetime specifier`. The compiler is asking a question
@@ -317,7 +317,7 @@ C is what C does. There the equivalent compiles, often prints something
 plausible because nothing has reused the stack yet, and is the canonical
 use-after-free. Here it is an error, always.
 
-D is too strong — returning a reference is ordinary, and unit 15 covers how the
+D is too strong. Returning a reference is ordinary, and unit 15 covers how the
 compiler works out which input it came from. The fix here is to return the
 `String` itself.
 
@@ -334,10 +334,10 @@ fn bump_twice(n: &mut u32) {
 }
 ```
 
-- *A. Yes — the compiler inserts an implicit reborrow
-- B. No — `&mut u32` is not `Copy`, so the first call moves it
-- C. Yes — `&mut T` is `Copy`, like `&T`
-- D. No — `bump_twice` needs to take `n` by value
+- *A. Yes, the compiler inserts an implicit reborrow
+- B. No, `&mut u32` is not `Copy`, so the first call moves it
+- C. Yes, `&mut T` is `Copy`, like `&T`
+- D. No, `bump_twice` needs to take `n` by value
 
 @why
 B correctly identifies the problem and misses the mechanism that solves it.
@@ -350,7 +350,7 @@ Uniqueness survives, because at any moment exactly one of the two is usable.
 
 C is the tempting shortcut and would be unsound: copying a unique reference
 would produce two of them, which is a contradiction. The reborrow is only
-inserted where the target type is known to be a reference — push a `&mut` into a
+inserted where the target type is known to be a reference. Push a `&mut` into a
 `Vec` and it moves for real.
 
 ## 14
@@ -366,9 +366,9 @@ for line in &lines {
 }
 ```
 
-- A. Yes — the loop only reads, and `push` only writes
-- *B. No — the loop holds a shared borrow for its whole duration
-- C. No — `starts_with` needs a `&str`, not a `char`
+- A. Yes, the loop only reads, and `push` only writes
+- *B. No, the loop holds a shared borrow for its whole duration
+- C. No, `starts_with` needs a `&str`, not a `char`
 - D. Yes, but the new element is never visited
 
 @why
@@ -393,7 +393,7 @@ What does borrow checking cost at run time?
 
 - A. One reference count per borrow
 - B. A bounds check on every dereference
-- *C. Nothing — it is entirely a compile-time analysis
+- *C. Nothing; it is entirely a compile-time analysis
 - D. A small periodic pause, much shorter than a collector's
 
 @why
@@ -402,7 +402,7 @@ emits code that contains no trace of it. A `&T` is one address; dereferencing it
 is one load, the same instruction C would emit.
 
 A describes `Rc<T>`, which is a *runtime* sharing mechanism you reach for when
-the static analysis genuinely cannot express what you need — and it costs a
+the static analysis genuinely cannot express what you need, and it costs a
 counter and a branch. That is unit 18, and the point is that you opt into it
 rather than paying it everywhere.
 

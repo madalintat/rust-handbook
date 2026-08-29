@@ -9,8 +9,8 @@ unit: 24-macros
 
 @expect E0308
 
-`constant!` generates a whole function from a name and a value — something no
-function can do, because a function cannot introduce an item. Two calls, two
+`constant!` generates a whole function from a name and a value. No function can
+do that, because a function cannot introduce an item. Two calls, two
 functions, one definition.
 
 The generated functions do not type check. The macro body is where the fix goes,
@@ -68,7 +68,7 @@ pub fn run() -> String {
 
 @hint The error points inside the macro, but it is an ordinary type error: what type is `"handbook"`, and what does the generated function promise to return?
 @hint A string literal is `&'static str`. The signature says `String`.
-@hint `String::from($value)` in the transcriber — one edit, both functions fixed.
+@hint `String::from($value)` in the transcriber: one edit, both functions fixed.
 
 @diagnose E0308
 `mismatched types: expected String, found &str`, with the underline inside the
@@ -82,7 +82,7 @@ that too. Neither location on its own would tell you enough.
 
 Nothing subtle is happening here. Expansion produced
 `pub fn app_name() -> String { "handbook" }`, which is a mistake you would spot
-instantly if you had written it out by hand — which is exactly what
+instantly if you had written it out by hand, which is exactly what
 `cargo expand` shows you.
 
 @after
@@ -92,7 +92,7 @@ cannot. A function can return a value; it cannot bring a new `fn`, `struct` or
 be anything else.
 
 `$name:ident` is doing the load-bearing work. An identifier fragment can be used
-wherever a name goes — a function name, a type name, a field — which is how one
+wherever a name goes: a function name, a type name, a field. That is how one
 line of macro becomes two named functions the rest of the crate can call
 normally.
 
@@ -104,7 +104,7 @@ normally.
 @expect E0425
 
 `bump!` looks like it should increment the local called `count`. It does not,
-and the error is the single most important property of Rust macros — the one C
+and the error is the single most important property of Rust macros, the one C
 macros lack.
 
 Fix it so that `run` returns 3. The `count` inside the macro is not the `count`
@@ -167,8 +167,8 @@ so the macro's one refers to nothing.
 
 The C preprocessor has no such rule, and the consequence is a famous class of
 bug: `#define SWAP(a,b) { int tmp = a; a = b; b = tmp; }` silently corrupts a
-call site that already has a variable called `tmp`. In Rust that cannot happen —
-neither can the macro capture your name, nor can your name capture the macro's.
+call site that already has a variable called `tmp`. In Rust that cannot happen.
+The macro cannot capture your name, and your name cannot capture the macro's.
 
 @after
 The seam is the interesting part. Hygiene applies to identifiers the macro
@@ -179,7 +179,7 @@ accident, and nothing is captured by accident.
 
 One limit worth knowing: `macro_rules!` hygiene covers local variables and
 lifetimes, not types, functions or modules. A macro body naming `Vec` gets
-whatever `Vec` means at the call site — which is why generated code writes
+whatever `Vec` means at the call site, which is why generated code writes
 `::std::vec::Vec` and `$crate::helper` rather than bare paths.
 
 ## 3. Repetition, and where the conversion goes
@@ -243,12 +243,12 @@ pub fn run() -> Vec<String> {
 
 @hint Two of the four arguments are `&str` and two are `i32`. The vector holds neither.
 @hint You cannot fix this at the call site without giving up the point of the macro. Convert inside the repetition.
-@hint `v.push($x.to_string())` — `ToString` is implemented for both `&str` and `i32`.
+@hint `v.push($x.to_string())`, because `ToString` is implemented for both `&str` and `i32`.
 
 @diagnose E0308
 `mismatched types: expected String, found &str`, and separately
-`expected String, found integer` — one error per argument, because the
-repetition emitted one `push` per argument and each was type checked on its own.
+`expected String, found integer`: one error per argument, because the repetition
+emitted one `push` per argument and each was type checked on its own.
 
 That is the useful observation. `$( ... )*` is not a loop over a collection; it
 is textual duplication that happens before type checking, so `labels!["a", 3]`
@@ -264,8 +264,8 @@ has one; a custom struct would need `impl Display` first.
 @after
 The pieces of the matcher, spelled out: `$( ... ),*` means the group repeats
 zero or more times separated by commas, and `$(,)?` allows one optional trailing
-comma. Add that second part to every list-shaped macro you write — `vec!` has
-it, and without it `labels!["a", 1,]` is a syntax error.
+comma. Add that second part to every list-shaped macro you write. `vec!` has it,
+and without it `labels!["a", 1,]` is a syntax error.
 
 The double braces are not a typo either. The outer pair delimits the
 transcriber; the inner pair is a real block, which is what lets an expansion
@@ -279,7 +279,7 @@ containing statements still be used as a single expression.
 @expect E0384
 
 The other side of exercise 2. Here the macro *does* introduce a binding, using a
-name the caller supplied — and because the name came from the call site, the
+name the caller supplied, and because the name came from the call site, the
 caller can see it afterwards.
 
 That much works. What the macro declares about the binding does not.
@@ -325,7 +325,7 @@ pub fn run() -> i32 {
 }
 ```
 
-@hint The binding exists and is visible — that part is working. Read what the error says about it.
+@hint The binding exists and is visible, so that part is working. Read what the error says about it.
 @hint Mutability is a property of the binding, and the binding is written in the macro.
 @hint `let mut $name = 0;`
 
@@ -336,7 +336,7 @@ hits` underlining the `let $name = 0;` **inside the macro** and the failing
 
 Read that diagnostic carefully, because it proves the hygiene rule from the
 other direction. The compiler is linking a binding created in the macro body to
-a use in the function — which it can only do because `$name` was passed in and
+a use in the function, which it can only do because `$name` was passed in and
 carries the call site's context. Had the macro written `let hits = 0;`
 literally, the two would be different identifiers and the error would be E0425
 instead.
@@ -435,22 +435,22 @@ pub fn run() -> String {
 
 `Metres` implements it because `display_newtype!(Metres)` expanded into an
 `impl` block; `Seconds` has no such block, so the bound `{}` requires is
-unsatisfied. Adding the missing invocation is the fix — that is the entire value
-proposition of the macro, one line per type instead of six.
+unsatisfied. Adding the missing invocation is the fix, and it is the whole
+selling point of the macro: one line per type instead of six.
 
 Resist the `{:?}` the compiler suggests. It would need `#[derive(Debug)]` and
 would print `Seconds(2)` rather than `2`, and the tests want the field.
 
 @after
 Why this cannot be a generic. A generic `impl<T> Display for T` is forbidden by
-coherence, and even if it were not, `self.0` means nothing for an arbitrary `T` —
-the compiler cannot know the type has a field `0`. Macros work on syntax, so
+coherence, and even if it were not, `self.0` means nothing for an arbitrary `T`,
+because the compiler cannot know the type has a field `0`. Macros work on syntax, so
 `self.0` is just three tokens copied into each expansion, and it type checks
 separately in each one.
 
 That is the honest test for reaching for a macro: could a generic or a trait
 with a default method do this? Here the answer is no, so the macro earns its
-place. When the answer is yes, the macro is a worse generic — opaque to the
+place. When the answer is yes, the macro is only a worse generic: opaque to the
 reader, awkward in a debugger, and reporting its errors in code nobody wrote.
 
 ## 6. A type as an argument
@@ -461,7 +461,7 @@ reader, awkward in a debugger, and reporting its errors in code nobody wrote.
 @expect E0308
 
 `parse_or!` takes a string, a **type**, and a fallback. A function cannot take a
-type as an argument, which is exactly why this is a macro — `$t:ty` is
+type as an argument, which is exactly why this is a macro. `$t:ty` is
 substituted straight into a turbofish.
 
 The fragment specifiers are right. The transcriber is not finished.
@@ -517,26 +517,26 @@ returns a `Result` because parsing can fail, and `"banana"` is exactly the case
 it exists for.
 
 Notice that `$default` was matched and bound and then never appeared in the
-transcriber. That is legal and silent — a metavariable you do not use is not a
-warning — which is a small hazard of macro writing: the compiler will not tell
-you that you forgot half of your own design.
+transcriber. That is legal and silent, because an unused metavariable is not a
+warning. It is a small hazard of macro writing: the compiler will not tell you
+that you forgot half of your own design.
 
 @diagnose E0277
 `the trait bound X: FromStr is not satisfied`, or a complaint about
 `unwrap_or`'s argument. The type you passed as `$t` must implement `FromStr`,
-and the fallback must be that same type — `parse_or!("7", u8, 0)` works because
+and the fallback must be that same type. `parse_or!("7", u8, 0)` works because
 `0` infers as `u8`.
 
 @after
 `$t:ty` is the second capability on the list: a macro can take a type as an
-argument. A generic function could also be written here —
-`fn parse_or<T: FromStr>(s: &str, d: T) -> T` — and would be better, because it
+argument. A generic function would also work here,
+`fn parse_or<T: FromStr>(s: &str, d: T) -> T`, and would be better, because it
 is a real function with a real signature that rust-analyzer understands.
 
 That is the point worth taking away. Most macros that take a `ty` should have
 been generics. The ones that genuinely cannot are the ones that also generate an
 item, or take a variable number of arguments, or need the *name* of the type as
-well as the type — `stringify!($t)` — none of which a generic can reach.
+well as the type, via `stringify!($t)`. A generic reaches none of that.
 
 ## 7. A macro that calls itself
 
@@ -607,7 +607,7 @@ underline on the `if` inside the transcriber and `in this macro invocation`
 pointing at `max_of!(3, 17, 8, 2)`.
 
 An `if` without `else` is a statement-shaped expression of type `()`, so the
-block evaluates to `()` on the false branch and to an integer on the true one —
+block evaluates to `()` on the false branch and to an integer on the true one,
 and a block has one type. The recursive rule already computed the answer for the
 tail into `r`; the `else` just has to hand it back.
 
@@ -617,13 +617,13 @@ and the outer ones were never reached.
 
 @after
 The two rules are tried top to bottom and the first that matches wins. `($a:expr)`
-cannot match `3, 17, 8, 2` — the matcher would have leftover tokens — so
+cannot match `3, 17, 8, 2`, since the matcher would have leftover tokens, so
 control falls to the second rule, which peels `3` and re-invokes with `17, 8, 2`.
 Four levels later the single-element rule matches and the recursion bottoms out.
 
 Recursion in a macro is not free. Expansion happens before anything else, so a
 deeply recursive macro is compile-time cost with nothing to show for it at run
-time, and the default limit is 128 nested expansions —
+time, and the default limit is 128 nested expansions, after which you get
 `error: recursion limit reached while expanding`. You can raise it with
 `#![recursion_limit = "256"]`, but hitting it usually means the job wanted a
 `$( ... )*` repetition, or an ordinary loop in an ordinary function.
@@ -758,7 +758,7 @@ and the enum has no other variants, so the compiler can see it is complete.
 `from_name` matches on a `&str`, which has infinitely many values, so no
 repetition over variants can ever cover it.
 
-A macro cannot reason about this — it emitted tokens and stopped. Exhaustiveness
+A macro cannot reason about this. It emitted tokens and stopped. Exhaustiveness
 is checked long afterwards, on the expanded tree, which is why the error names a
 `match` that appears nowhere in your source.
 
@@ -777,7 +777,7 @@ delimiter you write in the matcher must appear in the call.
 `+` rather than `*` means at least one variant, so `named_enum!(Empty {})` is a
 compile error at the call site rather than an enum nobody can construct.
 
-`stringify!($variant)` recovers the source text of a token — one of the three
+`stringify!($variant)` recovers the source text of a token, one of the four
 things only a macro can do, since a function receives values and has no access
 to how they were spelled. It works in pattern position too, which is what makes
 `from_name` possible at all.

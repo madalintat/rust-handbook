@@ -1,5 +1,5 @@
 {"terms": [
-{"t": "primary span", "x": "the ^^^^ underline", "p": "The part of your code a diagnostic underlines with carets, marking where the compiler stopped — which is not always where the mistake is."},
+{"t": "primary span", "x": "the ^^^^ underline", "p": "The part of your code a diagnostic underlines with carets, marking where the compiler stopped. That is not always where the mistake is."},
 {"t": "secondary span", "x": "the ---- underline", "p": "A place the compiler underlines with dashes because it participates in the error, such as the earlier borrow that made a later one illegal."},
 {"t": "error code", "x": "E0502 and friends", "p": "The stable identifier printed in square brackets after the word error, which you can look up with rustc --explain."},
 {"t": "error index", "x": "the code catalogue", "p": "The official page listing every rustc error code with a minimal broken example and a fixed one, the same text rustc --explain prints."},

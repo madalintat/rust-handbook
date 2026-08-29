@@ -5,12 +5,12 @@ title: Generics
 accent: slate
 concepts: generic, type parameter, monomorphisation, trait bound, where clause, turbofish, const generics, static dispatch
 needs: 08-structs, 09-enums, 12-errors
-blurb: One function, every type, and nothing at runtime — because the duplication still happens, it just happens inside the compiler instead of in your editor.
+blurb: One function, every type, and nothing extra at runtime. The duplication still happens; it just happens inside the compiler instead of in your editor.
 ---
 
 %% You have already written the same function twice: once taking `&[i32]`, once taking `&[String]`, identical apart from a type. Every language has an answer. C uses `void *` and loses the type. Java erases to `Object` and boxes every integer. C++ stamps out copies and tells you about the mistake 200 lines into an instantiation trace.
 
-Rust stamps out copies too — and checks the original once, before stamping. That one difference is most of this unit.
+Rust stamps out copies too, but it checks the original once, before any stamping happens. That one difference is most of this unit.
 
 ## The duplication
 
@@ -42,12 +42,12 @@ fn largest<T: PartialOrd>(v: &[T]) -> &T {
 ```
 
 `<T>` declares a **type parameter**: a name that stands for a type the caller
-picks. `T` is a convention, not a keyword — `largest<Item>` compiles equally well.
+picks. `T` is a convention, not a keyword: `largest<Item>` compiles equally well.
 
 ### The name is a placeholder, not a value
 
-`T` exists only during compilation. There is no `T` in the binary, no runtime
-object describing it, nothing to look up. Which raises the obvious question: what
+`T` exists only during compilation. Nothing in the binary corresponds to it, and
+there is nothing to look up at runtime. Which raises the obvious question: what
 *is* in the binary?
 
 ## Monomorphisation
@@ -69,7 +69,7 @@ fn largest_char(v: &[char]) -> &char { /* ... */ }
 ```
 
 and the two call sites jump directly to the right one. This is
-**monomorphisation** — one specialised copy per concrete type actually used.
+**monomorphisation**: one specialised copy per concrete type actually used.
 
 :::note
 A generic function is not compiled. Its *instantiations* are. `largest<i32>` and
@@ -79,11 +79,11 @@ have come from one piece of source.
 
 ### Therefore it costs nothing
 
-Inside `largest_i32` there is no type tag, no vtable, no boxing. `x > best` is
-one `cmp` instruction on two registers. The function can be inlined, the loop
-unrolled, the comparison constant-folded — every optimisation available to the
-hand-written version is available here, because after monomorphisation it *is*
-the hand-written version.
+Inside `largest_i32` there is no type tag and no vtable, and the integer is
+never boxed. `x > best` is one `cmp` instruction on two registers. The function
+can be inlined, the loop unrolled, the comparison constant-folded. Every
+optimisation available to the hand-written version is available here, because
+after monomorphisation this *is* the hand-written version.
 
 | | dispatch | integer element | inlinable |
 |---|---|---|---|
@@ -96,7 +96,8 @@ That last row is the honest alternative, and it is the subject of the next unit.
 
 ### And the bill arrives elsewhere
 
-There is no free lunch; there is a lunch billed to a different account.
+Nothing here is free. The cost moves to build time, and it lands in three
+places.
 
 - **Compile time.** Ten types means ten copies to type-check, optimise and link.
 - **Binary size.** The same ten copies land in the executable. A generic used
@@ -112,8 +113,8 @@ The copies are per *concrete type*, not per call site. A hundred calls to
 `largest::<i32>` produce one function. Two calls with two types produce two.
 
 The lever, when a binary really is too big, is to give the generic a thin body
-that immediately calls a non-generic one — exactly what `std::fs::read` does,
-converting `AsRef<Path>` once and handing a plain `&Path` to the real work.
+that immediately calls a non-generic one. That is what `std::fs::read` does: it
+converts the `AsRef<Path>` once, then hands a plain `&Path` to the real work.
 :::
 
 ## Bounds: what a bare `T` can do
@@ -127,7 +128,7 @@ fn describe<T>(x: T) -> String {
 ```
 
 `T` is *every* type. The body must work for a `File`, a `Vec<u8>`, a raw
-pointer, a closure. `File` has no `Display`, so the body is rejected — at the
+pointer, a closure. `File` has no `Display`, so the body is rejected at the
 definition, before anyone has called it.
 
 A **trait bound** narrows the promise:
@@ -145,7 +146,7 @@ guarantee: `T` can be displayed. At the call site it is an obligation: pass
 something that implements `Display`, or `E0277`.
 
 :::note
-Everything a generic body does — a method, an operator, a `println!`, a `==` —
+Everything a generic body does (a method, an operator, a `println!`, a `==`)
 must be justified by a bound. Operators count: `a > b` needs `PartialOrd`,
 `a + b` needs `Add`, `a == b` needs `PartialEq`.
 :::
@@ -156,13 +157,13 @@ compiles happily until someone calls it with a type lacking `operator>`, and the
 error appears inside your template, blaming a line the caller has never seen.
 Rust checks the generic body **once**, against its bounds. A generic function
 that compiles works for every `T` satisfying its bounds, and a bad call is
-reported at the call site — `MyType: PartialOrd is not satisfied`, one line, no
-trace. C++20 concepts are this idea, made optional twenty years later.
+reported at the call site: `MyType: PartialOrd is not satisfied`, one line
+rather than a trace. C++20 concepts are this idea, made optional twenty years later.
 
 **Java generics** erase: `List<String>` and `List<Integer>` are one class at
 runtime, and the integers are boxed `Integer` objects behind pointers. Rust
-duplicates and stays flat. Opposite trades — Java pays at runtime to keep the
-binary small; Rust pays in binary size to make the runtime free.
+duplicates and stays flat. The trades are exact opposites. Java pays at runtime
+to keep the binary small; Rust pays in binary size to make the runtime free.
 :::
 
 ### `where`, for when the angle brackets fill up
@@ -223,7 +224,7 @@ struct Pair<T: PartialOrd> { left: T, right: T }   // avoid
 It buys nothing, and it infects every `impl`, every function signature and every
 other struct that holds a `Pair`, all of which must now repeat the bound.
 Constrain the `impl` block that needs it. The standard library does this
-throughout: `HashMap<K, V>` has no bounds on `K` at all — `Eq + Hash` appears on
+throughout: `HashMap<K, V>` has no bounds on `K` at all. `Eq + Hash` sits on
 the `impl` block containing `insert` and `get`.
 :::
 
@@ -243,8 +244,9 @@ sum([1, 2, 3, 4, 5]);    // a second copy, N = 5
 
 Monomorphisation applies unchanged: one copy per distinct `N`, each with the
 length baked in as a constant, which is how a fixed-size loop gets fully
-unrolled. This is why `[T; N]` finally implements the traits it should — before
-const generics, the standard library wrote impls out by hand up to length 32.
+unrolled. This is why `[T; N]` finally implements the traits it should. Before
+const generics, the standard library wrote those impls out by hand, up to
+length 32.
 
 ## Inference and the turbofish
 
@@ -265,12 +267,13 @@ Two ways to say it:
 
 ```rust,good
 let n: i32 = "42".parse().unwrap();   // annotate the binding
-let n = "42".parse::<i32>().unwrap(); // annotate the call — the turbofish
+let n = "42".parse::<i32>().unwrap(); // annotate the call, the turbofish
 ```
 
 The `::<>` is the **turbofish**. It exists because `parse<i32>(x)` would be
-ambiguous with `parse < i32 > (x)` — a genuine parsing problem C++ solved with
-lookahead and a `template` keyword, and Rust solved with punctuation.
+ambiguous with `parse < i32 > (x)`. That is a real parsing problem, and C++
+solved it with lookahead and a `template` keyword. Rust solved it with
+punctuation.
 
 Reach for it when the value is consumed immediately and there is no binding to
 annotate: `.collect::<Vec<_>>()`, `.sum::<u64>()`, `.parse::<u16>()`. The `_`
@@ -285,7 +288,7 @@ four parameters and six bounds is a signature nobody reads.
 | situation | reach for |
 |---|---|
 | one concrete type, today | the concrete type |
-| a heterogeneous collection | `dyn Trait` — you cannot monomorphise a runtime mix |
+| a heterogeneous collection | `dyn Trait`, because you cannot monomorphise a runtime mix |
 | a plugin boundary crossing a `dyn` interface anyway | `dyn Trait` |
 | a hot inner loop over one of five types | generics |
 | "it might be useful for other types later" | the concrete type |
@@ -293,6 +296,6 @@ four parameters and six bounds is a signature nobody reads.
 :::note
 Write the concrete version first. Write the second one when you need it. Make it
 generic when the third arrives and the duplication is proven rather than
-predicted — by which point you also know exactly which bounds you need, instead
-of guessing.
+predicted. By then you also know exactly which bounds you need, instead of
+guessing at them.
 :::

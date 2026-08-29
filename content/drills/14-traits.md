@@ -27,7 +27,7 @@ rule guarantees at most one impl per (trait, type) pair in any linked program.
 
 What does wrapping `Vec<String>` in `struct Csv(Vec<String>)` cost at runtime?
 
-- *A. Nothing — same size, same layout, no indirection
+- *A. Nothing, same size, same layout, no indirection
 - B. One pointer indirection per access
 - C. A heap allocation for the wrapper
 - D. A vtable pointer alongside the data
@@ -55,9 +55,9 @@ struct Bot;
 impl Greet for Bot {}
 ```
 
-- A. Yes — `greet` has a default body, so nothing is missing
-- *B. No — `Bot` must implement `Named` as well
-- C. No — a trait cannot have a default method that calls another trait's method
+- A. Yes, `greet` has a default body, so nothing is missing
+- *B. No, `Bot` must implement `Named` as well
+- C. No, a trait cannot have a default method that calls another trait's method
 - D. Yes, and `name` falls back to the type name
 
 @why
@@ -65,7 +65,7 @@ impl Greet for Bot {}
 implementing `Greet` must also implement `Named`. `Bot` does not, so
 `error[E0277]: the trait bound Bot: Named is not satisfied`.
 
-A is tempting because the impl block really is complete — there are no missing
+A is tempting because the impl block really is complete. There are no missing
 *items*. The failure is the supertrait obligation, which is checked separately.
 Nothing is inherited: `Bot` needs two impl blocks, one per trait.
 
@@ -80,7 +80,7 @@ On a 64-bit machine, what is `size_of::<&dyn Display>()`?
 
 @why
 A trait object is a **fat pointer**: one word to the data, one word to the vtable
-for that (type, trait) pair. Sixteen bytes, regardless of what it points at —
+for that (type, trait) pair. Sixteen bytes, regardless of what it points at,
 which is exactly why D is wrong and why the whole mechanism works.
 
 `&str` and `&[T]` are fat for a different reason: their second word is a length
@@ -98,7 +98,7 @@ What does a vtable contain?
 @why
 The vtable is a small static table in read-only data, one per (type, trait) pair,
 shared by every trait object of that type. It carries `size`, `align`,
-`drop_in_place` and the method addresses — enough to call, and enough to drop and
+`drop_in_place` and the method addresses: enough to call, and enough to drop and
 deallocate correctly without knowing the concrete type.
 
 C is what a language with runtime reflection would store. Rust has none; the type
@@ -117,14 +117,14 @@ trait Store {
 }
 ```
 
-- A. `len` — it returns a value
-- *B. `save` — it is generic
-- C. `clear` — it takes `&mut self`
+- A. `len`: it returns a value
+- *B. `save`: it is generic
+- C. `clear`: it takes `&mut self`
 - D. None; the trait is already object safe
 
 @why
 A vtable is a fixed table of function pointers, built when the crate is compiled.
-`save<T>` is monomorphised, so it is not one function — it is one per `T` anyone
+`save<T>` is monomorphised, so it is not one function. It is one per `T` anyone
 ever passes, across crates that may not exist yet. There is no single address to
 put in the slot. The error is `E0038`.
 
@@ -146,7 +146,7 @@ Why is `Iterator`'s `Item` an associated type rather than `Iterator<T>`?
 - D. Because `Item` can then be inferred at runtime
 
 @why
-A `Vec<u8>`'s iterator yields `u8` and nothing else — one right answer, and it
+A `Vec<u8>`'s iterator yields `u8` and nothing else: one right answer, and it
 belongs to the implementor. Were it `Iterator<T>`, a type could implement it
 several times, `for x in it` would be ambiguous, and annotations would be
 required everywhere.
@@ -174,7 +174,7 @@ without writing anything else? Choose all that apply.
 `impl<T: Display> ToString for T`. One block, applying to every current and
 future `Display` type. You never implement `ToString` by hand.
 
-C is the trap. `Debug` and `Display` are separate traits with separate impls —
+C is the trap. `Debug` and `Display` are separate traits with separate impls, and
 `{:?}` needs `#[derive(Debug)]`. They are deliberately distinct: `Debug` is for
 programmers and may be ugly, `Display` is for users and cannot be guessed.
 
@@ -197,7 +197,7 @@ fn main() { println!("{}", Bot.hello()); }
 
 - A. `hello, bot`
 - *B. `oi`
-- C. It does not compile — `hello` already has a body
+- C. It does not compile: `hello` already has a body
 - D. `hello, oi`
 
 @why
@@ -220,14 +220,14 @@ fn pick(flag: bool) -> impl Iterator<Item = u32> {
 }
 ```
 
-- A. Yes — both are iterators of `u32`
-- *B. No — `impl Trait` in return position means one concrete type, and these are two
-- C. No — you cannot return an iterator from a function
+- A. Yes, both are iterators of `u32`
+- *B. No, `impl Trait` in return position means one concrete type, and these are two
+- C. No, you cannot return an iterator from a function
 - D. Yes, but only with a `Box`
 
 @why
 `-> impl Iterator` does not mean "some iterator, decided at runtime". It means
-*one specific type, which I decline to name* — usually because the type is an
+*one specific type, which I decline to name*, usually because the type is an
 unnameable compiler-generated closure or adapter. `Map<...>` and `Filter<...>`
 are different types, so the two branches disagree and rustc reports `E0308`.
 
@@ -260,7 +260,7 @@ because the target type is yours. **Implement `From`, never `Into`.**
 
 What does `?` do to an error before returning it?
 
-- A. Nothing — it returns it unchanged
+- A. Nothing, it returns it unchanged
 - *B. Calls `From::from` on it, converting into the function's error type
 - C. Boxes it as `Box<dyn Error>`
 - D. Panics if the types do not match
@@ -310,7 +310,7 @@ apply.
 
 @why
 A, B and D are the trade. One shared copy, one indirect call through the vtable,
-and the ability to express `Vec<Box<dyn Draw>>` — a mixed collection, which
+and the ability to express `Vec<Box<dyn Draw>>`, a mixed collection, which
 generics simply cannot represent, since `Vec<T>` needs one `T`.
 
 C confuses the pointer with the dispatch. `&dyn Trait` allocates nothing; only
@@ -331,7 +331,7 @@ Which of these traits cannot be `#[derive]`d?
 
 @why
 `Display` is the only one, and the omission is deliberate. `Debug` can be derived
-because there is an obvious mechanical answer — print the type name and its
+because there is an obvious mechanical answer: print the type name and its
 fields. `Display` is the user-facing form, and nothing in the struct definition
 says whether `Version { major: 1, minor: 4 }` should read `1.4`, `1-4`, `v1.4` or
 `version 1 point 4`.

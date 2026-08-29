@@ -66,7 +66,7 @@ cannot see into a child; a child can see up into its parent.
 
 Note what rustc does *not* complain about: the path `greeting::hello` is fine,
 and the module `greeting` is fine. Resolution succeeded and then permission was
-refused. That distinction matters — E0603 means "found it, not allowed", while
+refused. That distinction matters: E0603 means "found it, not allowed", while
 E0433 means "no such thing".
 
 @after
@@ -87,7 +87,7 @@ it.
 
 `shout` exists and is public all the way down. The call still does not resolve,
 because a path is read from *where you are standing*, and `run` is standing at
-the crate root — where there is no module called `ascii`.
+the crate root, where there is no module called `ascii`.
 
 Write the path that actually reaches it.
 
@@ -132,14 +132,14 @@ pub fn run() -> String {
 
 @hint `ascii` is not a top-level module. It is nested inside another one.
 @hint A path with no `crate::`, `self::` or `super::` prefix starts at the current module. From the crate root, that means starting with `text`.
-@hint `text::ascii::shout("ready")` — or add `use text::ascii;` at the top and keep the call as it is.
+@hint `text::ascii::shout("ready")`, or add `use text::ascii;` at the top and keep the call as it is.
 
 @diagnose E0433
 `failed to resolve: use of undeclared crate or module ascii`.
 
-Read the wording literally: rustc has looked for a `mod ascii` — or an external
-crate named `ascii` — *in the current module*, which is the crate root, and
-found neither. It is not a permission problem. Nothing named `ascii` exists at
+Read the wording literally. rustc looked *in the current module*, which is the
+crate root, for a `mod ascii` or an external crate named `ascii`, and found
+neither. It is not a permission problem. Nothing named `ascii` exists at
 that level at all.
 
 Paths in Rust are not searched up the tree the way an unqualified name is in
@@ -154,8 +154,8 @@ Two fixes, and the difference is worth knowing.
 breaks the moment this code moves into a module. `crate::text::ascii::shout(...)`
 is absolute and survives the move.
 
-`use text::ascii;` does something else again — it creates the name `ascii` in
-this module, so the original call site compiles unchanged. That is all `use`
+`use text::ascii;` does something else again. It creates the name `ascii` in this
+module, so the original call site compiles unchanged. That is all `use`
 ever does: it makes a local alias. It imports no code, changes no compilation,
 and costs nothing.
 
@@ -167,8 +167,8 @@ and costs nothing.
 @expect E0603
 
 `lookup` is `pub`. It is still unreachable, and the error names something other
-than `lookup` — read it carefully, because this is the single most common
-module mistake.
+than `lookup`. Read it carefully, because this is the single most common module
+mistake.
 
 Get `run` to a working call. There is more than one answer; one of them is what
 a library would actually ship.
@@ -216,7 +216,7 @@ pub fn run() -> u32 {
 
 @hint The error does not mention `lookup`. What does it mention?
 @hint Reachability needs every module on the path to be visible, not just the item at the end. `index` is private to `store`.
-@hint Either make `index` public, or leave it private and add `pub use index::lookup;` inside `store` — then call `store::lookup(...)`.
+@hint Either make `index` public, or leave it private and add `pub use index::lookup;` inside `store`, then call `store::lookup(...)`.
 
 @diagnose E0603
 `module index is private`. Note the noun: the *module*, not the function.
@@ -235,7 +235,7 @@ The `pub use` answer is the one a real library uses, and it is the whole reason
 modules are worth the trouble.
 
 `index` stays private, so you can rename it, split it, or delete it. `lookup`
-becomes `store::lookup` — a name that has nothing to do with where the code
+becomes `store::lookup`, a name that has nothing to do with where the code
 lives. Your internal tree and your public API are now two separate designs, free
 to change independently.
 
@@ -303,7 +303,7 @@ pub fn run() -> f64 {
 
 @hint `round_to` is not an item of `util`. Which module actually defines it?
 @hint The path in a `use` is an ordinary path and must name every module on the way down.
-@hint `use crate::util::math::round_to;` — or add `pub use math::round_to;` inside `util` and leave the original import alone.
+@hint `use crate::util::math::round_to;`, or add `pub use math::round_to;` inside `util` and leave the original import alone.
 
 @diagnose E0432
 `unresolved import crate::util::round_to`, with a note saying there is no
@@ -311,7 +311,7 @@ pub fn run() -> f64 {
 
 E0432 is E0433's cousin: it is what you get when the thing that fails to resolve
 is a `use` rather than an expression. In both cases the message is about
-existence, not permission — rustc walked `crate` → `util`, looked for an item
+existence, not permission. rustc walked `crate` → `util`, looked for an item
 called `round_to`, and there was none.
 
 Worth noticing that `use` itself is never the problem. Deleting the `use` line
@@ -320,13 +320,13 @@ The import is only a name.
 
 @after
 The other fix is the more interesting one. Adding `pub use math::round_to;`
-inside `util` makes `crate::util::round_to` a real path — the original import
+inside `util` makes `crate::util::round_to` a real path, so the original import
 becomes correct without being edited.
 
 That is what a re-export is *for*. `util::math` is where the code is organised;
 `util::round_to` is where a caller expects to find it. When those two want to
-differ, `pub use` is the seam, and it costs nothing at runtime — the compiler
-resolves it to the same item.
+differ, `pub use` is the seam, and it costs nothing at runtime, because the
+compiler resolves it to the same item.
 
 ## 5. One private field, one constructor
 
@@ -399,7 +399,7 @@ pub fn run() -> (u16, bool) {
 ```
 
 @hint You do not need to change anything inside `net`. The module already offers a way to build a `Port`.
-@hint A struct literal writes every field by name, so it needs every field to be visible. `new` does not — it is inside the module, where the field is visible.
+@hint A struct literal writes every field by name, so it needs every field to be visible. `new` does not, because it sits inside the module, where the field is visible.
 @hint `net::Port::new(8080).unwrap()`.
 
 @diagnose E0451
@@ -407,7 +407,7 @@ pub fn run() -> (u16, bool) {
 
 The struct is `pub`, so you may name the type, hold one, and call its methods.
 Constructing one with a literal is a different permission, because a struct
-literal has to mention every field — so it requires every field to be visible to
+literal has to mention every field, so it requires every field to be visible to
 you. One private field is enough to close the door.
 
 That is not an inconvenience, it is the point. `Port::new` rejects zero. If
@@ -417,8 +417,8 @@ about the type rather than a habit of its users.
 
 @after
 This is the standard shape for a type with an invariant: private fields, public
-constructor that validates, public accessors. `String` is exactly this — its
-field is a `Vec<u8>`, private, because a `String` promises to hold valid UTF-8
+constructor that validates, public accessors. `String` is exactly this. Its
+field is a private `Vec<u8>`, because a `String` promises to hold valid UTF-8
 and a public field would let you break that promise with an assignment.
 
 There is a second, quieter benefit. All-public fields freeze the field list
@@ -509,12 +509,13 @@ pub fn run() -> (i64, bool) {
 
 `use` is an item, like `fn` or `struct`, and a module cannot contain two items
 with the same name in the same namespace. The two `Value` types are perfectly
-distinct — `json::Value` and `toml::Value` are different types with different
-fields — but the *aliases* collide, and rustc will not guess which one you meant.
+distinct, since `json::Value` and `toml::Value` are different types with
+different fields, but the *aliases* collide and rustc will not guess which one
+you meant.
 
 @diagnose E0308
 Your annotations and your values disagree. If you renamed the imports but left
-`let a: Value = ...`, the name `Value` no longer exists — and if you renamed only
+`let a: Value = ...`, the name `Value` no longer exists, and if you renamed only
 one, one of the two bindings is now claiming the wrong type. Each `let` must be
 annotated with the alias matching the function that produced it, or you can drop
 the annotations entirely and let inference do the work.
@@ -523,7 +524,7 @@ the annotations entirely and let inference do the work.
 `as` is the general answer, and there is a second one worth knowing: import the
 *modules* instead of the types and write `json::Value` and `toml::Value` in
 full. That is what most real code does when the names are short, and it reads
-better than a pair of invented aliases — the module name is already the
+better than a pair of invented aliases, since the module name is already the
 disambiguator.
 
 The convention when you must rename is to keep the original as a suffix or
@@ -539,8 +540,8 @@ and solves it exactly this way.
 @expect E0433
 
 `Client` works. `run` reaches it through a four-segment path into a private
-module, and the hidden tests — which stand in for an outside user — expect to
-find it at the crate root as `Client`.
+module, and the hidden tests, which stand in for an outside user, expect to find
+it at the crate root as `Client`.
 
 Give the crate the public API it is supposed to have, without moving any code.
 
@@ -609,15 +610,15 @@ pub fn run() -> u32 {
 
 @hint The tests write `Client::new()`. Nothing at the crate root is called `Client` yet.
 @hint You do not need to make `internal` public, and you should not want to. One line at the root is enough.
-@hint `pub use internal::v2::Client;` — a re-export publishes the item at a new path without moving it or exposing the modules above it.
+@hint `pub use internal::v2::Client;`. A re-export publishes the item at a new path without moving it or exposing the modules above it.
 
 @diagnose E0433
 `failed to resolve: use of undeclared type Client`.
 
 The tests are compiled as part of your crate, and their `use super::*;` pulls in
 whatever the crate root defines. The root defines `run` and `internal`, and
-nothing called `Client`. Where the type actually lives is irrelevant — resolution
-only ever looks at names that are in scope.
+nothing called `Client`. Where the type actually lives is irrelevant, because
+resolution only ever looks at names that are in scope.
 
 Note that making `internal` `pub` would *not* fix this. It would make
 `internal::v2::Client` reachable, but the tests are asking for `Client`, at the
@@ -625,8 +626,8 @@ root, with no path at all. That name has to be created deliberately.
 
 @diagnose E0603
 You made a module public somewhere along the way, but not all of them. E0603
-means the item was found and permission was refused — the chain from the root to
-the item has a private link in it. Worth stopping here rather than adding `pub`
+means the item was found and permission was refused, so the chain from the root
+to the item has a private link in it. Worth stopping here rather than adding `pub`
 until it compiles: the intended answer creates a *new* name at the root and
 leaves `internal` private, which is a much smaller promise.
 
@@ -636,7 +637,7 @@ yourself and the API you publish are two different things, and `pub use` is the
 only connection between them.
 
 Here `internal::v2` can become `internal::v3`, or split into three modules, or
-be rewritten entirely — and as long as the one `pub use` line still resolves,
+be rewritten entirely, and as long as the one `pub use` line still resolves,
 no user is affected, because no user ever wrote that path. Had you made
 `internal` public instead, every module name in your crate would be part of your
 semver commitment.
@@ -652,7 +653,7 @@ private and `pub use` lines that are not. That short list *is* the API design.
 @expect E0603
 
 `normalise` is shared plumbing. It should be visible to everything in `app` and
-to nothing outside it — not to another crate, not even to the crate root.
+to nothing outside it: not to another crate, and not even to the crate root.
 
 The visibility it currently has is too narrow. Widen it by exactly the right
 amount, and no further; `pub` and `pub(crate)` both compile here and both give
@@ -723,15 +724,15 @@ the `pub(super)` you need to change.
 
 `pub(super)` is relative to where the item is written, not to where you wish it
 were visible. `normalise` lives in `crate::app::engine::raw`, so `super` is
-`crate::app::engine`, and the item is visible in that module and its descendants
-— `raw` and anything else under `engine`. `api` is a sibling of `engine`, one
-level up and back down, so it is outside that set.
+`crate::app::engine`, and the item is visible in that module and its
+descendants, meaning `raw` and anything else under `engine`. `api` is a sibling
+of `engine`, one level up and back down, so it is outside that set.
 
 `engine` being private is fine, incidentally: private means visible in `app` and
 below, and `api` is below `app`.
 
 @diagnose E0742
-The path in `pub(in path)` has to name an **ancestor** of the item — a module the
+The path in `pub(in path)` has to name an **ancestor** of the item, a module the
 item is actually inside. `pub(in crate::app::api)` is rejected because `raw` is
 not inside `api`. Visibility can only ever be widened to a module that already
 contains you; you cannot grant a specific sibling access and nobody else.
@@ -748,7 +749,7 @@ Five visibilities, from narrowest to widest:
 | `pub` | everywhere, including other crates |
 
 In practice `pub(crate)` does ninety per cent of the work and is the one habit
-worth forming — it says *shared plumbing, not a promise*, and it keeps the item
+worth forming. It says *shared plumbing, not a promise*, and it keeps the item
 out of your published API. `pub(in path)` is rare and precise, and it is the
 right tool when a subsystem has real internals it wants to share among its own
 modules only.

@@ -60,8 +60,8 @@ ternary operator, because `if` already is one.
 let size = if bytes > 1024 { "large" } else { "small" };
 ```
 
-Both arms must have the same type, and an `else` is required — without one the
-`else` path would have no value to produce.
+Both arms must have the same type, and an `else` is required. Without one there
+is a path through the code with no value to produce.
 
 :::gotcha
 A stray semicolon changes the type of a branch to `()`:
@@ -101,7 +101,7 @@ whole `loop` expression is the type all its `break`s agree on.
 :::note
 `break value` works in `loop` only. A `while` or `for` can also end by its
 condition going false, and there is no value the compiler could produce on that
-path — so `break` there takes no argument. Trying anyway is `error[E0571]`.
+path, so `break` there takes no argument. Trying anyway is `error[E0571]`.
 :::
 
 `loop` also beats `while true`, and not on style. A `loop` with no `break`
@@ -171,10 +171,10 @@ for i in 0..3  { }   // 0 1 2
 for i in 0..=3 { }   // 0 1 2 3
 ```
 
-The **half-open range** is the default for a reason worth stating once: `a..b` always has
-length `b - a`, adjacent ranges join without an overlap or a gap, and
-`0..v.len()` is exactly the set of valid indices. Off-by-one errors have nowhere
-to hide.
+The **half-open range** is the default for a reason worth stating once. `a..b`
+always has length `b - a`, adjacent ranges join with neither overlap nor gap,
+and `0..v.len()` is exactly the set of valid indices. Off-by-one errors have
+nowhere to hide.
 
 `..=` earns its place at the top of the integer range, where `0..=u8::MAX` is
 writable and `0..u8::MAX + 1` overflows.
@@ -189,7 +189,7 @@ iterated.
 | `a..b` | `Range` | yes | yes |
 | `a..=b` | `RangeInclusive` | yes | yes |
 | `a..` | `RangeFrom` | yes | yes |
-| `..b` | `RangeTo` | no — no start to count from | yes |
+| `..b` | `RangeTo` | no: there is no start to count from | yes |
 | `..` | `RangeFull` | no | yes |
 
 ```rust
@@ -200,15 +200,15 @@ for i in (1..=5).rev() { }
 :::gotcha
 `RangeInclusive` is not just `Range` with a different comparison. It carries an
 extra `bool` to remember whether it has already yielded `end`, because otherwise
-`0..=u8::MAX` could never terminate — the counter would wrap. That flag is a
+`0..=u8::MAX` could never terminate: the counter would wrap. That flag is a
 real branch in the loop. Prefer `..` unless you mean `..=`.
 :::
 
 :::gotcha
 `for i in 0..v.len()` followed by `v[i]` works and is almost always the wrong
-shape. `for x in &v` cannot go out of range, does not repeat the bounds check
-the indexing does, and reads better. Reach for the index only when you actually
-need the number.
+shape. `for x in &v` stays in range by construction, skips the bounds check that
+indexing performs on every pass, and reads better. Reach for the index only when
+you actually need the number.
 :::
 
 ## Escaping nesting
@@ -250,8 +250,8 @@ the destination is always the end of something you are already inside.
 
 ### Labelled blocks, and `break` with a value
 
-Labels also carry values, and since Rust 1.65 a plain block can be labelled —
-which gives you an early exit from a stretch of code that is not a loop at all.
+Labels also carry values, and since Rust 1.65 a plain block can be labelled.
+That buys you an early exit from a stretch of code that is not a loop at all.
 
 ```rust
 let index = 'search: {
@@ -278,7 +278,7 @@ while let Some(top) = stack.pop() {
 }
 ```
 
-The condition here is not a `bool` — it is whether the pattern matched. The
+The condition here is not a `bool`. It is whether the pattern matched. The
 desugaring says it plainly:
 
 ```rust
@@ -299,7 +299,7 @@ The scrutinee is re-evaluated every pass, and nothing forces it to make progress
 
 ```rust,bad
 while let Some(first) = queue.first() {
-    handle(first);            // never removes anything — this runs forever
+    handle(first);            // never removes anything, so this runs forever
 }
 ```
 
@@ -311,16 +311,17 @@ is a `for` loop written the long way. Use `for`.
 
 ### No fallthrough, and order matters
 
-A `match` arm ends at its comma. There is no fallthrough, so there is no `break`
-to forget — the C bug where one missing `break` silently runs the next case is
-not expressible.
+A `match` arm ends at its comma. Nothing falls through into the next arm, so
+there is no `break` to forget: the C bug where one missing `break` silently runs
+the next case cannot be written here.
 
 Arms are tried top to bottom, so a broad pattern above a narrow one swallows it.
 `rustc` warns with `unreachable pattern` when it can prove that has happened.
 
 ### Guards
 
-An arm can carry an `if` that runs after the pattern matches — a **match guard**.
+An arm can carry an `if` that runs after the pattern matches. That is a
+**match guard**.
 
 ```rust
 let action = match retries {
@@ -368,7 +369,7 @@ let label = match body.len() {
 ```
 
 Without it the choice is to lose the value or to repeat the test inside the arm.
-It nests, too — `Message { code: c @ 400..=499, .. }` matches a client error and
+It nests, too: `Message { code: c @ 400..=499, .. }` matches a client error and
 hands you the code.
 
 ## `if let` and `let else`
@@ -421,10 +422,10 @@ the rest of the function**, where an `if let`'s binding is trapped in its block.
 Failure handling moves to the left margin and the happy path runs straight down.
 
 :::note
-The `else` block of a `let ... else` must **diverge** — `return`, `break`,
-`continue`, or a `panic!`. Its type is `!`. It cannot fall through, because
-there would be no value to bind, and that is checked: an `else` block that
-returns normally is `error[E0308]`.
+The `else` block of a `let ... else` must **diverge**: `return`, `break`,
+`continue`, or a `panic!`. Its type is `!`. Falling through is forbidden because
+there would be no value to bind, and the compiler checks it. An `else` block
+that returns normally is `error[E0308]`.
 :::
 
 Which to reach for:

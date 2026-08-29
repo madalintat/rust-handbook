@@ -5,7 +5,7 @@ title: Closures
 accent: plum
 concepts: closure, capture, Fn, FnMut, FnOnce, move, disjoint capture, function pointer
 needs: 05-ownership, 06-borrowing, 13-generics, 14-traits
-blurb: An anonymous function plus a struct holding what it captured — which is the one fact that explains the three traits, the move keyword and why every closure has a different type.
+blurb: An anonymous function plus a struct holding what it captured. That one fact explains the three traits, the move keyword and why every closure has a different type.
 ---
 
 %% A closure looks like a function literal, and that framing explains none of its behaviour. Why can this one be called twice and that one only once? Why does `move` change the type? Why can two closures with identical bodies not go in the same `Vec`?
@@ -38,14 +38,14 @@ scale.call(5);
 
 A struct with one field per captured variable, and a method carrying the body.
 The `Fn` traits are the real version of that `call`, with the receiver chosen by
-what the body does — which is the next section.
+what the body does, which is the next section.
 
 :::memory a closure is its captures
        STACK
      ┌─────────────────────────┐
 scale│ factor   ●──────────────┼──▶ 3     (the i32 it captured)
      └─────────────────────────┘
-     8 bytes — one captured reference
+     8 bytes: one captured reference
 
      A closure capturing nothing is a ZERO-sized value.
      `|x: i32| x * 2` occupies no memory at all.
@@ -56,12 +56,12 @@ usually zero or one word, the call is a direct call, and the optimiser inlines
 it away.
 
 :::compare
-**Python / JavaScript** — a closure holds a live link to the enclosing scope, so
+**Python / JavaScript**: a closure holds a live link to the enclosing scope, so
 mutating the variable afterwards changes what the closure sees. Rust captures
 *specific variables* into fields, and the borrow checker then decides whether
 that field may be a `&`, a `&mut`, or an owned value.
 
-**Java** — captured locals must be effectively final, because there is no way to
+**Java**: captured locals must be effectively final, because there is no way to
 express a shared mutable capture safely. Rust expresses it: that is `FnMut`.
 :::
 
@@ -76,7 +76,8 @@ express a shared mutable capture safely. Rust expresses it: that is `FnMut`.
 | `Fn` | `&self` | only read captures | repeatedly, from several places at once |
 
 Read the receiver column and the rules stop needing memorising. Consuming a
-field needs `self` by value, so the call destroys the closure — hence once.
+field needs `self` by value, so the call destroys the closure, which is why it
+runs once.
 Mutating a field needs `&mut self`, so the binding must be `mut` and no one else
 may hold it at the same time. Reading needs only `&self`.
 
@@ -88,15 +89,15 @@ So take the *loosest* bound your function needs. `FnOnce` accepts every closure;
 `Fn` accepts the fewest.
 :::
 
-### The compiler infers it — you do not choose
+### The compiler infers it; you do not choose
 
 ```rust
 let text = String::from("ferris");
 let mut hits = 0;
 
-let read  = || text.len();          // Fn      — reads only
-let count = || hits += 1;           // FnMut   — mutates a capture
-let eat   = || text;                // FnOnce  — moves a capture out
+let read  = || text.len();          // Fn:     reads only
+let count = || hits += 1;           // FnMut:  mutates a capture
+let eat   = || text;                // FnOnce: moves a capture out
 ```
 
 Identical syntax, three different traits. There is no keyword and no place to
@@ -120,8 +121,8 @@ The compiler captures with the least power that works: `&T` if reading is
 enough, `&mut T` if the body mutates, by value only if the body consumes.
 
 `move` overrides that: **capture everything by value.** It is not about the
-closure's traits — a `move` closure that only reads is still `Fn` — it is about
-who owns the captured data.
+closure's traits (a `move` closure that only reads is still `Fn`) but about who
+owns the captured data.
 
 ```rust,bad
 use std::thread;
@@ -129,7 +130,7 @@ use std::thread;
 fn run() {
     let name = String::from("ferris");
     thread::spawn(|| println!("{name}"));   // error[E0373]
-}                                           // name dropped — thread may still run
+}                                           // name dropped; thread may still run
 ```
 
 ```rust,good
@@ -154,7 +155,7 @@ let a = thread::spawn(move || data.len());
 let b = thread::spawn(move || data.len());   // error[E0382]: use of moved value
 ```
 
-A `&data` will not fix it either — that is `E0373` again. What both threads need
+A `&data` will not fix it either; that is `E0373` again. What both threads need
 is *shared ownership*:
 
 ```rust,good
@@ -169,8 +170,8 @@ let b = thread::spawn(move || second.iter().sum::<i32>());
 
 Each closure moves its own handle. `Arc::clone` copies a pointer and bumps an
 atomic counter; the vector is never duplicated, and it is freed when the last
-handle drops. Reach for `Rc` instead and the compiler stops you — its counter is
-a plain integer, so it is not `Send`.
+handle drops. Reach for `Rc` instead and the compiler stops you, because its
+counter is a plain integer and `Rc` is therefore not `Send`.
 :::
 
 ### Disjoint capture, since edition 2021
@@ -181,15 +182,15 @@ struct Config { name: String, retries: u32 }
 let mut cfg = Config { name: String::from("api"), retries: 0 };
 
 let mut bump = || cfg.retries += 1;   // captures cfg.retries, not cfg
-println!("{}", cfg.name);             // fine in 2021 — E0502 before it
+println!("{}", cfg.name);             // fine in 2021, E0502 before it
 bump();
 ```
 
 Editions 2015 and 2018 captured the whole `cfg`, so touching any other field was
 a borrow conflict and people wrote `let retries = &mut cfg.retries;` above the
 closure to work around it. Since 2021 the compiler captures the individual
-**places** the body mentions — **disjoint capture**. The workaround is no longer needed, and closures
-now capture strictly less than they used to.
+**places** the body mentions, which is **disjoint capture**. The workaround is
+gone, and closures now capture strictly less than they used to.
 
 ## Every closure has its own type
 
@@ -200,7 +201,7 @@ let a = |x: i32| x + 1;
 let b = |x: i32| x + 1;
 ```
 
-Same body, same signature, two distinct types — each closure expression defines a
+Same body, same signature, two distinct types. Each closure expression defines a
 fresh anonymous struct. You cannot write either type down, and they cannot go in
 one `Vec` even though they behave identically.
 
@@ -222,7 +223,7 @@ fn handlers() -> Vec<Box<dyn Fn(i32) -> i32>> {
 ```
 
 `impl Fn` in return position means "one specific type I am not telling you". It
-cannot express a `Vec` of *different* closures — that needs the **trait object**.
+cannot express a `Vec` of *different* closures. That needs the **trait object**.
 Note the `move` in `adder`: `n` is a local, so a borrowing closure could not
 outlive the function.
 
@@ -232,7 +233,7 @@ outlive the function.
 fn double(x: i32) -> i32 { x * 2 }
 
 let f: fn(i32) -> i32 = double;        // ok
-let g: fn(i32) -> i32 = |x| x * 2;     // ok — captures nothing
+let g: fn(i32) -> i32 = |x| x * 2;     // ok: captures nothing
 let n = 2;
 let h: fn(i32) -> i32 = |x| x * n;     // error[E0308]: expected fn pointer
 ```

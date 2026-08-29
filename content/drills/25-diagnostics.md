@@ -14,14 +14,14 @@ In a rustc diagnostic, what does a `----` underline mark?
 ```
 
 - A. A less serious version of the same problem
-- *B. A secondary span — another place that participates in the error
+- *B. A secondary span: another place that participates in the error
 - C. A suggested replacement for that line
 - D. A warning attached to the error
 
 @why
 `^^^^` is the **primary span**: where the compiler gave up. `----` marks
 **secondary spans**: the other facts that made giving up necessary. Here `push`
-carries the carets, but `push` is not wrong — it is wrong *given* the borrow on
+carries the carets, but `push` is not wrong. It is wrong *given* the borrow on
 line 3.
 
 C is the tempting one because rustc does sometimes print suggested lines with
@@ -51,8 +51,8 @@ What is actually wrong?
 - D. `push` requires the vector to be behind a reference
 
 @why
-`push` takes `&mut self`, so calling it requires a unique borrow of `v` — and
-you can only take `&mut` from a binding declared `mut`. The primary span is on
+`push` takes `&mut self`, so calling it requires a unique borrow of `v`, and you
+can only take `&mut` from a binding declared `mut`. The primary span is on
 `v`, not on `push`, because the binding is the thing lacking permission.
 
 Note that mutability is a property of the **binding**, not the type. Nothing
@@ -82,8 +82,8 @@ Which reading is correct?
 
 @why
 A borrow is permission to look, not to dismantle. Moving `name` out would leave
-the caller's `User` with a hole in it — a partially destroyed value the caller
-still owns — so it is forbidden through any `&T`.
+the caller's `User` with a hole in it, a partially destroyed value the caller
+still owns, so it is forbidden through any `&T`.
 
 The `help:` offers `.clone()`, which compiles and is sometimes right. But three
 other answers exist and are often better: return `&str` instead of `String`,
@@ -115,7 +115,7 @@ Which marker tells you *why* the borrow was still required?
 @why
 The `later used here` label is the one that closes the argument. Without a use
 after the block, the borrow would already be dead when `s` dropped and there
-would be no error at all — borrows end at their last use, not at a closing brace.
+would be no error at all. Borrows end at their last use, not at a closing brace.
 
 C is the tempting answer because it names the moment of conflict. It is real
 evidence, but it only matters *because* of line 7. In every borrow diagnostic,
@@ -142,8 +142,8 @@ Why does the arrow point at `0` rather than at `"big"`?
 
 @why
 An `if` is an expression, so both arms must have one type. rustc types the first
-arm, records `&str` as the expectation — that is the `expected because of this`
-secondary — and then reports the first arm that does not match.
+arm and records `&str` as the expectation, which is what the `expected because
+of this` secondary marks, then reports the first arm that does not match.
 
 Which means the arrow location is about *order*, not about blame. Swap the arms
 and the error moves to `"big"`. This is the general shape of E0308: the
@@ -192,8 +192,8 @@ them. D is the quiet fourth: `.iter()` gives you `&T`, not `T`, and a method
 taking `self` will not be found on a reference.
 
 B is the one that catches everyone once. `write!(f, "hi")` on a `File` fails
-with E0599 until `use std::io::Write;` is at the top — the trait was always
-implemented, you just had not imported the vocabulary to name it.
+with E0599 until `use std::io::Write;` is at the top. The trait was always
+implemented; you had simply not imported the vocabulary to name it.
 
 E describes E0624, a different code. Privacy errors say "private", not "not
 found".
@@ -215,7 +215,7 @@ error[E0599]: no method named `push` found for type `i32`
 
 - *A. The E0308, because the E0599 is probably a consequence of it
 - B. The E0599, because it is nearer the code you last edited
-- C. Either — they are independent
+- C. Either; they are independent
 - D. The last one, since the compiler reports the deepest problem last
 
 @why
@@ -241,7 +241,7 @@ error[E0106]: missing lifetime specifier
 
 What is the compiler actually asking for?
 
-- A. Syntax — it just needs a `'a` written somewhere
+- A. Syntax; it just needs a `'a` written somewhere
 - *B. A decision about which input the returned reference borrows from
 - C. Proof that both arguments outlive the function call
 - D. `String` instead of `&str`, since references cannot be returned
@@ -283,8 +283,8 @@ Nothing crashes. The file simply is not created, the program continues as if it
 were, and the failure surfaces somewhere unrelated much later. `unused_must_use`
 is a genuine bug class, not style, which is why `Result` carries `#[must_use]`.
 
-The same trap hides in `writeln!` and `flush`, both of which return `Result` —
-dropping those is how data fails to reach disk.
+The same trap hides in `writeln!` and `flush`, both of which return `Result`.
+Dropping those is how data fails to reach disk.
 
 Note that the `help:` here suggests `let _ = File::create("x");`. That silences
 the warning by *asserting* you meant to ignore it, which is a legitimate answer
@@ -300,7 +300,7 @@ What is the difference between `note:` and `help:` in a diagnostic?
 - D. They are interchangeable labels for the same thing
 
 @why
-`note:` is always true and asks nothing of you — `move occurs because s has type
+`note:` is always true and asks nothing of you: `move occurs because s has type
 String, which does not implement Copy`, or `required by a bound in collect`. The
 real explanation lives there.
 
@@ -323,7 +323,7 @@ note: the unit struct `Conn` is defined here
 
 What does this tell you that E0433 would not?
 
-- *A. The item exists and the path is correct — only visibility is blocking you
+- *A. The item exists and the path is correct, so only visibility is blocking you
 - B. The module `net` does not exist
 - C. `Conn` needs to be constructed with `Conn {}`
 - D. You are missing a `use` statement
@@ -333,7 +333,7 @@ E0603 is good news disguised as an error: the name resolved. The compiler found
 exactly the item you meant, and the `note:` even points at its definition. One
 `pub` fixes it.
 
-E0433 is the different failure — the path did not resolve at all, which means a
+E0433 is the different failure. The path did not resolve at all, which means a
 wrong module, a missing crate, or a typo. Distinguishing the two saves real time:
 E0603 says "add `pub`", E0433 says "you are looking in the wrong place".
 
@@ -348,7 +348,7 @@ diagnostic is most likely to explain it?
 - D. The `For more information` footer
 
 @why
-`required by a bound in ...` names *who* wanted the trait — usually a library
+`required by a bound in ...` names *who* wanted the trait, usually a library
 function several layers below your code. Without it you know a bound failed but
 not which call imposed it; with it, the requirement has an address you can go
 and read.
@@ -369,8 +369,8 @@ You hit an error code you have never seen. What is the highest-value first move?
 
 @why
 C is the method and D is the reference. `rustc --explain E0507` prints a minimal
-broken example, a fixed one, and the rule — offline, instant, and better written
-than most of what a search returns.
+broken example, a fixed one, and the rule, offline and instant and better
+written than most of what a search returns.
 
 B is the habit this unit exists to break. It works often enough to feel like a
 technique and teaches you nothing, and when the suggestion is `.clone()` it
@@ -384,7 +384,7 @@ with the same code, which is a slower path than the two the compiler ships with.
 Why is `#![deny(warnings)]` a bad idea in a published crate?
 
 - A. It makes compilation significantly slower
-- *B. New rustc releases add lints, so code that built in April fails in July — for everyone depending on you
+- *B. New rustc releases add lints, so code that built in April fails in July, for everyone depending on you
 - C. It disables Clippy
 - D. It is ignored by cargo anyway
 
@@ -395,6 +395,6 @@ nothing about their program having changed and no fix available to them.
 
 Put `-D warnings` in CI instead: identical enforcement on your own machines,
 failing your build rather than theirs. The same instinct applies to
-`#[allow(...)]` — prefer the narrowest scope that works, on the item rather than
+`#[allow(...)]`: prefer the narrowest scope that works, on the item rather than
 the crate, with a comment saying why. A crate-wide `allow` hides the next real
 one.

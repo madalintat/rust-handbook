@@ -13,9 +13,9 @@ struct Node {
 }
 ```
 
-- A. Yes — `Option` makes the recursion finite
-- *B. No — `Node` would have infinite size
-- C. No — a struct cannot name itself at all
+- A. Yes, `Option` makes the recursion finite
+- *B. No, `Node` would have infinite size
+- C. No, a struct cannot name itself at all
 - D. Yes, but only with `#[repr(C)]`
 
 @why
@@ -24,7 +24,7 @@ struct Node {
 `size_of::<Node>()`. No fixed point.
 
 A is the tempting one, because `Option` genuinely does terminate the *recursion
-at run time* — a chain ends with `None`. But size is a compile-time question
+at run time*: a chain ends with `None`. But size is a compile-time question
 about the type, not a run-time question about a particular value, and the type
 can nest arbitrarily deep. `Option<Box<Node>>` fixes it: eight bytes, whatever is
 at the far end.
@@ -33,10 +33,10 @@ at the far end.
 
 How large is `Option<Box<i32>>` on a 64-bit machine?
 
-- A. 16 bytes — the pointer plus a discriminant
+- A. 16 bytes: the pointer plus a discriminant
 - *B. 8 bytes
 - C. 12 bytes
-- D. 4 bytes — just the `i32`
+- D. 4 bytes: just the `i32`
 
 @why
 Eight. A `Box` is guaranteed never to be null, so the compiler uses the
@@ -76,7 +76,7 @@ What does `x.drop()` do?
 - A. Runs the destructor immediately
 - B. Runs the destructor and marks `x` moved
 - *C. It does not compile
-- D. Nothing — `Drop::drop` takes `&mut self`, so it is a no-op
+- D. Nothing, `Drop::drop` takes `&mut self`, so it is a no-op
 
 @why
 `error[E0040]: explicit use of destructor method`. If it were allowed, the
@@ -85,7 +85,7 @@ destructor would run at that line *and* again when `x` went out of scope, becaus
 there is not one.
 
 D is a sharp guess and gets the signature right for the wrong conclusion. Use
-`drop(x)`, which is a free function whose entire body is empty — it works because
+`drop(x)`, which is a free function whose entire body is empty. It works because
 it takes `x` **by value**, so the move does all the work and the destructor runs
 when the parameter falls out of scope.
 
@@ -117,8 +117,8 @@ shared.push(4);
 ```
 
 - A. Yes
-- *B. No — `Rc` does not implement `DerefMut`
-- C. No — `Vec` cannot go inside an `Rc`
+- *B. No, `Rc` does not implement `DerefMut`
+- C. No, `Vec` cannot go inside an `Rc`
 - D. Yes, but only if `shared` is `mut`
 
 @why
@@ -143,13 +143,13 @@ let b = c.borrow_mut();
 
 - A. It does not compile
 - *B. It compiles and panics at run time
-- C. It compiles and works — `RefCell` allows this
+- C. It compiles and works: `RefCell` allows this
 - D. Undefined behaviour
 
 @why
 `panicked at 'already mutably borrowed: BorrowMutError'`. `RefCell` enforces the
-same rule as the borrow checker — many shared or one unique — using a counter it
-checks while the program runs.
+same rule as the borrow checker (any number of shared, or exactly one unique)
+using a counter it checks while the program runs.
 
 A is the answer for `&mut` (`E0499`), and the difference is the whole trade
 `RefCell` makes. D is the C++ answer, and it is what `RefCell` is designed to
@@ -172,7 +172,7 @@ let cache: RefCell<HashMap<&str, u32>> = RefCell::new(HashMap::new());
 
 @why
 A. The `Ref` guard from `cache.borrow()` is an unnamed temporary, and a temporary
-in a `match` scrutinee lives for the **whole match**, arms included — because an
+in a `match` scrutinee lives for the **whole match**, arms included, because an
 arm might be matching on a reference into it. So the shared borrow is still
 counted when the `None` arm asks for the unique one.
 
@@ -192,12 +192,12 @@ Why is `Rc<T>` rejected by `thread::spawn`?
 @why
 `Rc<T>` is not `Send`. The strong count is a plain `usize` incremented with an
 ordinary add, so two threads can read the same value, both add one, and both
-write back — one increment lost. The count then hits zero with a live handle
+write back, and one increment is lost. The count then hits zero with a live handle
 still out, and the survivor holds a dangling pointer.
 
 A is close but names the wrong hazard: `Rc` hands out `&T` only, so the *data* is
 never mutated. It is the bookkeeping that races. `Arc` is the identical type with
-`fetch_add`, and you pay for the atomics — which is why both exist.
+`fetch_add`, and you pay for the atomics, which is why both exist.
 
 ## 10
 
@@ -216,7 +216,7 @@ price is that it works only for `Copy` types, plus whole-value `replace` and
 
 C is wrong in a way worth internalising: neither is `Sync`. Both are
 single-threaded interior mutability. For a counter or a flag behind `&self`,
-`Cell` beats `RefCell` on every axis — reach for `RefCell` only when you need a
+`Cell` beats `RefCell` on every axis. Reach for `RefCell` only when you need a
 reference to the inside.
 
 ## 11
@@ -224,7 +224,7 @@ reference to the inside.
 Two `Rc` nodes hold handles to each other. What happens when both local bindings
 go out of scope?
 
-- A. Both are freed — the compiler notices the cycle
+- A. Both are freed: the compiler notices the cycle
 - B. The program panics
 - *C. Both counts fall to 1 and neither is ever freed
 - D. It is undefined behaviour
@@ -234,7 +234,7 @@ Each node's count drops by one as its local handle goes, from 2 to 1. The handle
 held by the *other* node keeps each above zero, and neither is reachable to drop
 it. Both allocations leak.
 
-A is what a tracing garbage collector would do — it starts from the roots and
+A is what a tracing garbage collector would do: it starts from the roots and
 would find both unreachable. Reference counting cannot: it only ever sees local
 increments and decrements. This is the one way to leak memory in safe Rust, and
 it is permitted because a leak is not *unsound*: nothing dangles, nothing is
@@ -258,8 +258,8 @@ parent alive.
 C is the exact inversion and fails badly: nothing would own the children, so each
 would be freed the moment its constructor's local handle went out of scope, and
 the parent's `Weak` handles would all upgrade to `None`. A is the cycle from the
-previous drill. D cannot express it at all — `Box` is single-ownership, and a
-child cannot own a pointer back to something that owns it.
+previous drill. D cannot express it at all, because `Box` is single-ownership
+and a child cannot own a pointer back to something that owns it.
 
 ## 13
 
@@ -271,7 +271,7 @@ What does `Weak::upgrade` return?
 - D. `Result<Rc<T>, WeakError>`
 
 @why
-`Option<Rc<T>>` — `Some` while at least one strong handle still exists, `None`
+`Option<Rc<T>>`: `Some` while at least one strong handle still exists, `None`
 once the last has gone and the value has been dropped.
 
 A is what you want it to be and would be unsound: a `Weak` does not keep the
@@ -294,8 +294,9 @@ A and C. `Arc` is `Send + Sync` when its contents are, and `Mutex` makes an
 otherwise-unshareable inner type `Sync` by serialising access.
 
 D is the trap and it is a good one, because it looks like the right shape. But
-`RefCell` is `!Sync` — its borrow counter is a plain integer with the same race
-`Rc`'s count has — so `Arc<RefCell<T>>` is `!Send` and the compiler rejects it.
+`RefCell` is `!Sync`, because its borrow counter is a plain integer with the same
+race `Rc`'s count has, so `Arc<RefCell<T>>` is `!Send` and the compiler rejects
+it.
 The pairing is fixed: `Rc` with `RefCell` in one thread, `Arc` with `Mutex`
 across several.
 
@@ -311,7 +312,7 @@ Choose all that apply.
 - *E. `Box<T>`, once it exists
 
 @why
-`&T` is an address. `Cell` is the value itself with no extra state — the
+`&T` is an address. `Cell` is the value itself with no extra state, and the
 restriction to whole-value get/set is what pays for the check. And a `Box` that
 already exists is a plain pointer dereference; the allocation was paid for when
 it was made.

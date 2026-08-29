@@ -3,13 +3,15 @@
 
 The fence reader earned this file. Its first version assumed exactly three
 backticks and did a dict lookup on the info string, so an author writing about
-the format — with the ````markdown blocks that AUTHORING.md itself uses — closed
+the format, with the ````markdown blocks that AUTHORING.md itself uses, closed
 the outer fence on the first inner line, shredded the rest of the section, and
 then crashed the whole build on a KeyError. Two authors hit it independently.
 
     python3 test_build.py
 """
 
+import json
+import pathlib
 import sys
 
 import build
@@ -91,7 +93,7 @@ cases = [
     ("rust, bad",       ("rust", "bad",  "will not compile")),
     # Anything else is a label, never a lookup. These are the shapes that crashed.
     ("no_run",          ("no_run", "",   "no_run")),
-    ("no_run     compile, do not run — opens a socket", None),
+    ("no_run     compile, do not run: opens a socket", None),
     ("text",            ("text", "",     "text")),
     ("sh",              ("sh", "",       "sh")),
     ("toml",            ("toml", "",     "toml")),
@@ -142,7 +144,7 @@ ok("bullet list", h == "<ul><li>one</li><li>two</li></ul>", h)
 h = build.render("1. one\n2. two")
 ok("ordered list", h.startswith("<ol>") and h.count("<li>") == 2, h)
 
-# Authors write real — and → characters; build.py used to substitute ASCII
+# build.py used to substitute ASCII
 # lookalikes, but the arrow rule was dead code (escaping ran first, so `->` was
 # already `-&gt;` and never matched) and the dash rule fired on three instances
 # against 511 real em dashes. Both removed. Text now passes through verbatim.
@@ -153,8 +155,8 @@ h = build.render("An arrow -> and a dash -- here.")
 ok("no arrow substitution in prose", "&rarr;" not in h, h)
 ok("no dash substitution in prose", "&mdash;" not in h, h)
 
-h = build.render("A real em dash — and arrow → survive.")
-ok("real unicode punctuation survives", "—" in h and "→" in h, h)
+h = build.render("An arrow \u2192 and an ellipsis \u2026 survive.")
+ok("real unicode punctuation survives", "\u2192" in h and "\u2026" in h, h)
 
 seen, toc = {}, []
 build.render("## One\n\n## One", seen, toc)
@@ -216,7 +218,7 @@ ok("both hints", ex["hints"] == ["first", "second"], repr(ex["hints"]))
 ok("brief keeps its own fence", "let hint = 1;" in ex["brief"], ex["brief"][:120])
 
 # Regression: a fence inside @diagnose used to be handled before the sink was
-# consulted, so it landed in the brief — giving the answer away up front.
+# consulted, so it landed in the brief, giving the answer away up front.
 ok("fence inside @diagnose stays in the diagnose",
    "let inside_diagnose = 2;" in ex["diagnose"]["E0382"], ex["diagnose"]["E0382"][:160])
 ok("fence inside @diagnose does NOT leak into the brief",
@@ -225,6 +227,41 @@ ok("fence inside @after stays in after",
    "let inside_after = 3;" in ex["after"], ex["after"][:160])
 ok("fence inside @after does NOT leak into the brief",
    "let inside_after" not in ex["brief"], ex["brief"][:160])
+
+print("--- the cache covers an item only while its key matches ---")
+# Regression: the carry-forward asked "is there an entry for this ref", while
+# validate() asked "does the entry's key still match". An exercise edited since
+# the last run therefore counted as validated and replayed a stale finding.
+import tempfile
+
+_EX = {"starter": "a", "tests": "t", "solution": "s", "kind": "fix",
+       "expect": {"code": "E0382"}, "diagnose": {"E0382": "x"}}
+_items = {"u": [dict(_EX, n=1)]}
+_real_cache = build.CACHE
+
+with tempfile.TemporaryDirectory() as _d:
+    build.CACHE = pathlib.Path(_d) / "c.json"
+
+    _, fresh, stale = build.cache_split(_items)
+    ok("with no cache, nothing is fresh", not fresh and stale == {"u#1"}, f"{fresh} {stale}")
+
+    build.CACHE.write_text(json.dumps(
+        {"u#1": {"key": build.cache_key(_items["u"][0]), "findings": []}}))
+    _, fresh, stale = build.cache_split(_items)
+    ok("a matching key is fresh", fresh == {"u#1"} and not stale, f"{fresh} {stale}")
+
+    # the same ref, but the starter has changed underneath it
+    _, fresh, stale = build.cache_split({"u": [dict(_EX, n=1, starter="a2")]})
+    ok("an edited starter is stale, not fresh", stale == {"u#1"} and not fresh,
+       f"{fresh} {stale}")
+
+    build.CACHE.write_text(json.dumps({"u#1": {"key": "nope", "findings": []}}))
+    _, fresh, stale = build.cache_split(_items)
+    ok("an entry with a wrong key is stale", stale == {"u#1"}, f"{fresh} {stale}")
+
+build.CACHE = _real_cache
+ok("ref_of is the one spelling", build.ref_of("u", {"n": 3}) == "u#3",
+   build.ref_of("u", {"n": 3}))
 
 print("--- @expect forms ---")
 mk = lambda v: build.parse_exercise(("1. t", f"@expect {v}\n\nbrief\n"), 1)["expect"]

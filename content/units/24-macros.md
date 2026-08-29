@@ -5,10 +5,10 @@ title: Macros
 accent: plum
 concepts: macro, macro_rules, fragment specifier, metavariable, repetition, hygiene, recursion, macro_export, procedural macro, token stream, cargo expand
 needs: 09-enums, 13-generics, 14-traits
-blurb: Code that runs on syntax before the types exist, which is why it can do three things a function cannot — and why it is almost never the right answer.
+blurb: Code that runs on syntax before the types exist. That is why it can do four things no function can, and why it is almost never the right answer.
 ---
 
-%% A function takes values. A generic takes types. A **macro** takes *syntax* — a sequence of tokens, matched and rewritten before the compiler has decided what any of it means. That is the whole difference, and every capability and every hazard follows from it.
+%% A function takes values. A generic takes types. A **macro** takes *syntax*: a sequence of tokens, matched and rewritten before the compiler has decided what any of it means. That is the whole difference, and every capability and every hazard follows from it.
 
 `println!` takes any number of arguments of any types and checks its format string at compile time. No function signature in Rust can express that. This is what macros are for, and the list of things they are for is short.
 
@@ -39,13 +39,13 @@ anything. It matches shapes.
 Everything downstream then runs on the *output*, which is why a macro that
 generates nonsense gives you an error pointing at code you never wrote.
 
-### The three things a function cannot do
+### The four things a function cannot do
 
 | | function | macro |
 |---|---|---|
 | variable number of arguments | no | `println!("{} {}", a, b)` |
 | take a type as an argument | only as a generic parameter | `vec![0u8; 64]`, `matches!(x, Some(_))` |
-| generate items — fns, structs, impls | no | `#[derive(Debug)]`, `bitflags! { ... }` |
+| generate items (fns, structs, impls) | no | `#[derive(Debug)]`, `bitflags! { ... }` |
 | see the source text of its arguments | no | `stringify!(a + b)` → `"a + b"` |
 
 Those four rows are the entire justification. If your problem is not one of
@@ -70,7 +70,7 @@ The left of `=>` is the **matcher**, a pattern over tokens. `$x:expr` is a
 The right is the **transcriber**, the tokens to emit with `$x` substituted.
 
 :::compare
-**C** — `#define SQUARE(x) x * x` expands `SQUARE(3 + 1)` to `3 + 1 * 3 + 1`,
+**C.** `#define SQUARE(x) x * x` expands `SQUARE(3 + 1)` to `3 + 1 * 3 + 1`,
 which is 7. C macros paste text, so everyone learns to write
 `((x) * (x))` and to fear the day they forget.
 
@@ -91,11 +91,11 @@ change how anything around it groups.
 | `block` | a braced block | `{ n += 1; }` |
 | `stmt` | one statement, no trailing `;` | `let x = 1` |
 | `path` | one path | `std::io::Result` |
-| `tt` | one **token tree** — any token, or a whole bracketed group | anything at all |
+| `tt` | one **token tree**: any token, or a whole bracketed group | anything at all |
 
 The opacity that fixes the C bug is also the trap. An `expr` fragment can be
-used where an expression goes and nowhere else — you cannot then match inside
-it, and you cannot put it in type position.
+used where an expression goes and nowhere else. You cannot match inside it
+afterwards, and you cannot put it in type position.
 
 :::gotcha
 Choosing the wrong specifier gives an error that looks like it is about your
@@ -118,7 +118,7 @@ fragments; only `ty` may be used as a type.
 
 `tt` is the escape hatch. It matches one token tree and stays inspectable, which
 is what recursive munching macros consume. It also matches almost anything, so
-it gives you the worst error messages — reach for a precise specifier first.
+it gives you the worst error messages. Reach for a precise specifier first.
 
 ## Repetition
 
@@ -144,7 +144,7 @@ times". In the transcriber, `$( ... )*` repeats the body once per match, and
 | `$(...),+` | **one** or more, comma separated |
 | `$(...);*` | zero or more, semicolon separated |
 | `$(...)*` | zero or more, no separator |
-| `$(,)?` | optional trailing comma — add this to every list macro |
+| `$(,)?` | optional trailing comma; add this to every list macro |
 
 The double braces in `{{ ... }}` are worth a look. The outer pair delimits the
 transcriber; the inner pair is a real block, which is what lets the expansion be
@@ -202,16 +202,16 @@ macro_rules! bump {
 }
 
 let mut count = 0;
-bump!(count);         // fine — `count` came from here
+bump!(count);         // fine: `count` came from here
 count += 0;           // and it is still the same `count`
 ```
 
 That is the design: the caller decides which of its names the macro may touch,
-by naming them. Nothing leaks by accident, and nothing is captured by accident.
+by naming them. Anything it does not hand over stays its own.
 
 :::gotcha
 Hygiene in `macro_rules!` covers local variables and lifetimes. It does **not**
-cover types, functions, modules or statics — a macro body naming `Vec` gets
+cover types, functions, modules or statics. A macro body naming `Vec` gets
 whatever `Vec` means at the call site, which is why generated code writes
 `::std::vec::Vec` and `$crate::my_helper` rather than bare paths.
 :::
@@ -235,13 +235,14 @@ let m = max_of!(3, 17, 8, 2);   // 17
 
 Rules are tried top to bottom, first match wins, so the base case goes first
 here only because it cannot match a longer list. Each expansion peels one
-element and re-invokes with the rest — the same shape as a recursive function,
-except it runs in the compiler and leaves a fully unrolled expression behind.
+element and re-invokes with the rest. The shape is a recursive function's,
+except that it runs inside the compiler and leaves a fully unrolled expression
+behind.
 
 The cost is real: expansion is not free, and deep recursion is slow to compile.
 The limit is 128 nested expansions by default, and hitting it produces
 `recursion limit reached while expanding`. You can raise it with
-`#![recursion_limit = "256"]` at the crate root — but hitting it usually means
+`#![recursion_limit = "256"]` at the crate root. But hitting it usually means
 the recursion should have been a repetition, or a loop in a function.
 
 ## Scope and export
@@ -264,7 +265,7 @@ use my_crate::retry;   // imported from the root, not from my_crate::internal
 
 That path is the weirdness people trip on: the module it lives in is not part of
 its path. And because the macro body is expanded at the *call* site, any path it
-mentions must resolve there — hence `$crate`, a metavariable that expands to the
+mentions must resolve there. Hence `$crate`, a metavariable that expands to the
 defining crate's root:
 
 ```rust
@@ -288,7 +289,7 @@ generated code.
 | the same behaviour over several types | a **trait** with a default method |
 | a variable number of arguments | a slice or an iterator parameter |
 | optional arguments | a builder, or `Option` parameters |
-| the same `impl` block for twenty types | a **macro** — this is the real case |
+| the same `impl` block for twenty types | a **macro**; this is the real case |
 
 The test: **if a function or a generic can do it, the macro is a worse function
 or a worse generic.** Write one when you would otherwise copy an `impl` block
@@ -301,8 +302,8 @@ The other kind, described honestly rather than demonstrated, because it cannot
 live in the same crate as its users and so cannot be shown in a playground.
 
 A **procedural macro** is an ordinary Rust function that runs at compile time,
-takes a `TokenStream`, and returns a `TokenStream`. It is arbitrary code — it can
-read files, do arithmetic, call a parser — and there are three kinds:
+takes a `TokenStream`, and returns a `TokenStream`. It is arbitrary code, free
+to read files, do arithmetic or call a parser. There are three kinds:
 
 | kind | written as | receives |
 |---|---|---|
@@ -313,9 +314,9 @@ read files, do arithmetic, call a parser — and there are three kinds:
 Three constraints matter. It must live in its own crate with
 `proc-macro = true` in `Cargo.toml`, because it is compiled for the *host* and
 linked into the compiler, not into your program. It cannot be used in the crate
-that defines it. And it sees only tokens — a derive macro cannot look up the
-definition of a type you named, which is why `serde` derives generate code that
-calls trait methods rather than inspecting anything.
+that defines it. And it sees only tokens, so a derive macro cannot look up the
+definition of a type you named. That is why `serde` derives generate code which
+calls trait methods rather than code that inspects anything.
 
 In practice nobody manipulates a `TokenStream` by hand: `syn` parses it into a
 syntax tree and `quote!` builds a new one from a template.
@@ -330,7 +331,7 @@ cargo expand path::to::it # one item
 
 This is the tool that makes all of the above tractable. An error inside a
 generated `impl` is unreadable until you can see the `impl`, and `cargo expand`
-prints exactly what the compiler parsed — `#[derive]` output included.
+prints exactly what the compiler parsed, `#[derive]` output included.
 
 :::note
 **The habit.** When a macro misbehaves, do not read the macro. Expand it, read

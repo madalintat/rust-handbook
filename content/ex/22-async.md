@@ -10,7 +10,7 @@ unit: 22-async
 @expect E0728
 
 `fetch` is async. `summary` calls it and awaits the result, and the compiler
-refuses at the `.await`. The problem is not the call — it is where you are
+refuses at the `.await`. The problem is not the call. It is where you are
 standing when you make it.
 
 ```starter
@@ -63,14 +63,14 @@ pub fn run() -> String {
 
 `.await` is not a call that blocks. It compiles into "poll this; if it is not
 ready, save my local state and return `Pending` to my caller". An ordinary `fn`
-has no saved state to return to and no way to be resumed at that point — it has
-one entry and one exit. An `async fn` is different because the compiler rewrites
+has no saved state to return to and no way to be resumed at that point: one
+entry, one exit. An `async fn` is different because the compiler rewrites
 it into a state machine with one variant per await, so there is somewhere to
 suspend *to*.
 
 Marking `summary` async also changes its type: it now returns
 `impl Future<Output = String>` rather than a `String`. That is why `run` works
-unchanged — `block_on` wanted a future all along.
+unchanged. `block_on` wanted a future all along.
 
 @after
 `block_on` is the seam between the two worlds, and every async program has one
@@ -140,7 +140,7 @@ pub fn run() -> String {
 @hint `.await` on the call.
 
 @diagnose E0308
-`expected String, found future` — or in full, `expected struct String, found
+`expected String, found future`, or in full, `expected struct String, found
 opaque type ... note: calling an async function returns a future`.
 
 This is the sentence to keep. **`async fn f() -> T` is sugar for
@@ -152,14 +152,14 @@ If you come from JavaScript this is the inversion to internalise. `const p =
 fetch(url)` has already sent the request; a promise is a handle to work already
 in flight, and `await` merely subscribes to a result that is coming regardless.
 In Rust, `let f = fetch(url)` has sent nothing at all. Drop `f` and the request
-never happens — which is also why dropping a future is how you cancel it.
+never happens, which is also why dropping a future is how you cancel it.
 
 @after
 The inertness is not an inconvenience the language works around; it is what makes
 the rest of async Rust composable. Because a future is a plain value that has not
 started, you can wrap it in a timeout, race it against another with `select!`,
-put it in a `Vec`, or hand it to a different executor — all decisions taken
-before anything runs. A JavaScript promise cannot be given a timeout in this
+put it in a `Vec`, or hand it to a different executor, all of it decided before
+anything runs. A JavaScript promise cannot be given a timeout in this
 sense, because it is already going.
 
 The one cost is the failure mode you just hit: forget the `.await` and nothing
@@ -227,9 +227,9 @@ pub fn run() -> String {
 String`, `required by the bound in await`.
 
 `.await` desugars to a loop that calls `Future::poll`, so it works on futures and
-nothing else. A `String` has no `poll`. Note this is a plain trait-bound failure
-— the same `E0277` you get from any missing impl — because `.await` has no magic
-in the type system; it is sugar over one ordinary trait.
+nothing else. A `String` has no `poll`. Note that this is a plain trait-bound
+failure, the same `E0277` you get from any missing impl, because `.await` has no
+magic in the type system. It is sugar over one ordinary trait.
 
 Two fixes exist and they say different things. Deleting the `.await` says *this
 work is synchronous*. Adding `async` to `lookup` says *this work will suspend*,
@@ -249,7 +249,7 @@ worth practising, because the two operators stack in one order only:
 let body = fetch(url).await?;
 ```
 
-`.await` first — drive the future to completion — then `?` on the `Result` it
+`.await` first, driving the future to completion, then `?` on the `Result` it
 produced. Writing `fetch(url)?.await` asks for `?` on a future, which is
 `E0277` again with a different missing trait.
 
@@ -308,7 +308,7 @@ pub fn run() -> String {
 ```
 
 @hint The error is `E0382`, so treat `f` as what it is: an ordinary non-`Copy` value.
-@hint `.await` takes the future by value. After it, there is no future left — it has been driven to completion and consumed.
+@hint `.await` takes the future by value. After it there is no future left, because it has been driven to completion and consumed.
 @hint You need two futures. Call `fetch` twice.
 
 @diagnose E0382
@@ -326,8 +326,8 @@ subscription, not a promise you can await from several places. It is a struct,
 you own it, and awaiting it eats it.
 
 @after
-The corollary is that "await the same work twice" is not a thing you do in Rust —
-you either do the work twice, or you do it once and clone the result. Where
+The corollary is that "await the same work twice" is not a thing you do in Rust.
+You either do the work twice, or you do it once and clone the result. Where
 JavaScript lets several places `await` one promise and all receive the same
 value, Rust makes you name which of those two you meant.
 
@@ -434,7 +434,7 @@ step(log.clone(), "a start", "a end").await;
 step(log.clone(), "b start", "b end").await;
 ```
 
-and the order becomes `a start, a end, b start, b end` — fully sequential, taking
+and the order becomes `a start, a end, b start, b end`: fully sequential, taking
 as long as both operations added together. `a.await; b.await;` does **not** start
 `a` and carry on. It drives `a` to completion before the second line is reached;
 `b` has not even been constructed yet.
@@ -507,7 +507,7 @@ owned by the current function`.
 Read "may" as the compiler does. You await the handle on the next line, but the
 check is on the *type*: `tokio::spawn` demands `'static`, because a spawned task
 is handed to the runtime and may still be running long after the spawning task
-has returned — that is the entire point of spawning rather than awaiting. A
+has returned. That is the entire point of spawning rather than awaiting, and a
 borrow of `data` would then be a reference into a dead frame.
 
 `async move` makes the block take ownership of every capture, so `data` moves
@@ -530,7 +530,7 @@ There is a second `Send` trap that has no error code and catches everyone once: 
 `std::sync::MutexGuard` held across an `.await` makes the whole future non-`Send`,
 because the guard becomes a field of the generated state machine. `tokio::spawn`
 then rejects it with `future cannot be sent between threads safely`. Take the
-lock, touch the data, drop the guard — before the await.
+lock, touch the data, drop the guard, all before the await.
 
 ## 7. An async function that calls itself
 
@@ -589,7 +589,7 @@ pub fn run() -> u32 {
 about a `Pin<Box<dyn Future>>`.
 
 The message is really about size. An `async fn` compiles into a state machine
-whose fields are the variables live across each suspension point — and here the
+whose fields are the variables live across each suspension point, and here the
 value live across the `.await` is the future returned by `countdown` itself. So
 `Countdown` contains a `Countdown`, which contains a `Countdown`, and the
 compiler cannot compute a size for it. It is the same infinite type as a
@@ -607,8 +607,8 @@ If the arithmetic no longer type-checks, check you awaited before adding: the
 
 @after
 That one error tells you almost everything about the representation. A future's
-size is the largest of its states, not a stack — which is why a future can be
-tens of bytes where a thread is tens of kilobytes, and why the `Vec` you declared
+size is the largest of its states rather than a stack. That is why a future can
+be tens of bytes where a thread is tens of kilobytes, and why the `Vec` you declared
 before an `.await` costs you its 24 bytes for the whole suspension while one
 declared after costs nothing until it is reached.
 
@@ -699,7 +699,7 @@ pub fn run() -> u32 {
 ```
 
 @hint Look up `Future::poll` in the standard library and copy its receiver exactly.
-@hint The receiver is not `&mut self`. It is `self: Pin<&mut Self>` — a `&mut Self` carrying a promise that the value will not move.
+@hint The receiver is not `&mut self`. It is `self: Pin<&mut Self>`, a `&mut Self` carrying a promise that the value will not move.
 @hint `fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<u32>`. The body needs no other change, because `Countdown` is `Unpin` and the field writes go through `DerefMut`.
 
 @diagnose E0053
@@ -712,7 +712,7 @@ impl has to match it exactly. The interesting question is why the standard
 library chose that receiver.
 
 An `async fn` compiles into a struct whose fields are the locals live across each
-await — and one of those locals may be a *reference to another of those fields*.
+await, and one of those locals may be a *reference to another of those fields*.
 `let row = load().await; render(&row).await;` produces a state holding both `row`
 and a future built from `&row`. That is a self-referential value: move it and the
 internal pointer still points at the old address, in safe code. `Pin<&mut T>` is
@@ -720,19 +720,19 @@ the type-level promise that the value will never move again, and `poll` demands
 it so that no future can be polled before that promise exists.
 
 @diagnose E0599
-`no method named poll found`. `Future::poll` is not an inherent method — bring
+`no method named poll found`. `Future::poll` is not an inherent method, so bring
 the trait into scope with `use std::future::Future;` before calling it, or let
 `block_on` and `.await` call it for you, which is what you normally want.
 
 @after
 `Countdown` implements `Unpin` automatically, because all its fields do, and for
-`Unpin` types `Pin` is transparent — `self.left -= 1` works through `DerefMut`
+`Unpin` types `Pin` is transparent, so `self.left -= 1` works through `DerefMut`
 without a thought. Almost every hand-written future is in this position. `Pin`
 only starts to cost you attention when the future genuinely is self-referential,
 which in practice means a compiler-generated one.
 
 The other half of a real `poll` is the waker. `wake_by_ref()` here re-queues the
-task immediately, which is a busy loop dressed up — a real future registers
+task immediately, which is a busy loop in a costume. A real future registers
 `cx.waker()` with an epoll set or a timer wheel and returns `Pending` *without*
 waking, so the task costs nothing at all until the OS says something happened.
 Return `Pending` without arranging a wake and the task simply never runs again.

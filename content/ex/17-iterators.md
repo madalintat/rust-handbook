@@ -45,7 +45,7 @@ pub fn run() -> Vec<i32> {
 }
 ```
 
-@hint Read the type rustc says it found. It is not a `Vec` and it is not a list — it is a struct.
+@hint Read the type rustc says it found. It is not a `Vec` and it is not a list. It is a struct.
 @hint Adapters are lazy. Something has to consume the chain before any work happens.
 @hint `.collect()` on the end, and the `-> Vec<i32>` return type tells it what to build.
 
@@ -58,7 +58,7 @@ it was called on, and your closure. Nothing has been doubled, because nothing
 has called `next` yet.
 
 The `Map` struct is three words on the stack. It becomes a `Vec` only when a
-consumer walks it, and `collect` is that consumer — it reads the type you asked
+consumer walks it, and `collect` is that consumer: it reads the type you asked
 for and builds it.
 
 Left as it is, this would also draw `warning: unused Map that must be used`,
@@ -114,7 +114,7 @@ pub fn run() -> (usize, i32) {
 
 @hint Nothing here needs to own the numbers. It only needs to add them up.
 @hint `into_iter` consumes; `iter` borrows and yields `&i32`.
-@hint `v.iter().sum()` — `Sum` is implemented for `&i32` as well as `i32`, so the annotation still works.
+@hint `v.iter().sum()` works because `Sum` is implemented for `&i32` as well as `i32`, so the annotation still holds.
 
 @diagnose E0382
 `borrow of moved value: v`, with `value moved here` under `v.into_iter()`.
@@ -127,9 +127,9 @@ out of it by value. When the iterator is dropped, so is the buffer.
 
 The three entry points map exactly onto ownership, with no new rules:
 
-- `v.iter()` — `&Vec<T>` in, `&T` out, `v` survives
-- `v.iter_mut()` — `&mut Vec<T>` in, `&mut T` out, `v` survives
-- `v.into_iter()` — `Vec<T>` in, `T` out, `v` is gone
+- `v.iter()`: `&Vec<T>` in, `&T` out, `v` survives
+- `v.iter_mut()`: `&mut Vec<T>` in, `&mut T` out, `v` survives
+- `v.into_iter()`: `Vec<T>` in, `T` out, `v` is gone
 
 @after
 `for x in v` is `v.into_iter()` and consumes; `for x in &v` is `v.iter()` and
@@ -188,7 +188,7 @@ pub fn run() -> (Option<char>, String) {
 `cannot borrow it as mutable, as it is not declared as mutable`.
 
 `next` is the one required method of `Iterator` and its receiver is `&mut self`,
-because advancing is *mutation* — the iterator holds a position and moves it.
+because advancing is *mutation*: the iterator holds a position and moves it.
 Calling `it.next()` therefore needs a `&mut it`, which a plain `let` binding will
 not give you.
 
@@ -201,8 +201,8 @@ The interesting part is what survives. After `it.next()` returned `'a'`, the
 iterator is still there, positioned after the first character, and `collect`
 picks up from exactly that point.
 
-The same is true of every short-circuiting consumer — `any`, `all`, `find`,
-`position` all take `&mut self` rather than `self` and stop where they stopped.
+The same is true of every short-circuiting consumer. `any`, `all`, `find` and
+`position` take `&mut self` rather than `self` and stop where they stopped.
 `it.any(|c| c == '=')` leaves you an iterator over `"1"`, the `'='` having been
 consumed by the test. That is a feature when you meant it and a genuinely
 confusing bug when you did not.
@@ -249,7 +249,7 @@ pub fn run() -> usize {
 @hint Annotate the binding: `let parts: Vec<&str> = ...`. Or write `collect::<Vec<&str>>()`.
 
 @diagnose E0282
-`type annotations needed` — and rustc points at `collect`, suggesting
+`type annotations needed`, with rustc pointing at `collect` and suggesting
 `consider giving parts an explicit type`.
 
 Inference normally flows inwards: the arguments to a call fix its result. But
@@ -265,14 +265,14 @@ code.
 
 @diagnose E0308
 You annotated the binding, but with a type that does not match what the iterator
-yields. `split(' ')` on a `&str` yields `&str`, not `String` — it hands back
+yields. `split(' ')` on a `&str` yields `&str`, not `String`. It hands back
 sub-slices of the original text, which is why splitting a string allocates
 nothing. `Vec<&str>` is the annotation you want; `Vec<String>` needs a
 `.map(String::from)` before the `collect` to pay for the allocations.
 
 @after
 The turbofish is the other spelling: `words.split(' ').collect::<Vec<&str>>()`.
-Reach for it when there is no binding to annotate — in the middle of a chain, or
+Reach for it when there is no binding to annotate: in the middle of a chain, or
 as the final expression of a function whose return type is already something
 else.
 
@@ -341,8 +341,8 @@ the pattern with `|&&x|` so `x` is a plain `i32`. The second reads better once
 you are used to it.
 
 @diagnose E0277
-`cannot multiply/compare ... ` — the same problem stated through the trait
-system. `PartialOrd<i32>` is not implemented for `&&i32`, because comparison
+`cannot multiply/compare ... `, which is the same problem stated through the
+trait system. `PartialOrd<i32>` is not implemented for `&&i32`, because comparison
 against a literal integer is defined on the integer, not on a reference to a
 reference to one. Strip the references and the impl is found.
 
@@ -353,8 +353,8 @@ two, and only unwraps once.
 
 Note the swap from `.cloned()` to `.copied()`. Both turn `&T` into `T`; `copied`
 requires `T: Copy` and is therefore free and impossible to misuse, while
-`cloned` accepts anything `Clone` and may allocate. For `i32`, prefer `copied` —
-it documents that nothing was paid for.
+`cloned` accepts anything `Clone` and may allocate. For `i32`, prefer `copied`,
+which documents that nothing was paid for.
 
 ## 6. Collect the successes, or the first failure
 
@@ -415,7 +415,7 @@ pub fn run() -> (Vec<i32>, bool) {
 Result<i32, ParseIntError>`.
 
 `collect` builds anything implementing `FromIterator<Item>`. `Vec<i32>`
-implements `FromIterator<i32>` — not `FromIterator<Result<i32, E>>` — so the
+implements `FromIterator<i32>` and not `FromIterator<Result<i32, E>>`, so the
 bound cannot be satisfied and rustc says so in exactly those words.
 
 The impl you want does exist, and it is one of the most useful things in the
@@ -435,7 +435,7 @@ annotation and letting the return type drive `collect` is the shorter fix.
 
 @after
 The short-circuit is the part people miss. On `["1", "x", "3"]`, the `"3"` is
-never parsed — `collect` sees the first `Err`, stops advancing the iterator and
+never parsed. `collect` sees the first `Err`, stops advancing the iterator and
 returns. You get the same behaviour as a hand-written loop with an early
 `return`, and you did not write the loop, the `mut` vector, or the `match`.
 
@@ -503,11 +503,11 @@ pub fn run() -> Vec<String> {
 `cannot borrow names as mutable because it is also borrowed as immutable`.
 
 `names.iter()` takes a shared borrow, and the iterator holds it for the whole
-loop — it has to, since it is pointing into the buffer. `push` needs `&mut
+loop, as it must, since it is pointing into the buffer. `push` needs `&mut
 names`. Shared and unique cannot coexist, so it is rejected.
 
 This is not bureaucracy. `push` may find the vector full, ask the allocator for a
-larger buffer, copy the elements across and free the old one — leaving the
+larger buffer, copy the elements across and free the old one. That leaves the
 iterator pointing into freed memory, mid-loop. In C++ this compiles, usually
 works, and fails the day the capacity happens to run out at that push. It has a
 name there: iterator invalidation.
@@ -524,7 +524,7 @@ list of changes while borrowing, drop the borrow, then apply them. `retain`,
 `drain` and `extend` exist so that the common cases do not need it.
 
 The laziness point is easy to miss here. The borrow does not end when `collect`
-is *written*, it ends when `collect` has *finished running* — which is also the
+is *written*. It ends when `collect` has *finished running*, which is also the
 only moment the closures ran at all. Split the chain across a `let` with no
 consumer and the borrow simply stays live in the adapter struct, waiting.
 
@@ -645,7 +645,7 @@ declared before it is used, and it is declared in the angle brackets on the item
 
 @diagnose E0207
 `the lifetime parameter 'a is not constrained by the impl trait, self type, or
-predicates`. This is what you get from `impl<'a> Iterator for Evens` — the `'a`
+predicates`. This is what you get from `impl<'a> Iterator for Evens`. The `'a`
 is declared and then never mentioned in the type being implemented for, so the
 compiler cannot tell which `'a` a given impl is about. Put it in the self type:
 `for Evens<'a>`.
@@ -659,7 +659,7 @@ it.
 Two things worth carrying forward. `Item = i32` here rather than `&'a i32`,
 because `i32` is `Copy` and copying four bytes beats an indirection. When the
 element is not `Copy`, `Item = &'a T` is the usual answer, and it must borrow
-from `'a` rather than from `&mut self` — an iterator cannot hand out references
+from `'a` rather than from `&mut self`. An iterator cannot hand out references
 into itself, which is why there is no `LendingIterator` in the standard library.
 
 And `next` never says how many elements are left. Implementing `size_hint` too

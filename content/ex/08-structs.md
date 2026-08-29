@@ -8,8 +8,8 @@ unit: 08-structs
 @concept struct
 @expect E0063
 
-A struct literal has to name every field. Not most of them, not the interesting
-ones — all of them, because a half-initialised struct is exactly the thing Rust
+A struct literal has to name every field: not most of them, not the interesting
+ones, but all of them. A half-initialised struct is exactly the thing Rust
 refuses to let exist.
 
 Give `retries` the value the test expects.
@@ -82,8 +82,8 @@ every method has to defend against them.
 
 Rust's position is that a type should not be able to represent a value that makes
 no sense. Requiring every field is the cheapest instance of that idea. `Option<T>`
-for a genuinely absent field is the next one — and it is honest, because then the
-absence is in the type and every reader can see it.
+for a genuinely absent field is the next one, and it is honest: the absence
+lives in the type, where every reader can see it.
 
 ## 2. The method that cannot count
 
@@ -159,7 +159,7 @@ pub fn run() -> u32 {
 
 @hint The receiver of a method says what the method is allowed to do to the value.
 @hint `&self` reads. There is a second form for writing.
-@hint `pub fn bump(&mut self)`. The call sites do not change — `c` is already `mut`.
+@hint `pub fn bump(&mut self)`. The call sites do not change, since `c` is already `mut`.
 
 @diagnose E0594
 `cannot assign to `self.n`, which is behind a `&` reference`, followed by the
@@ -171,21 +171,21 @@ through one were allowed, two of them could write at the same moment, which is
 the data race the borrow rules exist to make impossible. So the permission has to
 be requested in the type, and `&mut self` is how a method requests it.
 
-Note that the compiler points at the assignment, not at the signature — but the
-signature is where the fix goes. The body is a correct statement of what the
+Note that the compiler points at the assignment rather than at the signature.
+The signature is where the fix goes. The body is a correct statement of what the
 method wants to do; it is the declared permission that is too narrow.
 
 @diagnose E0596
 Once `bump` takes `&mut self`, calling it needs a mutable borrow of `c`, which
 needs `c` to be declared `mut`. It already is here. If you see this error you have
-probably dropped the `mut` from `let mut c` — a binding is immutable by default,
-and `&mut` cannot be taken from one.
+probably dropped the `mut` from `let mut c`. A binding is immutable by default,
+and you cannot take `&mut` from one.
 
 @after
 `new()` returning `Self` and taking no receiver is an **associated function**: no
 `self` parameter, called with `::` rather than `.`. Nothing in the language knows
-the name `new`; it is a convention, and a type may have several constructors —
-`Vec::new`, `Vec::with_capacity`, `Vec::from`.
+the name `new`; it is a convention, and a type may have several
+constructors, such as `Vec::new`, `Vec::with_capacity` and `Vec::from`.
 
 Worth knowing for later: a `Counter` that increments through a `&self` is not
 impossible, just explicit. `Cell<u32>` and `RefCell<T>` provide **interior
@@ -202,7 +202,7 @@ static rule is stricter than your program needs.
 calling it consumes the rectangle, so the second use in `run` has nothing left to
 work with.
 
-Fix `area`. Leave `scaled` exactly as it is — it consumes on purpose, and the
+Fix `area`. Leave `scaled` exactly as it is: it consumes on purpose, and the
 order of the calls means that is fine.
 
 ```starter
@@ -268,7 +268,7 @@ pub fn run() -> (u32, u32) {
 
 @hint `area` multiplies two numbers out of the struct. Does it need to own it to do that?
 @hint A method taking `self` by value is saying "give me the value, you will not need it again". That is a strong claim for a getter.
-@hint `pub fn area(&self) -> u32`. The body does not change — field access works the same through a reference.
+@hint `pub fn area(&self) -> u32`. The body does not change, because field access works the same through a reference.
 
 @diagnose E0382
 `use of moved value: r`. The tuple is evaluated left to right: `r.area()` moves
@@ -276,7 +276,7 @@ pub fn run() -> (u32, u32) {
 
 The compiler's note is the precise version: *`Rect::area` takes ownership of the
 receiver `self`, which moves `r`*. Method calls hide the argument passing, so the
-move is easy to miss — `r.area()` is `Rect::area(r)` with the receiver written on
+move is easy to miss: `r.area()` is `Rect::area(r)` with the receiver written on
 the left.
 
 Because `Rect` has only `u32` fields it *could* have been `Copy`, and adding
@@ -286,12 +286,12 @@ the whole thing collapses.
 
 @after
 Note that `scaled` still takes `self` and nothing complains. Consuming receivers
-are not a mistake — they are the right shape when the method logically replaces
-the value, and here `r.scaled(2)` is used immediately, so there is nothing left to
-want afterwards.
+are not a mistake. They are the right shape when the method logically replaces
+the value, and here `r.scaled(2)` is used immediately, so nothing is left to want
+afterwards.
 
 The rule of thumb: **`&self` unless you must mutate, `&mut self` unless you must
-consume.** Take `self` for exactly two reasons — you need to move a field out
+consume.** Take `self` for exactly two reasons: you need to move a field out
 without copying it (`String::into_bytes`), or you are deliberately ending the
 value's life (`build`, `close`, `finish`). Reaching for `self` out of habit
 compiles fine while you write the type and forces `.clone()` on everyone who
@@ -305,7 +305,7 @@ later uses it.
 
 `{}` formats things for a user and a struct has no obvious user-facing form, so
 `Display` is never derived. `{:?}` formats things for a programmer and *is*
-derivable — but the derive has to be asked for.
+derivable, but you have to ask for the derive.
 
 Ask for it. Both tests are checking the exact output, so read them.
 
@@ -364,7 +364,7 @@ pub fn pretty() -> String {
 
 Formatting in Rust is trait-driven. `{}` calls `Display`, `{:?}` calls `Debug`,
 and neither exists for your type until somebody writes it. `Display` is never
-derived on purpose — how a value should be shown to a user is a decision with no
+derived, on purpose. How a value should be shown to a user is a decision with no
 mechanical answer, and getting it wrong silently is worse than a compile error.
 
 `Debug` is different. Its audience is you, at a breakpoint, and "the type name
@@ -384,8 +384,8 @@ is hopeless once structs nest, so `{:#?}` is what you actually want when
 debugging.
 
 Two things worth carrying forward. `dbg!(&p)` prints file, line, the expression
-source *and* the `{:#?}` form, then gives the value back — it is strictly better
-than a `println!` you have to delete later. And `#[derive(Debug)]` on absolutely
+source *and* the `{:#?}` form, then gives the value back. It beats a `println!`
+you have to remember to delete. And `#[derive(Debug)]` on absolutely
 everything is normal, idiomatic Rust; the generated code is dropped by the linker
 if nothing calls it.
 
@@ -467,7 +467,7 @@ pub fn run() -> (Settings, Settings) {
 
 That word *partial* is the whole lesson. `..base` did not copy the struct; it
 moved each field it needed, one at a time. `port` was listed explicitly so it was
-not touched, `debug` is `bool` and therefore `Copy`, and `host` is a `String` —
+not touched, `debug` is `bool` and therefore `Copy`, and `host` is a `String`,
 so its heap handle moved into `dev`.
 
 `base` is now in a half-alive state: `base.port` would still be readable, but
@@ -478,7 +478,7 @@ Putting it in the returned tuple needs the whole thing.
 The trap is that this depends entirely on the field types. Take the `String` out
 of `Settings` and leave `port` and `debug`, and `..base` copies rather than moves,
 `base` stays perfectly usable, and the code compiles. Add one owned field back and
-it breaks — with an error at the tuple, several lines away from the `..`.
+it breaks, with the error landing at the tuple, several lines from the `..`.
 
 `..base.clone()` is the honest fix and costs one allocation. The alternative worth
 knowing is `..Default::default()`, which takes the remaining fields from a fresh
@@ -492,7 +492,7 @@ common shape in real code: list what differs, default the rest.
 @expect E0308
 
 Both of these are a single `i64` at runtime. The wrappers exist so that the
-compiler will not let you add one to the other by accident — which is exactly
+compiler will not let you add one to the other by accident, which is exactly
 what `run` does.
 
 Convert, do not cast. The wrapper's field is public.
@@ -549,7 +549,7 @@ pub fn run() -> i64 {
 ```
 
 @hint `add` wants two `Cents`. You have one `Cents` and one `Dollars`.
-@hint The conversion is not free information — a dollar is a hundred cents, and something has to say so.
+@hint The conversion is not free information: a dollar is a hundred cents, and something has to say so.
 @hint Give `Dollars` a method: `pub fn to_cents(self) -> Cents { Cents(self.0 * 100) }`, then call it at the call site.
 
 @diagnose E0308
@@ -562,28 +562,28 @@ subtracted two cents from a two-pound discount. A **newtype** takes a unit,
 an identifier, or an invariant that lived in a variable name and puts it in the
 type system, where it is checked.
 
-The cost is zero. `Cents` has exactly the layout of `i64` — one field, no tag, no
-header — so the wrapper is gone entirely after compilation and the arithmetic is
-the same instruction it would have been.
+The cost is zero. `Cents` has exactly the layout of `i64`: one field, no tag, no
+header. The wrapper is gone entirely after compilation, and the arithmetic is the
+same instruction it would have been.
 
 @diagnose E0609
 `no field `0` on type ...` means you are unwrapping something that is not a tuple
-struct — most likely you have converted to `Cents` already and are calling `.0` on
+struct. Most likely you have converted to `Cents` already and are calling `.0` on
 the result of `add`, which is fine, or on a plain `i64`, which is not. A tuple
 struct's fields are `.0`, `.1`; a plain integer has none.
 
 @after
 The conversion taking `self` rather than `&self` is deliberate and idiomatic.
 `Dollars` is `Copy`-shaped but not derived `Copy`, and a conversion that consumes
-says *this value has become that value* — the same statement `String::into_bytes`
+says *this value has become that value*, the same statement `String::into_bytes`
 makes.
 
 The second thing newtypes buy you is trait implementations. You cannot write
 `impl Display for Vec<String>`: neither the trait nor the type is yours, and the
 coherence rules forbid it. `struct Csv(Vec<String>);` makes the type local, and
-the impl is allowed. That is why you see newtypes throughout real crates —
-`Duration`, `PathBuf`, `NonZeroU32` are all this pattern with a name you already
-trust.
+the impl is allowed. That is why you see newtypes throughout real crates.
+`Duration`, `PathBuf` and `NonZeroU32` are all this pattern under a name you
+already trust.
 
 ## 7. Defaults that mean something
 
@@ -594,7 +594,7 @@ trust.
 `..Default::default()` fills every unlisted field from the type's `Default` impl.
 `Request` has not got one.
 
-You could derive it. Read the test first — the numbers it expects are not zeros,
+You could derive it. Read the test first. The numbers it expects are not zeros,
 and a derived `Default` gives you the zero of every field.
 
 ```starter
@@ -674,7 +674,7 @@ pub fn run() -> Request {
 
 The struct update syntax needs a value of the same type to take the remaining
 fields from, and `Default::default()` is a call whose return type is inferred from
-where it is used — here, `Request`. So the compiler goes looking for
+where it is used, which here is `Request`. So the compiler goes looking for
 `impl Default for Request` and finds nothing.
 
 The suggestion rustc offers is `#[derive(Default)]`, which is correct as far as it
@@ -683,16 +683,16 @@ so you would get `""`, `0` and `0`. Whether that is right is a question about yo
 domain, not about the language, and the tests here say it is not.
 
 @diagnose E0308
-If you wrote the impl but returned something other than `Self` — a tuple, or a
-value of a different type — the signature `fn default() -> Self` is what you have
+If you wrote the impl but returned something other than `Self`, a tuple say, or
+a value of another type, the signature `fn default() -> Self` is what you have
 to satisfy. `Self` inside `impl Default for Request` means `Request`.
 
 @after
 A timeout of zero and zero retries are not neutral values, they are a broken
 client, and the derive would have produced them without a word. Deriving `Default`
-is right when the zero really is the sensible starting point — a counter, an empty
-collection, an accumulator — and wrong the moment a field has a meaningful default
-that is not the zero.
+is right when the zero really is the sensible starting point, as for a counter or
+an empty collection. It is wrong the moment a field has a meaningful default that
+is not the zero.
 
 `..Default::default()` is worth the habit even so. It is the closest Rust has to
 named optional arguments: list the two fields that differ, let the impl supply the
@@ -706,7 +706,7 @@ other six, and adding a seventh field later does not break a single call site.
 
 The chain reads exactly as intended and does not compile. The setters take
 `&mut self` and hand back `&mut Self`, which is a perfectly good way to write a
-builder — right up to `build`, which needs the value itself and is holding a
+builder, right up to `build`, which needs the value itself and is holding a
 reference.
 
 Change the receivers so the value travels along the chain instead of a borrow of
@@ -822,11 +822,11 @@ pub fn run() -> Query {
 ```
 
 @hint `build` takes `self` by value. What does `order("name")` actually give it?
-@hint It gives it a `&mut QueryBuilder`, and you cannot move a value out of a reference — the reference does not own it.
+@hint It gives it a `&mut QueryBuilder`, and you cannot move a value out of a reference, which does not own it.
 @hint Make the setters take `mut self` and return `Self`. The bodies stay identical; only the receiver and the return type change.
 
 @diagnose E0507
-`cannot move out of `*self` which is behind a mutable reference` — or, depending
+`cannot move out of `*self` which is behind a mutable reference`, or, depending
 on where the chain breaks, `cannot move out of a mutable reference`.
 
 `order("name")` returns `&mut QueryBuilder`. `build(self)` needs a
@@ -846,15 +846,15 @@ middle of it poisons everything downstream, because the borrow it hands out stay
 live until the last method that uses it.
 
 @diagnose E0596
-Assigning the chain to a variable first — `let b = QueryBuilder::new("users");`
-then `b.limit(10)` — needs `b` to be `mut` while the setters still take
+Assigning the chain to a variable first (`let b = QueryBuilder::new("users");`
+then `b.limit(10)`) needs `b` to be `mut` while the setters still take
 `&mut self`. Once they take `mut self`, the `mut` moves into the parameter list
 and the caller's binding does not need it at all, which is one of the quieter
 advantages of the consuming form.
 
 @after
-`mut self` in a parameter list is not a third kind of receiver. It is `self` — the
-value is moved in — with the local binding marked mutable so the body can write to
+`mut self` in a parameter list is not a third kind of receiver. It is `self`, with the
+value moved in and the local binding marked mutable so the body can write to
 it. The caller sees no difference; mutability of a parameter is never part of a
 signature's contract.
 
@@ -862,6 +862,6 @@ The `&mut self` form is not wrong in general, and you will see it: it avoids
 moving the struct at every step, which matters if the builder is large. The usual
 fix there is `build(&mut self) -> Query` that clones, or `fn build(&mut self)`
 taking the fields with `std::mem::take`. Every real builder crate ends up choosing
-between those three, and the choice is exactly the receiver question from earlier
-in this unit — asked once, at the end of a chain, where it is hardest to change
+between those three, and the choice is the receiver question from earlier in
+this unit, asked once, at the end of a chain, where it is hardest to change
 later.

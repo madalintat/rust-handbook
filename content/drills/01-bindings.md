@@ -12,8 +12,8 @@ total = total + 5;
 ```
 
 - A. Yes
-- *B. No — `total` is immutable
-- C. No — the type of `total` is ambiguous
+- *B. No, `total` is immutable
+- C. No, the type of `total` is ambiguous
 - D. Yes, but `total` stays 0
 
 @why
@@ -33,15 +33,15 @@ let spaces = "   ";
 let spaces = spaces.len();
 ```
 
-- *A. Yes — the second `let` is a new binding
-- B. No — you cannot change a binding's type
-- C. No — `spaces` needs `mut`
+- *A. Yes, the second `let` is a new binding
+- B. No, you cannot change a binding's type
+- C. No, `spaces` needs `mut`
 - D. Yes, but only because both are on the stack
 
 @why
 This is **shadowing**, and it is not assignment. The second `let` creates a new
-binding that reuses the name; the first still exists — it is what `.len()` just
-read — and is dropped at the end of the scope like anything else.
+binding that reuses the name. The first still exists; it is what `.len()` just
+read, and it is dropped at the end of the scope like anything else.
 
 B is true of *assignment* and false of `let`. That is the whole distinction:
 assignment must supply the binding's existing type forever, while a new binding
@@ -57,7 +57,7 @@ Which of these is a type?
 - *D. `&mut i32`
 
 @why
-`mut` on a binding is a permission, not part of the type — there is no `mut i32`
+`mut` on a binding is a permission, not part of the type. There is no `mut i32`
 and never has been. `&mut i32` *is* a type: a unique reference, distinct from
 `&i32`.
 
@@ -84,8 +84,8 @@ fn main() {
 
 - A. `working` then `released`
 - *B. `released` then `working`
-- C. `working` only — the guard is never dropped
-- D. Nothing — `let _` discards the expression unevaluated
+- C. `working` only; the guard is never dropped
+- D. Nothing; `let _` discards the expression unevaluated
 
 @why
 Bare `_` is a pattern that matches and stores nothing. Nothing binds the
@@ -100,9 +100,9 @@ matters because of *when* it is destroyed, it needs a name.
 
 What is the difference between `let _ = f();` and `let _x = f();`?
 
-- A. None — the underscore is cosmetic in both
+- A. None; the underscore is cosmetic in both
 - *B. `_` binds nothing and drops now; `_x` is a real binding that lives to end of scope
-- C. `_x` is a compile error — bindings cannot start with an underscore
+- C. `_x` is a compile error; bindings cannot start with an underscore
 - D. `_` suppresses the unused warning; `_x` does not
 
 @why
@@ -121,19 +121,19 @@ Does this compile?
 const LIMIT = 4;
 ```
 
-- A. Yes — inferred as `i32`
-- *B. No — a `const` must have its type written out
+- A. Yes, inferred as `i32`
+- *B. No, a `const` must have its type written out
 - C. Yes, but only at module level
-- D. No — `const` names must be uppercase
+- D. No, `const` names must be uppercase
 
 @why
 `error: missing type for const item`. Inference is a per-function analysis; a
 `const` is an item, visible to the whole crate and possibly to other crates, so
 its type is part of an interface no single function body may decide.
 
-D names a real convention — uppercase is enforced by a lint — but it is a
-warning, not an error, and it is not what is wrong here. The same rule applies
-to `static` and to every `fn` signature: items are annotated, locals are not.
+D names a real convention, and a lint does enforce uppercase, but that is a
+warning rather than an error and it is not what is wrong here. The same rule
+applies to `static` and to every `fn` signature: items are annotated, locals are not.
 
 ## 7
 
@@ -145,7 +145,7 @@ Which is true of `const` versus `static`?
 - D. `static` is evaluated at runtime, `const` at compile time
 
 @why
-A `const` has no storage of its own — the value is inlined at each use, rather
+A `const` has no storage of its own. The value is inlined at each use, rather
 as a macro would expand. A `static` has an identity: one address for the whole
 program, which is why `&BANNER` is a real `&'static` reference.
 
@@ -164,9 +164,9 @@ fn width() -> usize { 4 }
 const PAD: usize = width();
 ```
 
-- A. Yes — the compiler can see the body returns 4
-- *B. No — `width` is not a `const fn`
-- C. No — a `const` cannot be a `usize`
+- A. Yes, the compiler can see the body returns 4
+- *B. No, `width` is not a `const fn`
+- C. No, a `const` cannot be a `usize`
 - D. Yes, but `PAD` is computed at runtime
 
 @why
@@ -176,7 +176,7 @@ be something that interpreter is allowed to run.
 
 A is the trap: the compiler could obviously evaluate this body, and refuses
 anyway. Const-ness is a promise in the signature, not an inference from the
-body — exactly as an item's type is written rather than inferred. Marking it
+body, exactly as an item's type is written rather than inferred. Marking it
 `const fn` fixes it and changes nothing about how the function behaves at
 runtime.
 
@@ -193,9 +193,9 @@ fn sign(n: i32) -> &'static str {
 }
 ```
 
-- A. Yes — `s` is assigned on every branch
-- *B. No — `n == 0` reaches the last line with `s` unwritten
-- C. No — `let s;` without an initialiser is never legal
+- A. Yes, `s` is assigned on every branch
+- *B. No, `n == 0` reaches the last line with `s` unwritten
+- C. No, `let s;` without an initialiser is never legal
 - D. Yes, and `s` is the empty string when `n == 0`
 
 @why
@@ -207,8 +207,8 @@ require `mut`, because the binding is still written exactly once on every path.
 The compiler tracks initialisation per control-flow path, not per binding.
 
 D is the assumption a C or Java background gives you. There is no default value
-here — no zero, no null, no empty string. A binding not written on a path simply
-cannot be read on that path.
+here: not a zero, not a null, not an empty string. A binding not written on a
+path simply cannot be read on that path.
 
 ## 10
 
@@ -235,7 +235,7 @@ the name means the outer `&str` again, and `"3".len()` is 1.
 
 B assumes the shadow leaked out. It cannot: a shadow narrows a name inside one
 region and can never alter anything outside it. That constraint is what keeps
-shadowing readable — if it *could* escape, `let` would be indistinguishable from
+shadowing readable. If it *could* escape, `let` would be indistinguishable from
 assignment.
 
 Note the shape of the real bug this causes: had the last line been `level * 2`,
@@ -251,9 +251,9 @@ let mut names = Vec::new();
 names.push("ferris");
 ```
 
-- *A. Yes — `push` fixes the element type
-- B. No — `Vec::new()` needs a turbofish or annotation
-- C. No — `names` is not annotated
+- *A. Yes, `push` fixes the element type
+- B. No, `Vec::new()` needs a turbofish or annotation
+- C. No, `names` is not annotated
 - D. Yes, and the element type is inferred as `String`
 
 @why
@@ -261,8 +261,8 @@ Rust's inference looks at the whole function body, not just the initialiser, so
 a later `push("ferris")` settles the type as `Vec<&str>`. An annotation is
 needed only when nothing in the function pins it down.
 
-B is right about `let names = Vec::new();` on its own — which is what you get
-when you delete the `push` — and D confuses `&str` with `String`. A string
+B is right about `let names = Vec::new();` on its own, which is what you get
+when you delete the `push`. D confuses `&str` with `String`. A string
 literal is a `&'static str`; nothing here allocates.
 
 ## 12
@@ -274,10 +274,10 @@ let label;
 if ready { label = "go"; } else { label = "wait"; }
 ```
 
-- A. Yes — `label` is assigned in two places
-- *B. No — only one of those assignments ever runs
-- C. Yes — any assignment after `let` requires `mut`
-- D. No — but only because both values are `&'static str`
+- A. Yes, `label` is assigned in two places
+- *B. No, only one of those assignments ever runs
+- C. Yes, any assignment after `let` requires `mut`
+- D. No, but only because both values are `&'static str`
 
 @why
 `mut` permits a *second* write. Here the binding is written exactly once on
@@ -285,7 +285,7 @@ every path through the function, so no second write exists and no `mut` is
 needed.
 
 A counts the lines in the source; the compiler counts the writes along each
-path. Put both assignments in the same branch and it becomes `E0384` — the same
+path. Put both assignments in the same branch and it becomes `E0384`, the same
 error as writing to any other immutable binding.
 
 ## 13
@@ -300,9 +300,9 @@ fn hit() {
 }
 ```
 
-- A. Yes — `static mut` exists for exactly this
-- *B. No — touching a `static mut` requires `unsafe`
-- C. No — `static` items cannot be `mut` at all
+- A. Yes, `static mut` exists for exactly this
+- *B. No, touching a `static mut` requires `unsafe`
+- C. No, `static` items cannot be `mut` at all
 - D. Yes, but only in a single-threaded program
 
 @why
@@ -312,8 +312,8 @@ no synchronisation: two threads incrementing it race, and the increments are
 lost. That is undefined behaviour, not merely a wrong count.
 
 D is the reasoning people use to justify writing it. The compiler does not know
-your program is single-threaded and will not take your word for it — and in the
-2024 edition even taking a reference to a `static mut` is rejected outright.
+your program is single-threaded and will not take your word for it. In the 2024
+edition even taking a reference to a `static mut` is rejected outright.
 
 The safe replacement is a `static` of an `AtomicU32`, a `Mutex<T>`, or a
 `OnceLock<T>`, none of which need `unsafe`.
@@ -330,14 +330,14 @@ let size = {
 };
 ```
 
-- *A. 32 — a block is an expression, and its value is the final line without a semicolon
-- B. It does not compile — a block cannot appear on the right of `=`
-- C. `()` — blocks always evaluate to unit
+- *A. 32; a block is an expression, and its value is the final line without a semicolon
+- B. It does not compile; a block cannot appear on the right of `=`
+- C. `()`; blocks always evaluate to unit
 - D. 32, and `w` and `h` are still in scope afterwards
 
 @why
-Blocks are expressions. The tail expression — no semicolon — is the block's
-value, and `w` and `h` go out of scope at the closing brace.
+Blocks are expressions. The tail expression, the one with no semicolon, is the
+block's value, and `w` and `h` go out of scope at the closing brace.
 
 D is the trap and it inverts the point. This shape is used precisely *because*
 the intermediates do not escape: several lines of setup, one value out, no
@@ -358,12 +358,12 @@ Why is immutability the default?
 @why
 Two payoffs at once. The optimiser may keep an immutable binding in a register
 across a call, and the borrow checker may hand out any number of shared
-references without further analysis — immutability is information the backend
+references without further analysis. Immutability is information the backend
 uses, not a lint.
 
 And in a forty-line function, `let mut` marks the four values that move.
 Everything else is settled. That is why rustc also warns about an unnecessary
 `mut`: a false signal is worse than no signal.
 
-C is wrong — mutating a local is free. The cost of mutation is in what it does
+C is wrong: mutating a local is free. The cost of mutation is in what it does
 to reasoning, not to instructions.

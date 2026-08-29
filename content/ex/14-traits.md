@@ -81,8 +81,8 @@ library hands it to every `Display` type.
 
 @diagnose E0308
 `expected `Result<(), std::fmt::Error>`, found `()``. Your `fmt` body used
-`writeln!` or `write!` without returning its value — a stray semicolon on the
-last line. `write!` returns a `Result`, and `fmt` must hand it back, so the macro
+`writeln!` or `write!` without returning its value, usually a stray semicolon on
+the last line. `write!` returns a `Result`, and `fmt` must hand it back, so the macro
 call is the tail expression with no semicolon.
 
 @after
@@ -93,7 +93,7 @@ a dash, a space or nothing.
 
 Two things arrive with the impl at no extra cost: `.to_string()`, via a blanket
 `impl<T: Display> ToString for T`, and the ability to be used anywhere a bound
-says `T: Display`. One impl, several capabilities — that is the normal shape of
+says `T: Display`. One impl, several capabilities. That is the normal shape of
 trait design in Rust.
 
 ## 2. Default methods and the ones you must write
@@ -182,16 +182,16 @@ pointing back at the declaration.
 A trait method with a body is a **default**: the implementor may take it or
 override it. A method without one is a requirement, and an impl block that skips
 it is not an implementation of the trait. The compiler can be exact about this
-because a trait declares its full surface up front — there is no partial
-conformance, no abstract subclass, no "implement it later".
+because a trait declares its full surface up front. There is no partial
+conformance and no "implement it later".
 
 That completeness is what makes `describe` safe to write. It calls `self.name()`
 and `self.area()` without knowing the type, because every implementor is
 guaranteed to have supplied both.
 
 @after
-The economy of default methods is the point of `Iterator`. Implement `next` —
-one method — and you receive `map`, `filter`, `take`, `zip`, `chain`, `fold`,
+The economy of default methods is the point of `Iterator`. Implement `next`, one
+method, and you receive `map`, `filter`, `take`, `zip`, `chain`, `fold`,
 `collect` and around seventy more, every one of them a default written in terms
 of `next`.
 
@@ -199,7 +199,7 @@ The trade to keep in mind when designing your own: each required method is work
 for every implementor forever, and each default is a body you must keep correct
 for types you have never seen. The usual shape is a small required core and a
 generous set of defaults over it, with defaults overridable where a specific type
-can do better — `Iterator::count` is a default that walks the whole iterator, and
+can do better. `Iterator::count` is a default that walks the whole iterator, and
 `Vec`'s iterator overrides it to return a number it already knows.
 
 ## 3. The method is missing because the bound is
@@ -209,7 +209,7 @@ can do better — `Iterator::count` is a default that walks the whole iterator, 
 @expect E0599
 
 `total` sums the price of anything priced. Both types below implement `Priced`,
-both calls pass a slice of one of them, and it still does not compile — because
+both calls pass a slice of one of them, and it still does not compile, because
 the function never said its elements are priced.
 
 This is the error people find hardest to read. It says a method does not exist,
@@ -306,7 +306,7 @@ the note *items from traits can only be used if the type parameter is bounded by
 the trait*.
 
 Take the message literally, because it is literally true. Inside `total`, `T` is
-not `Book` and not `Coffee` — it is a placeholder standing for every type at
+not `Book` and not `Coffee`. It is a placeholder standing for every type at
 once, and every type at once has no methods. The impls you wrote are irrelevant
 here; rustc is not looking at your callers.
 
@@ -318,13 +318,13 @@ names the exact bound to add.
 @after
 The contrast with C++ is the whole design. A C++ template would compile this
 definition happily and only complain when someone instantiated it with a type
-lacking `price` — reported inside your template, on a line the caller has never
-read, with the instantiation stack attached.
+lacking `price`, and the complaint would land inside your template, on a line the
+caller has never read, with the instantiation stack attached.
 
 Rust checks the body once, against the bounds. The consequence is a promise worth
 having: **if a generic function compiles, it works for every type satisfying its
-bounds.** A bad call is then reported at the call site as one line —
-`the trait bound Sandwich: Priced is not satisfied` — and the person who has to
+bounds.** A bad call is then reported at the call site as a single line,
+`the trait bound Sandwich: Priced is not satisfied`, and the person who has to
 fix it is the person reading it.
 
 ## 4. You may not implement std's trait for std's type
@@ -405,7 +405,7 @@ The orphan rule buys one guarantee: for any (trait, type) pair, at most one impl
 exists in any program that links.
 
 @diagnose E0308
-`expected `Vec<String>`, found `Csv`` — or the reverse. You added the newtype but
+`expected `Vec<String>`, found `Csv``, or the reverse. You added the newtype but
 one side of the code is still passing the raw vector, or reading `self` where it
 now needs `self.0`. A newtype is a distinct type, not an alias; the compiler will
 not slide between them for you.
@@ -413,7 +413,7 @@ not slide between them for you.
 @after
 The **newtype** pattern is the standard answer and it costs nothing. A
 single-field tuple struct has the same size and layout as the field it wraps, so
-`Csv` *is* a `Vec<String>` in memory — the wrapper exists only in the type
+`Csv` *is* a `Vec<String>` in memory. The wrapper exists only in the type
 checker and is gone by codegen. Add `impl Deref for Csv` if you want the `Vec`
 methods to show through.
 
@@ -503,8 +503,8 @@ bound in `Greet`* pointing at the `: Named` in the declaration.
 
 The colon in `trait Greet: Named` looks like inheritance and is not. It is a
 bound on `Self`: *anything implementing `Greet` must also implement `Named`*. No
-methods are inherited, no fields, no layout — the two traits stay entirely
-separate, and `Bot` needs an impl of each.
+methods are inherited, and neither are fields or layout. The two traits stay
+entirely separate, and `Bot` needs an impl of each.
 
 What the supertrait buys is exactly one thing: `greet`'s default body is allowed
 to call `self.name()`. Without the supertrait that call would be `E0599`, because
@@ -512,7 +512,7 @@ a bare `Self: Greet` promises nothing about naming.
 
 @diagnose E0046
 `` not all trait items implemented, missing: `name` ``. You put `fn name` in the
-wrong impl block — inside `impl Greet for Bot` rather than a separate
+wrong impl block, inside `impl Greet for Bot` rather than a separate
 `impl Named for Bot`. Rust has no merged namespace for a trait and its
 supertrait; each trait's methods are implemented in that trait's own block.
 
@@ -639,13 +639,13 @@ pub fn run() -> String {
 ```
 
 @hint A vtable is a fixed array of function pointers, built once when the crate is compiled. Which of the two methods has no single address?
-@hint `render_with<T>` is monomorphised — one machine-code function per `T` a caller picks — so there is no one pointer to store, and the set of `T`s is not even known yet.
+@hint `render_with<T>` is monomorphised into one machine-code function per `T` a caller picks, so there is no single pointer to store, and the set of `T`s is not even known yet.
 @hint Exclude it from the vtable with `where Self: Sized` on the method. The trait becomes usable as `dyn`, and concrete types keep the method.
 
 @diagnose E0038
-`` the trait `Renderer` cannot be made into an object `` — recent compilers say
-*is not dyn compatible* — with `render_with` underlined and labelled *method has
-generic type parameters*.
+`` the trait `Renderer` cannot be made into an object ``, which recent compilers
+word as *is not dyn compatible*, with `render_with` underlined and labelled
+*method has generic type parameters*.
 
 A trait object is a fat pointer: the data, plus a pointer to a vtable that holds
 one function address per method. That table is built at compile time and is a
@@ -658,7 +658,7 @@ receiver to dispatch on. A method returning `Self` by value has no known size at
 the call site, since the caller only has a `dyn`.
 
 @diagnose E0277
-`` the trait bound `Plain: Renderer` is not satisfied `` — or a complaint that
+`` the trait bound `Plain: Renderer` is not satisfied ``, or a complaint that
 `Box<Plain>` cannot be coerced. You changed the trait's method signature without
 changing the impls to match, or the reverse. A `where Self: Sized` clause is part
 of the signature, so it must appear identically in both places or the impl does
@@ -669,9 +669,9 @@ not implement the method it claims to.
 method exists only where the concrete type is known*, which removes it from the
 vtable and leaves the rest of the trait dyn-compatible.
 
-`Iterator` is the proof. It has around seventy generic methods — `map`, `filter`,
-`fold`, `zip` — every one of them carrying `where Self: Sized`, and exactly one
-that does not: `next`. So `Box<dyn Iterator<Item = u8>>` works, its vtable holds
+`Iterator` is the proof. It has around seventy generic methods (`map`, `filter`,
+`fold`, `zip` and the rest), every one carrying `where Self: Sized`, and exactly
+one that does not: `next`. So `Box<dyn Iterator<Item = u8>>` works, its vtable holds
 a handful of slots, and you can still call `.map()` on any concrete iterator.
 
 Design consequence: put the generic conveniences in the trait behind
@@ -771,7 +771,7 @@ pub fn run() -> Vec<u32> {
 `` mismatched types: expected `String`, found `u32` ``, pointing at
 `Some(self.remaining + 1)`.
 
-`Self::Item` is not a type variable to be inferred — it is a name for whatever
+`Self::Item` is not a type variable to be inferred. It is a name for whatever
 the impl's `type Item = ...` line fixed it to. You declared `String`, so
 `Option<Self::Item>` means `Option<String>`, and the body hands back
 `Option<u32>`.
@@ -785,13 +785,15 @@ several errors, work from the first.
 `Iterator` uses an associated type rather than a parameter, and the reason is
 decisive. A `Countdown` yields `u32` and nothing else; there is exactly one right
 answer, and it belongs to the implementor. Were it `Iterator<T>`, every
-`for x in c` would be ambiguous — which impl? — and you would annotate constantly.
+`for x in c` would have to say which impl it meant, and you would annotate
+constantly.
 
 Compare `From<T>`, which *is* a parameter, because `String` genuinely converts
 from `&str`, from `char`, from `Box<str>`. Several answers, and the caller picks.
 
-The rule to carry: **one answer per implementing type, chosen by the implementor
-— associated type. Several answers, chosen by the caller — type parameter.**
+The rule to carry: **one answer per implementing type, chosen by the implementor,
+means an associated type. Several answers, chosen by the caller, means a type
+parameter.**
 
 ## 8. `?` converts the error for you, if you let it
 
@@ -904,7 +906,7 @@ foreign error type are both somebody else's.
 
 @diagnose E0117
 `` only traits defined in the current crate can be implemented for types defined
-outside of the crate ``. You wrote the impl the other way round —
+outside of the crate ``. You wrote the impl the other way round, as
 `impl Into<ConfigError> for ParseIntError`. `Into` is std's and `ParseIntError`
 is std's, so you own neither name and coherence refuses it.
 
@@ -914,11 +916,11 @@ yours, so the impl is legal, and the `Into` direction arrives free.
 @after
 This one impl is what makes error handling in Rust pleasant rather than a chain
 of `match` blocks. Give your error enum a `From` impl per underlying error type
-and `?` composes across all of them — `io::Error`, `ParseIntError`, your own
-variants — with no conversion code at any call site.
+and `?` composes across all of them (`io::Error`, `ParseIntError`, your own
+variants) with no conversion code at any call site.
 
 Two habits follow. **Implement `From`, never `Into`**: you get both, and `From`
 is the direction the orphan rule usually permits. And keep the conversion lossy
-in one direction only — here the `ParseIntError`'s message is preserved inside
+in one direction only. Here the `ParseIntError`'s message is preserved inside
 `BadPort`, so nothing a user would want to read is thrown away. An error type
 that swallows its cause is worse than no error type.

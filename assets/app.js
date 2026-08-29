@@ -24,7 +24,7 @@ async function get(url) {
       return r.json();
     });
     // Evict on failure. Caching the promise itself is what makes this fast, but
-    // caching a REJECTED one means one network blip pins "Not here — that unit
+    // caching a REJECTED one means one network blip pins "Not here. That unit
     // may not be written yet" onto a unit that exists, for the whole session.
     p.catch(() => cache.delete(url));
     cache.set(url, p);
@@ -33,7 +33,7 @@ async function get(url) {
 }
 
 /* --------------------------------------------------------------------- */
-/* icons — one per destination, so the eye learns the place before the label */
+/* icons, one per destination, so the eye learns the place before the label */
 /* --------------------------------------------------------------------- */
 
 const I = {
@@ -49,6 +49,7 @@ const I = {
   play: '<path d="M6 4.5v15l13-7.5z"/>',
   bulb: '<path d="M9 18h6M10 21.5h4"/><path d="M12 2.5a6 6 0 0 0-3.6 10.8c.6.5.9 1.1 1 1.7h5.2c.1-.6.4-1.2 1-1.7A6 6 0 0 0 12 2.5z"/>',
   reset: '<path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v5h5"/>',
+  spin: '<path d="M12 3a9 9 0 1 0 9 9" opacity=".9"/><path d="M12 3a9 9 0 0 1 9 9" opacity=".25"/>',
   book2: '<path d="M12 6.5S9.5 4 6 4H3v14h3c3.5 0 6 2 6 2s2.5-2 6-2h3V4h-3c-3.5 0-6 2.5-6 2.5z"/><path d="M12 6.5V20"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   flame: '<path d="M12 22c4 0 7-2.7 7-6.5 0-4.5-4.5-6-4.5-9.5 0 0-2 1.5-2 4C12.5 8 11 6 9 4.5c0 2-1 3-2 4.5S5 12 5 15.5C5 19.3 8 22 12 22z"/>',
@@ -58,7 +59,7 @@ const ico = (n, s = 18) =>
     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[n] || ''}</svg>`;
 
 /* --------------------------------------------------------------------- */
-/* progress — localStorage, and nothing leaves the browser                */
+/* progress, localStorage, and nothing leaves the browser                */
 /* --------------------------------------------------------------------- */
 
 const PKEY = 'rh-progress';
@@ -103,12 +104,16 @@ function markAttempt(unit, n, ok, hints) {
   return rec;
 }
 
-const unitDone = (u) => {
-  if (!u.exercises) return 0;
+/* How many of a thing's items are passed. Keyed on slug and total, because that
+   is all it ever needed: three copies of this existed, one reading `.exercises`,
+   one reading `.stages`, and one call site fabricating a unit-shaped object to
+   feed the first. The project workbench sidebar read 0 of 8 forever as a result. */
+const doneCount = (slug, total) => {
   let n = 0;
-  for (let i = 1; i <= u.exercises; i++) if (passed(u.slug, i)) n++;
+  for (let i = 1; i <= (total || 0); i++) if (passed(slug, i)) n++;
   return n;
 };
+const unitDone = (u) => doneCount(u.slug, u.exercises);
 
 /* --------------------------------------------------------------------- */
 /* shared fragments                                                       */
@@ -148,12 +153,12 @@ function pickEx(data, nRaw) {
   return data.exercises.find((e) => e.n === n) || data.exercises[0];
 }
 
-function ring(u) {
-  if (!u.exercises) return '';
-  const d = unitDone(u);
-  const p = Math.round((d / u.exercises) * 100);
-  return `<div class="ring${d === u.exercises ? ' done' : ''}" style="--p:${p}"
-    data-n="${d}" title="${d} of ${u.exercises} exercises passed"></div>`;
+function ring(slug, total, noun = 'exercises') {
+  if (!total) return '';
+  const d = doneCount(slug, total);
+  return `<div class="ring${d === total ? ' done' : ''}" style="--p:${
+    Math.round((d / total) * 100)}" data-n="${d}"
+    title="${d} of ${total} ${noun} passed"></div>`;
 }
 
 function unitCard(u, i = 0) {
@@ -167,7 +172,7 @@ function unitCard(u, i = 0) {
     <div class="top">
       <span class="num">${String(u.num).padStart(2, '0')}</span>
       <span class="chip accent">${mins(u.mins)}</span>
-      ${ring(u)}
+      ${ring(u.slug, u.exercises)}
     </div>
     <h3>${esc(u.title)}</h3>
     <p>${esc(u.blurb)}</p>
@@ -194,12 +199,12 @@ function viewHome() {
       <div>
         <span class="eyebrow">${t.ready} of ${t.units} units written</span>
         <h1>Learn Rust by <em>fighting the compiler</em>.</h1>
-        <p class="lede">Every exercise here compiles for real — not a simulation, not a
+        <p class="lede">Every exercise here compiles for real, not a simulation, not a
           quiz. When rustc rejects your code, you get its actual diagnostic, and next to
           it a plain-English reading of what the borrow checker saw and why it cared.</p>
         <div class="actions">
           ${next ? `<a class="btn lg" href="#/unit/${next.slug}">${ico('play', 15)} ${
-            unitDone(next) ? 'Continue' : 'Start'} — ${esc(next.title)}</a>` : ''}
+            unitDone(next) ? 'Continue' : 'Start'}: ${esc(next.title)}</a>` : ''}
           <a class="btn quiet lg" href="#/track">${ico('track', 15)} See the track</a>
         </div>
       </div>
@@ -210,11 +215,20 @@ function viewHome() {
       <div class="stat"><div class="n">${num(t.words)}</div><div class="l">words written</div></div>
       <div class="stat"><div class="n">${t.exercises}</div><div class="l">compiled exercises</div></div>
       <div class="stat"><div class="n">${t.drills}</div><div class="l">drills</div></div>
+      ${t.projects ? `<div class="stat"><div class="n">${t.projects}</div>
+        <div class="l">projects, ${t.stages} stages</div></div>` : ''}
       <div class="stat"><div class="n">${mins(t.mins)}</div><div class="l">of reading</div></div>
+      ${t.project_mins ? `<div class="stat"><div class="n">${mins(t.project_mins)}</div>
+        <div class="l">of building</div></div>` : ''}
       <div class="stat"><div class="n">${s.days || 0}${
         s.days ? ` <span style="font-size:.6em;color:var(--ferris)">${ico('flame', 13)}</span>` : ''
       }</div><div class="l">day streak${s.best > s.days ? ` · best ${s.best}` : ''}</div></div>
     </div>
+
+    ${(DB.projects || []).length ? `
+      <div class="section-head"><h2>Projects</h2>
+        <span class="more">one real program each, eight stages</span></div>
+      <div class="unitgrid">${DB.projects.map((p, i) => projectCard(p, i)).join('')}</div>` : ''}
 
     <div class="section-head"><h2>The track</h2>
       <span class="more">${t.ready} ready · ${t.units - t.ready} on the way</span></div>
@@ -238,11 +252,107 @@ function viewTrack() {
 }
 
 /* --------------------------------------------------------------------- */
+/* projects                                                               */
+/* --------------------------------------------------------------------- */
+
+const projDone = (p) => doneCount(p.slug, p.stages);
+
+function projectCard(p, i = 0) {
+  return `<a class="card unitcard stagger" style="--i:${i}" href="#/project/${p.slug}"
+     data-accent="${p.accent}">
+    <div class="top">
+      <span class="num">${ico('wrench', 11)}</span>
+      <span class="chip accent">${mins(p.mins)}</span>
+      <span class="chip">${esc(DOMAIN_LABEL[p.domain] || p.domain)}</span>
+      ${ring(p.slug, p.stages, 'stages')}
+    </div>
+    <h3>${esc(p.title)}</h3>
+    <p>${esc(p.blurb)}</p>
+    <div class="foot"><span class="chip">${p.stages} stages</span>
+      ${p.needs.map((n) => `<span class="chip mono">${esc(n)}</span>`).join('')}</div>
+  </a>`;
+}
+
+const DOMAIN_LABEL = {
+  ai: 'AI', systems: 'Systems', languages: 'Languages', network: 'Networking',
+  graphics: 'Graphics', data: 'Data', crypto: 'Cryptography', games: 'Games',
+  tools: 'Tools', embedded: 'Embedded',
+};
+
+/* Grouped by tier and, inside a tier, ordered by how far into the track their
+   prerequisites reach. Reading top to bottom is therefore a sensible order to
+   do them in, without anyone having to be told an order. */
+function viewProjects(filter) {
+  const all = DB.projects || [];
+  const ps = filter ? all.filter((p) => p.domain === filter) : all;
+  const domains = [...new Set(all.map((p) => p.domain))].sort();
+  const tiers = DB.tiers || {};
+
+  const groups = ['mini', 'core', 'deep'].map((t) => {
+    const inTier = ps.filter((p) => p.tier === t);
+    if (!inTier.length) return '';
+    return `<div class="section-head"><h2>${esc(tiers[t]?.name || t)}</h2>
+        <span class="more">${esc(tiers[t]?.note || '')}</span></div>
+      <div class="unitgrid">${inTier.map((p, i) => projectCard(p, i)).join('')}</div>`;
+  }).join('');
+
+  return `<div class="wrap" style="padding-top:26px">
+    ${crumbs([{ t: 'Home', href: '#/' }, { t: 'Projects' }])}
+    <h1 class="pagetitle">Projects</h1>
+    <p style="color:var(--ink-2);max-width:70ch;margin:10px 0 18px">
+      A unit teaches an idea. A project spends its stages building one real
+      program, and the last stage leaves you something that runs. Stages
+      accumulate, so you are editing one growing file rather than eight
+      unrelated snippets.</p>
+    <div class="letters" style="margin-bottom:22px">
+      <a class="pill${filter ? '' : ' on'}" href="#/projects">All ${all.length}</a>
+      ${domains.map((d) => `<a class="pill${filter === d ? ' on' : ''}"
+        href="#/projects/${d}">${esc(DOMAIN_LABEL[d] || d)}</a>`).join('')}
+    </div>
+    ${groups || '<p style="color:var(--ink-3)">Nothing in that domain yet.</p>'}
+  </div>`;
+}
+
+async function viewProject(slug) {
+  const meta = (DB.projects || []).find((p) => p.slug === slug);
+  if (!meta) return notFound();
+  const pj = await get(`data/project/${slug}.json`);
+  const done = projDone(meta);
+
+  return `<div class="wrap wide" data-accent="${meta.accent}"><div class="readerlayout">
+    <aside class="rail">
+      <div class="eyebrow">Stages</div>
+      <ol id="railol">${pj.stages.map((st) =>
+        `<li><a class="h3" href="#/project/${slug}/${st.n}" data-id="stage-${st.n}">
+          ${passed(slug, st.n) ? '\u2713 ' : ''}${st.n}. ${esc(st.title)}</a></li>`).join('')}</ol>
+    </aside>
+    <div class="readercol">
+      ${crumbs([{ t: 'Projects', href: '#/projects' }, { t: meta.title }])}
+      <header class="unithead">
+        <span class="eyebrow">Project · ${done}/${meta.stages} stages</span>
+        <h1>${esc(meta.title)}</h1>
+        <div class="meta">
+          <span class="chip accent">${ico('clock', 11)} ${mins(meta.mins)}</span>
+          <span class="chip">${meta.stages} stages</span>
+          ${meta.needs.map((n) => `<a class="chip mono" href="#/unit/${n}">${esc(n)}</a>`).join('')}
+        </div>
+      </header>
+      <div class="prose">${pj.intro}</div>
+      <div class="dashed" style="margin-top:28px;padding:20px;text-align:center">
+        <a class="btn lg" href="#/project/${slug}/${Math.min(done + 1, meta.stages)}">
+          ${ico('play', 15)} ${done ? 'Continue' : 'Start'} at stage ${
+            Math.min(done + 1, meta.stages)}</a>
+      </div>
+    </div>
+  </div></div>`;
+}
+
+/* --------------------------------------------------------------------- */
 /* the unit reader                                                        */
 /* --------------------------------------------------------------------- */
 
 /* A contents link names one section, which is almost always inside a collapsed
-   <details>. Opening it is part of arriving — otherwise you land on a closed row
+   <details>. Opening it is part of arriving. Otherwise you land on a closed row
    and conclude the link is broken. */
 function jumpTo(id) {
   const el = document.getElementById(id);
@@ -280,7 +390,7 @@ async function viewUnit(slug) {
 
   /* Contents links are full routes, not bare fragments. A bare `#some-heading`
      would be parsed by this app's own hash router as a route, match nothing,
-     and render the 404 — which is exactly what it did before. Routing the jump
+     and render the 404, which is exactly what it did before. Routing the jump
      through `#/unit/<slug>/<id>` keeps deep links working and lets render()
      recognise it as a scroll within the page it is already showing. */
   const rail = u.parts.map((p) => {
@@ -368,7 +478,7 @@ function wireUnit() {
 
   /* Scroll fires up to ~120x/s during phone momentum scroll. Doing the work
      inline meant a full synchronous layout flush plus one getBoundingClientRect
-     per heading — up to 22 — on every one of those. Coalesced to one pass per
+     per heading, up to 22, on every one of those. Coalesced to one pass per
      frame, and the class writes are skipped entirely when the active section has
      not changed, which is ~99% of frames. */
   let ticking = false;
@@ -402,6 +512,13 @@ function wireUnit() {
     requestAnimationFrame(measure);
   };
 
+  // render() replaces app.innerHTML wholesale, so without aborting the previous
+  // one every unit read leaves its handler behind holding a whole detached DOM.
+  // The controller has to be created here: reading .signal off a null was
+  // throwing on every unit page, which killed the progress bar, the rail
+  // highlighting and the contents sheet in one go.
+  if (railWatch) railWatch.abort();
+  railWatch = new AbortController();
   addEventListener('scroll', onScroll, { passive: true, signal: railWatch.signal });
   measure();
 
@@ -417,35 +534,65 @@ let ED = null;      // the mounted editor for the exercise on screen
 let HINTS = 0;      // how many hints the reader has revealed here
 let BUSY = false;
 
-async function viewWork(slug, nRaw) {
-  const meta = DB.units.find((u) => u.slug === slug);
-  if (!meta || !meta.exercises) return notFound();
-  const data = await get(`data/ex/${slug}.json`);
+/* A unit's exercises and a project's stages are the same thing, so one bench
+   serves both. The only differences are where the JSON lives, what the list is
+   called, and where "back" goes. */
+const BENCH = {
+  ex: {
+    url: (slug) => `data/ex/${slug}.json`,
+    items: (d) => d.exercises,
+    meta: (slug) => DB.units.find((u) => u.slug === slug),
+    count: (m) => m && m.exercises,
+    route: 'work',
+    backHref: (slug) => `#/unit/${slug}`,
+    backLabel: 'Back to the note',
+    crumbRoot: { t: 'Track', href: '#/track' },
+    noun: 'Exercise',
+  },
+  project: {
+    url: (slug) => `data/project/${slug}.json`,
+    items: (d) => d.stages,
+    meta: (slug) => (DB.projects || []).find((p) => p.slug === slug),
+    count: (m) => m && m.stages,
+    route: 'project',
+    backHref: (slug) => `#/project/${slug}`,
+    backLabel: 'Project overview',
+    crumbRoot: { t: 'Projects', href: '#/projects' },
+    noun: 'Stage',
+  },
+};
+
+async function viewWork(slug, nRaw, source = 'ex') {
+  const B = BENCH[source];
+  const meta = B.meta(slug);
+  if (!meta || !B.count(meta)) return notFound();
+  const raw = await get(B.url(slug));
+  const data = { exercises: B.items(raw) };
   const ex = pickEx(data, nRaw);
 
   const list = data.exercises.map((e) => `
     <a class="${e.n === ex.n ? 'on ' : ''}${passed(slug, e.n) ? 'passed' : ''}"
-       href="#/work/${slug}/${e.n}">
+       href="#/${B.route}/${slug}/${e.n}">
       <span class="st">${passed(slug, e.n) ? '✓' : e.n}</span>
       <span class="nm">${esc(e.title)}</span>
     </a>`).join('');
 
-  const done = unitDone(meta);
+  const done = doneCount(slug, B.count(meta));
 
   return `<div class="wrap" data-accent="${meta.accent}">
     <div class="wblayout">
       <aside>
-        <div class="eyebrow" style="padding:0 11px 8px">${esc(meta.title)} · ${done}/${meta.exercises}</div>
+        <div class="eyebrow" style="padding:0 11px 8px">${esc(meta.title)} · ${done}/${B.count(meta)}</div>
         <nav class="exlist">${list}</nav>
         <div style="padding:14px 11px 0;display:flex;flex-direction:column;gap:6px">
-          <a class="btn quiet sm" href="#/unit/${slug}">${ico('book2', 13)} Back to the note</a>
+          <a class="btn quiet sm" href="${B.backHref(slug)}">${ico('book2', 13)} ${B.backLabel}</a>
           ${meta.drills ? `<a class="btn quiet sm" href="#/drills/${slug}">${ico('target', 13)} Drills</a>` : ''}
         </div>
       </aside>
 
       <div class="wb">
-        ${crumbs([{ t: 'Track', href: '#/track' }, { t: meta.title, href: `#/unit/${slug}` },
-                  { t: `Exercise ${ex.n}` }])}
+        ${crumbs([B.crumbRoot, { t: meta.title, href: B.backHref(slug) },
+                  { t: `${B.noun} ${ex.n}` }])}
         <div class="wbhead">
           <h1>${esc(ex.title)}</h1>
           <div class="meta">
@@ -459,14 +606,16 @@ async function viewWork(slug, nRaw) {
         <div class="wbbrief">${ex.brief}</div>
 
         <div class="editor" id="ed"></div>
+        <div class="runbar" id="runbar" hidden></div>
 
         <div class="wbbar">
-          <button class="btn" id="run">${ico('play', 14)} Run</button>
+          <button class="btn" id="run"><span class="ic">${ico('play', 14)}</span> Run</button>
           <button class="btn quiet" id="hint">${ico('bulb', 13)} Hint</button>
           <button class="btn quiet" id="reset">${ico('reset', 13)} Reset</button>
           <button class="btn ghost" id="sol">Show solution</button>
           <button class="btn ghost desk-only" id="vim" aria-pressed="false"
-            title="Vim keybindings — motions, operators, counts, visual, undo">vim</button>
+            title="Vim keybindings: motions, operators, counts, visual, undo">vim</button>
+          <span class="kbd desk-only" id="toolchain-wb"></span>
           <span class="kbd desk-only"><kbd>⌘</kbd> <kbd>↵</kbd> to run</span>
         </div>
 
@@ -476,10 +625,10 @@ async function viewWork(slug, nRaw) {
 
         ${pagenav(
           data.exercises.find((e) => e.n === ex.n - 1) &&
-            { href: `#/work/${slug}/${ex.n - 1}`,
+            { href: `#/${B.route}/${slug}/${ex.n - 1}`,
               t: data.exercises.find((e) => e.n === ex.n - 1).title },
           data.exercises.find((e) => e.n === ex.n + 1) &&
-            { href: `#/work/${slug}/${ex.n + 1}`,
+            { href: `#/${B.route}/${slug}/${ex.n + 1}`,
               t: data.exercises.find((e) => e.n === ex.n + 1).title })}
       </div>
     </div>
@@ -553,10 +702,11 @@ function renderOutput({ res, d, ex, code, rec, ok, testsRan }) {
   return h;
 }
 
-function wireWork(slug, nRaw) {
+function wireWork(slug, nRaw, source = 'ex') {
   const host = $('#ed');
   if (!host) return;
-  get(`data/ex/${slug}.json`).then((data) => {
+  get(BENCH[source].url(slug)).then((raw) => {
+    const data = { exercises: BENCH[source].items(raw) };
     const ex = pickEx(data, nRaw);
     HINTS = 0;
 
@@ -569,6 +719,10 @@ function wireWork(slug, nRaw) {
       vimBtn.setAttribute('aria-pressed', String(on));
     };
     paintVimBtn();
+    WB.toolchain().then((tc) => {
+      const el = $('#toolchain-wb');
+      if (el && tc) el.textContent = `rustc ${tc.version}`;
+    });
     vimBtn.addEventListener('click', () => { ED.vim.toggle(); paintVimBtn(); ED.focus(); });
 
     $('#reset').addEventListener('click', () => { ED.reset(); $('#out').innerHTML = ''; });
@@ -577,7 +731,7 @@ function wireWork(slug, nRaw) {
       ED.set(ex.solution);
       HINTS = (ex.hints || []).length;
       $('#hints').innerHTML = `<div class="hintbox"><div class="lbl">Solution</div>
-        One correct answer, now in the editor. Run it, then change it and break it —
+        One correct answer, now in the editor. Run it, then change it and break it: 
         that is where the understanding is.</div>`;
     });
     $('#hint').addEventListener('click', () => {
@@ -591,7 +745,7 @@ function wireWork(slug, nRaw) {
 
     /* A run takes a couple of seconds, and the reader can navigate during them.
        Every node this touches is therefore resolved BEFORE the await and checked
-       for still being in the document after it — otherwise a compile that lands
+       for still being in the document after it. Otherwise a compile that lands
        after a navigation writes its verdict into whatever exercise is on screen
        now. The whole body is wrapped so BUSY and the button are released on every
        path: leaving BUSY stuck true disables Run for the rest of the session. */
@@ -602,12 +756,16 @@ function wireWork(slug, nRaw) {
       const btn = $('#run');
       const out = $('#out');
       const afterEl = $('#after');
+      const bar = $('#runbar');
       const stale = () => !out.isConnected;
 
       btn.disabled = true;
+      btn.classList.add('running');
+      btn.innerHTML = `<span class="ic">${ico('spin', 14)}</span> Running`;
+      if (bar) bar.hidden = false;
       host.classList.add('running');
-      out.innerHTML = `<div class="verdict wait"><span class="ic"
-        style="background:var(--ink-4)">…</span> compiling on play.rust-lang.org</div>`;
+      host.classList.remove('passed');
+      out.innerHTML = '';
 
       const code = ED.value();
       try {
@@ -618,7 +776,7 @@ function wireWork(slug, nRaw) {
           if (stale()) return;
           out.innerHTML = `<div class="verdict fail"><span class="ic">!</span>
             ${e.message === 'offline'
-              ? 'Could not reach the compiler. The workbench needs a network connection — this is not your code.'
+              ? 'Could not reach the compiler. The workbench needs a network connection. This is not your code.'
               : esc(e.message)}</div>`;
           return;
         }
@@ -639,6 +797,8 @@ function wireWork(slug, nRaw) {
         if (afterEl) afterEl.innerHTML = afterBox(ex, ok);
 
         if (ok) {
+          host.classList.add('passed');
+          setTimeout(() => host.classList.remove('passed'), 950);
           $$('.exlist a').forEach((a) => {
             if (a.getAttribute('href').endsWith(`/${ex.n}`)) {
               a.classList.add('passed');
@@ -646,11 +806,14 @@ function wireWork(slug, nRaw) {
               if (st) st.textContent = '\u2713';
             }
           });
-          Companion.cheer(ex.n, unitDone(DB.units.find((u) => u.slug === slug)));
+          Companion.cheer(ex.n, doneCount(slug, BENCH[source].count(BENCH[source].meta(slug))));
         }
       } finally {
         BUSY = false;
         btn.disabled = false;
+        btn.classList.remove('running');
+        btn.innerHTML = `<span class="ic">${ico('play', 14)}</span> Run`;
+        if (bar) bar.hidden = true;
         host.classList.remove('running');
       }
     }
@@ -713,9 +876,19 @@ function wireDrills() {
 /* --------------------------------------------------------------------- */
 
 function viewProgress() {
-  const ready = DB.units.filter((u) => u.ready && u.exercises);
-  const total = ready.reduce((n, u) => n + u.exercises, 0);
-  const done = ready.reduce((n, u) => n + unitDone(u), 0);
+  // Units and projects write into the same progress keyspace, so the page has
+  // to read both. Walking DB.units alone meant every project stage you passed
+  // was recorded and then never shown anywhere.
+  const rows = [
+    ...DB.units.filter((u) => u.ready && u.exercises)
+      .map((u) => ({ slug: u.slug, title: u.title, accent: u.accent,
+                     total: u.exercises, route: 'work' })),
+    ...(DB.projects || [])
+      .map((p) => ({ slug: p.slug, title: p.title, accent: p.accent,
+                     total: p.stages, route: 'project' })),
+  ];
+  const total = rows.reduce((n, r) => n + r.total, 0);
+  const done = rows.reduce((n, r) => n + doneCount(r.slug, r.total), 0);
   const s = P._streak;
 
   return `<div class="wrap" style="padding-top:26px;max-width:900px">
@@ -729,15 +902,15 @@ function viewProgress() {
         Object.keys(P).filter((k) => k !== '_streak' && P[k].hints).length
       }</div><div class="l">needed a hint</div></div>
     </div>
-    ${ready.map((u) => `
-      <div class="section-head" data-accent="${u.accent}">
-        <h2>${esc(u.title)}</h2>
-        <span class="more">${unitDone(u)} of ${u.exercises}</span>
+    ${rows.map((r) => `
+      <div class="section-head" data-accent="${r.accent}">
+        <h2>${esc(r.title)}</h2>
+        <span class="more">${doneCount(r.slug, r.total)} of ${r.total}</span>
       </div>
-      <div class="heat" data-accent="${u.accent}" style="max-width:420px">
-        ${Array.from({ length: u.exercises }, (_, i) =>
-          `<a href="#/work/${u.slug}/${i + 1}"><span class="${passed(u.slug, i + 1) ? 'on' : ''}"
-             title="Exercise ${i + 1}"></span></a>`).join('')}
+      <div class="heat" data-accent="${r.accent}" style="max-width:420px">
+        ${Array.from({ length: r.total }, (_, i) =>
+          `<a href="#/${r.route}/${r.slug}/${i + 1}"><span class="${
+            passed(r.slug, i + 1) ? 'on' : ''}" title="${i + 1}"></span></a>`).join('')}
       </div>`).join('')}
     <div style="margin-top:34px" class="dashed">
       <div style="padding:14px 16px;font-size:var(--t-tiny);color:var(--ink-2)">
@@ -804,7 +977,8 @@ function glossCards(list) {
     ${t.x ? `<div class="x">${esc(t.x)}</div>` : ''}
     <div class="p">${esc(t.p)}</div>
     ${t.in?.length ? `<div class="in">${t.in.map((u) =>
-      `<a class="chip" href="#/unit/${u.s}">${esc(u.n)}</a>`).join('')}</div>` : ''}
+      `<a class="chip" href="#/${u.k === 'project' ? 'project' : 'unit'}/${u.s}"
+        >${esc(u.n)}</a>`).join('')}</div>` : ''}
   </div>`).join('');
 }
 
@@ -914,7 +1088,7 @@ document.addEventListener('mouseover', (e) => {
   const r = t.getBoundingClientRect();
   const w = pop.offsetWidth;
   pop.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + scrollX)) + 'px';
-  // Above if there is room, below if not — a popover clipped by the viewport is
+  // Above if there is room, below if not. A popover clipped by the viewport is
   // worse than one that flips.
   pop.style.top = (r.top > pop.offsetHeight + 16
     ? r.top + scrollY - pop.offsetHeight - 8
@@ -955,26 +1129,62 @@ $('#scrim').addEventListener('click', closeSheet);
 $('#sheetclose').addEventListener('click', closeSheet);
 $('#sheet').addEventListener('click', (e) => { if (e.target.closest('a')) closeSheet(); });
 
-/* --------------------------------------------------------------------- */
-/* chrome, router                                                         */
+/* Two versions matter and they are not the same question. The manifest records
+   which rustc last validated every exercise; the playground answers with
+   whichever stable it is running today. Stable moves every six weeks, so those
+   drift apart on their own, and the gap between them is exactly the window in
+   which a diagnostic can change out from under an exercise. Showing both makes
+   that visible instead of surprising. */
+async function paintToolchain() {
+  const el = $('#toolchain');
+  if (!el || el.dataset.done) return;
+  el.dataset.done = '1';
+
+  const built = DB?.audit?.toolchain;
+  const live = await WB.toolchain();
+  if (!live && !built) return;
+
+  const shown = live || built;
+  const drift = live && built && live.version !== built.version;
+  // Content added since the last --validate has never been compiled by anything.
+  // Presenting a toolchain version beside it would imply a check that did not
+  // happen, so say how many items are outstanding instead.
+  const pending = DB?.audit?.unvalidated_count || 0;
+
+  const note = pending
+    ? `${pending} exercise${pending > 1 ? 's' : ''} added since the last validation run and not yet compiled`
+    : drift
+      ? `Validated on rustc ${built.version}; the playground is now on ${live.version}`
+      : `rustc ${shown.version}, released ${shown.date}`;
+
+  el.innerHTML = `<a href="https://releases.rs" target="_blank" rel="noopener"
+      title="${esc(note)}">rustc ${esc(shown.version)}${
+        pending || drift ? ' <span class="drift">!</span>' : ''
+      } · edition ${esc(DB?.edition || '2024')}</a>`;
+}
 /* --------------------------------------------------------------------- */
 
 const NAV = [
   { t: 'Track', href: '#/track', i: 'track' },
+  { t: 'Projects', href: '#/projects', i: 'wrench' },
   { t: 'Progress', href: '#/progress', i: 'chart' },
   { t: 'Glossary', href: '#/glossary', i: 'book2' },
 ];
 
 function paintChrome(hash) {
+  // `#/projects` must also match `#/project/<slug>`; they are the same section.
+  const active = (href) => hash.startsWith(href)
+    || (href === '#/projects' && hash.startsWith('#/project/'));
   $('#nav').innerHTML = NAV.map((n) =>
-    `<a href="${n.href}" class="${hash.startsWith(n.href) ? 'on' : ''}">${esc(n.t)}</a>`).join('');
+    `<a href="${n.href}" class="${active(n.href) ? 'on' : ''}">${esc(n.t)}</a>`).join('');
   $('#tabbar').innerHTML = [{ t: 'Home', href: '#/', i: 'book' }, ...NAV].map((n) =>
     `<a href="${n.href}" class="${
-      n.href === '#/' ? (hash === '#/' ? 'on' : '') : (hash.startsWith(n.href) ? 'on' : '')
+      n.href === '#/' ? (hash === '#/' ? 'on' : '') : (active(n.href) ? 'on' : '')
     }">${ico(n.i, 19)}${esc(n.t)}</a>`).join('');
   const t = DB?.totals;
   if (t) $('#footstats').textContent =
     `${t.ready}/${t.units} units · ${num(t.words)} words · ${t.exercises} exercises`;
+  paintToolchain();
 }
 
 /* What is currently painted, so an in-page jump can be told apart from a real
@@ -1003,6 +1213,11 @@ async function render() {
     else if (route === 'track') html = viewTrack();
     else if (route === 'unit') { html = await viewUnit(a); after = wireUnit; }
     else if (route === 'work') { html = await viewWork(a, b); after = () => wireWork(a, b); }
+    else if (route === 'projects') html = viewProjects(a || null);
+    else if (route === 'project') {
+      if (b) { html = await viewWork(a, b, 'project'); after = () => wireWork(a, b, 'project'); }
+      else html = await viewProject(a);
+    }
     else if (route === 'drills') { html = await viewDrills(a); after = wireDrills; }
     else if (route === 'progress') { html = viewProgress(); after = wireProgress; }
     else if (route === 'glossary') { html = await viewGlossary(); after = wireGlossary; }

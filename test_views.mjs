@@ -2,7 +2,7 @@
  *
  * app.js is written against the DOM, so this stubs just enough of one to load
  * it, then calls each view function and checks the HTML it produced. It is not
- * a browser and it does not prove the page looks right — it proves the templates
+ * a browser and it does not prove the page looks right, it proves the templates
  * are well-formed, that every view reads fields the data actually has, and that
  * no view throws. Those are the failures that would otherwise show up as a blank
  * page with one line in the console.
@@ -39,7 +39,8 @@ globalThis.document = {
   documentElement: { dataset: {}, scrollHeight: 1000, clientHeight: 500, scrollTop: 0 },
   body: { classList: { add: noop, remove: noop, toggle: noop, contains: () => false }, style: {}, appendChild: noop },
   querySelector: () => el(),
-  querySelectorAll: () => [],
+  querySelectorAll: () => [el(), el()],
+  getElementById: () => el(),
   addEventListener: noop,
   createElement: () => el(),
 };
@@ -50,6 +51,9 @@ globalThis.location = { hash: '#/' };
 globalThis.innerWidth = 1200;
 globalThis.scrollX = 0; globalThis.scrollY = 0;
 globalThis.confirm = () => false;
+globalThis.AbortController = class { constructor() { this.signal = { aborted: false }; }
+                                     abort() { this.signal.aborted = true; } };
+globalThis.requestAnimationFrame = (f) => f();
 globalThis.setTimeout = (f) => f;
 globalThis.clearTimeout = noop;
 
@@ -71,7 +75,9 @@ const appSrc = fs.readFileSync('assets/app.js', 'utf8');
 const ctx = eval(
   appSrc.replace(/\(async function start\(\)[\s\S]*$/, '') +
   '\n({viewHome, viewTrack, viewUnit, viewWork, viewDrills, viewProgress, viewGlossary,' +
-  ' viewSearch, notFound, unitCard, ring, renderOutput, setDB: (d) => { DB = d; }, getP: () => P})'
+  ' viewSearch, notFound, unitCard, ring, renderOutput, viewProjects, viewProject,' +
+  ' projectCard, projDone, wireUnit, wireDrills, wireProgress, wireGlossary,' +
+  ' setDB: (d) => { DB = d; }, getP: () => P})'
 );
 
 const DB = JSON.parse(fs.readFileSync('data/manifest.json', 'utf8'));
@@ -95,10 +101,10 @@ function unbalanced(html) {
 
 const check = (name, html, mustContain = []) => {
   const bad = unbalanced(html);
-  ok(`${name} — balanced tags`, !bad, bad || '');
-  ok(`${name} — no stray undefined`, !/\bundefined\b/.test(html),
+  ok(`${name}, balanced tags`, !bad, bad || '');
+  ok(`${name}, no stray undefined`, !/\bundefined\b/.test(html),
      (html.match(/.{40}undefined.{40}/) || [''])[0]);
-  for (const s of mustContain) ok(`${name} — contains ${JSON.stringify(s)}`, html.includes(s));
+  for (const s of mustContain) ok(`${name}, contains ${JSON.stringify(s)}`, html.includes(s));
 };
 
 console.log('--- views render ---');
@@ -110,7 +116,7 @@ check('viewSearch', await ctx.viewSearch('ownership'), ['result', 'Ownership']);
 
 console.log('--- async views ---');
 check('viewUnit', await ctx.viewUnit('05-ownership'),
-      // structural, not prose — headings get reworded, the shape should not
+      // structural, not prose, headings get reworded, the shape should not
       ['class="readercol"', 'class="rail"', 'Open the workbench',
        'class="memory"', 'class="term"', 'class="callout gotcha"', 'class="codeblock bad"']);
 check('viewWork ex1', await ctx.viewWork('05-ownership', 1),
@@ -121,10 +127,102 @@ check('viewDrills', await ctx.viewDrills('05-ownership'), ['drills', 'class="opt
 check('viewGlossary', await ctx.viewGlossary(),
       ['Glossary', 'terms, each in one plain sentence', 'class="gcard"', 'id="letters"']);
 
+console.log('--- the toolchain the content was validated on ---');
+{
+  const tc = DB.audit && DB.audit.toolchain;
+  ok('the manifest records a toolchain', !!tc, JSON.stringify(DB.audit));
+  ok('it has a version, a date and a hash',
+     tc && tc.version && tc.date && tc.hash, JSON.stringify(tc));
+  ok('it is a real semver', /^\d+\.\d+\.\d+$/.test(tc?.version || ''), tc?.version);
+  ok('the manifest records the edition', DB.edition === '2024', DB.edition);
+  ok('a validation verdict is present', DB.audit.ran === true);
+  ok('and found nothing', (DB.audit.findings || []).length === 0,
+     JSON.stringify(DB.audit.findings));
+  // A plain rebuild must not erase the verdict; it carries it and says so.
+  ok('a carried verdict is labelled as carried',
+     DB.audit.carried === true || DB.audit.carried === false,
+     `carried=${DB.audit.carried}`);
+}
+
+console.log('--- the wiring runs without throwing ---');
+/* Two wiring bugs shipped because the suite rendered views and never wired them.
+   The worst was `railWatch.signal` read off a null, which threw on every unit
+   page and silently killed the progress bar, the rail highlighting and the
+   contents sheet. A view that renders is not a page that works. */
+for (const [name, fn] of [['wireUnit', ctx.wireUnit], ['wireDrills', ctx.wireDrills],
+                          ['wireProgress', ctx.wireProgress], ['wireGlossary', ctx.wireGlossary]]) {
+  let threw = null;
+  try { fn(); } catch (e) { threw = `${e.constructor.name}: ${e.message}`; }
+  ok(`${name} does not throw`, threw === null, threw || '');
+}
+
+console.log('--- the totals agree with each other ---');
+{
+  const t = DB.totals;
+  const wpm = t.words / t.mins;
+  // Regression: `words` counted units plus projects while `mins` counted units
+  // only, so the home page advertised 72k words and 3h40m of reading. Then the
+  // naive fix summed a project's BUILD time into a figure labelled "reading".
+  ok('reading minutes are consistent with the word count',
+     wpm > 180 && wpm < 280, `${Math.round(wpm)} wpm`);
+  ok('words covers units and projects',
+     t.words > t.unit_words, `${t.words} vs ${t.unit_words}`);
+  ok('build time is tracked separately from reading time',
+     t.project_mins > 0 && t.project_mins !== t.mins,
+     `reading ${t.mins}, building ${t.project_mins}`);
+  ok('exercise and stage counts are both present',
+     t.exercises > 0 && t.stages > 0, `${t.exercises} / ${t.stages}`);
+}
+
+console.log('--- every glossary chip points somewhere real ---');
+/* Regression: a term first bolded inside a project was recorded against the
+   project slug and then rendered as #/unit/<slug>, which 404s. The usage record
+   carries its kind now. A second bug hid behind it: build_drills set only two of
+   the three fields, so it inherited whatever kind ran before it. */
+{
+  const gl = await (await fetch('data/glossary.json')).json();
+  const units = new Set(DB.units.map((u) => u.slug));
+  const projs = new Set((DB.projects || []).map((p) => p.slug));
+  const refs = gl.terms.flatMap((t) => (t.in || []).map((u) => ({ ...u, t: t.t })));
+
+  ok('there are back-references at all', refs.length > 50, String(refs.length));
+  ok('every one declares a kind', refs.every((r) => r.k === 'unit' || r.k === 'project'),
+     JSON.stringify(refs.find((r) => !r.k)));
+  const broken = refs.filter((r) =>
+    !(r.k === 'unit' ? units.has(r.s) : projs.has(r.s)));
+  ok('every one resolves to a real unit or project', broken.length === 0,
+     JSON.stringify(broken.slice(0, 3)));
+  ok('unit terms are marked unit, not project',
+     !refs.some((r) => r.k === 'project' && units.has(r.s)),
+     JSON.stringify(refs.find((r) => r.k === 'project' && units.has(r.s))));
+}
+
+console.log('--- projects ---');
+if ((DB.projects || []).length) {
+  const pj = DB.projects[0];
+  check('viewProjects', ctx.viewProjects(),
+        ['Projects', 'class="unitgrid"', pj.title]);
+  check('viewProject', await ctx.viewProject(pj.slug),
+        ['class="readercol"', 'stages', 'Start at stage 1', pj.title]);
+  check('a project stage', await ctx.viewWork(pj.slug, 1, 'project'),
+        ['id="ed"', 'Run', 'Stage 1', 'Projects']);
+
+  const stage = await ctx.viewWork(pj.slug, 1, 'project');
+  ok('a stage links back to the project, not to a unit',
+     stage.includes(`href="#/project/${pj.slug}"`), 'no project back-link');
+  ok('stage nav uses the /project/ route',
+     !/href="#\/work\//.test(stage), (stage.match(/href="#\/work\/[^"]*/) || [''])[0]);
+  ok('an out-of-range stage clamps',
+     (await ctx.viewWork(pj.slug, 99, 'project')).includes('id="ed"'));
+  ok('projectCard is a link', ctx.projectCard(pj, 0).includes('<a class="card'));
+} else {
+  console.log('  (skipped: no projects built yet)');
+}
+
 console.log('--- contents links are routes, not bare fragments ---');
 /* Regression: rail links used to be href="#some-heading". This app is a hash
    router, so that hash was parsed as a route, matched nothing, and rendered the
-   404 — clicking any contents entry threw you off the page. */
+   404, clicking any contents entry threw you off the page. */
 {
   const html = await ctx.viewUnit('05-ownership');
   const hrefs = [...html.matchAll(/<a class="h[23]" href="([^"]+)"/g)].map((m) => m[1]);
@@ -194,7 +292,7 @@ console.log('--- compiler output rendering ---');
 
 console.log('--- stub units do not link ---');
 /* Synthesised rather than searched for. Every unit is `ready` now, so a search
-   returned undefined and killed the whole suite before its last three checks —
+   returned undefined and killed the whole suite before its last three checks, 
    but the stub branch of unitCard is live code and deserves coverage whatever
    the content happens to look like today. */
 const stub = { ...DB.units[0], ready: false, exercises: 0, drills: 0 };

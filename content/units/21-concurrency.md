@@ -5,10 +5,10 @@ title: Concurrency
 accent: rust
 concepts: thread, spawn, JoinHandle, move closure, Send, Sync, channel, mpsc, Mutex, MutexGuard, Arc, deadlock, RwLock, atomic, scoped thread, data race
 needs: 06-borrowing, 16-closures, 18-smart-ptr
-blurb: The borrow rules already forbid the exact condition a data race needs. Threads add no new rule — only the types that carry the old one across a thread boundary.
+blurb: The borrow rules already forbid the exact condition a data race needs. Threads add no new rule. They add the types that carry the old one across a thread boundary.
 ---
 
-%% "Fearless concurrency" reads like marketing until you notice what it is actually claiming: that nothing in this unit is new. A data race needs two threads touching one location, at least one writing, with no synchronisation. That is aliasing plus mutation — the thing unit 06 already made a compile error. The borrow checker was preventing data races before anyone said the word "thread".
+%% "Fearless concurrency" reads like marketing until you notice what it is actually claiming: that nothing in this unit is new. A data race needs two threads touching one location, at least one writing, with no synchronisation. That is aliasing plus mutation, which unit 06 already made a compile error. The borrow checker was preventing data races before anyone said the word "thread".
 
 What threads do need is a way to carry that guarantee across a stack boundary, and that is two marker traits and a handful of types.
 
@@ -25,8 +25,8 @@ Line them up.
 | no synchronisation between them | `&mut T` excludes every other reference |
 
 Two `&mut` to one place is `E0499`; a `&mut` alongside a `&` is `E0502`. Those
-are not thread errors — you meet them on day two, single-threaded. Same
-condition.
+are not thread errors. You meet them on day two, single-threaded, and the
+condition is identical.
 
 ```rust,bad
 let mut counter = 0;
@@ -71,10 +71,11 @@ assert_eq!(total, 5050);
 ```
 
 `thread::spawn` starts a real OS thread and returns a **JoinHandle**. `join`
-blocks until it finishes and yields `Result<T, Box<dyn Any>>` — `Err` if that
-thread panicked, which is why a panic in a worker does not take the process down.
+blocks until it finishes and yields `Result<T, Box<dyn Any>>`, where `Err`
+means that thread panicked. A panic in a worker therefore leaves the process
+standing.
 
-Drop the handle without joining and the thread runs on — but `main` returning
+Drop the handle without joining and the thread runs on. But `main` returning
 kills the process and every thread in it, so detached work silently does not
 happen.
 
@@ -87,8 +88,8 @@ thread::spawn(|| {
 });
 ```
 
-The closure borrows `name`. The compiler cannot prove the thread ends before the
-current function's frame does — nothing says it does — so the borrow could
+The closure borrows `name`. Nothing says the thread ends before the current
+function's frame does, and the compiler will not assume it, so the borrow could
 outlive its owner. That is a dangling reference, caught at compile time.
 
 ```rust,good
@@ -103,7 +104,7 @@ by value. The `String` is owned by the closure, the closure by the thread, so it
 lives exactly as long as the thread.
 
 :::gotcha
-`move` moves **`Copy`** types too — it copies them. So this compiles and prints
+`move` moves **`Copy`** types too, by copying them. So this compiles and prints
 `0`, because the closure got its own `i32`:
 
 ```rust
@@ -123,13 +124,13 @@ The compiler needs one fact about every type: is it safe to hand to another
 thread? Two traits answer it.
 
 :::note
-**`Send`** — safe to *move* to another thread.
-**`Sync`** — safe to *share by reference* between threads. Exactly equivalent to
+**`Send`**: safe to *move* to another thread.
+**`Sync`**: safe to *share by reference* between threads. Exactly equivalent to
 `&T: Send`.
 :::
 
 Both are **auto traits**: nobody writes the impls. The compiler derives them
-structurally — a struct is `Send` if every field is, `Sync` if every field is.
+structurally: a struct is `Send` if every field is, `Sync` if every field is.
 Almost everything qualifies, so you never think about it until a type does not,
 and the error names the field that broke it.
 
@@ -145,7 +146,7 @@ lands on whatever you captured.
 | `MutexGuard<T>` | `Send` | most platforms require the locking thread to unlock |
 | raw pointers | both | the compiler knows nothing about what they point at |
 
-`Rc` is the canonical case. Cloning one does `count += 1` — load, add, store.
+`Rc` is the canonical case. Cloning one does `count += 1`: a load, an add and a store.
 Two threads cloning at once both read 1 and both write 2, so a count of 3 becomes
 2, and the value is freed while someone still holds it. Use-after-free, so the
 compiler refuses:
@@ -188,14 +189,15 @@ msgs.sort();
 ```
 
 `mpsc` is multi-producer, single-consumer: `tx` clones, `rx` does not. `send`
-takes the value **by value**, so afterwards you cannot touch it — no alias
-survives for the receiver to race with. Ownership does the work a lock would.
+takes the value **by value**, so afterwards you cannot touch it. The receiver
+ends up holding the only path to it, and ownership has done the work a lock
+would.
 
 :::gotcha
 `rx.iter()` (and `for m in rx`) ends when **every** sender has been dropped. Keep
 the original `tx` alive after cloning it into the threads and the loop blocks
-forever. `drop(tx)` — or shadowing it inside a scope — is the fix, and a hung
-program with no CPU use is the symptom.
+forever. `drop(tx)`, or shadowing it inside a scope, is the fix. The symptom is
+a hung program burning no CPU at all.
 :::
 
 `recv()` blocks and returns `Err` once all senders are gone. `try_recv()` never
@@ -217,7 +219,7 @@ Mutex<i32>                 // one thing. There is no unlocked counter.
 ```
 
 You cannot forget to lock: there is no path to the `i32` that does not go
-through `lock()`. The lock is not a convention documented next to the data — it
+through `lock()`. The lock is not a convention documented next to the data. It
 is the data's container.
 
 ```rust
@@ -227,7 +229,7 @@ let counter = Mutex::new(0);
 {
     let mut n = counter.lock().unwrap();   // MutexGuard<i32>
     *n += 1;
-}                                          // guard drops here — unlocked
+}                                          // guard drops here, unlocked
 assert_eq!(*counter.lock().unwrap(), 1);
 ```
 
@@ -244,13 +246,13 @@ The guard is a value, so scope rules apply:
 let _ = counter.lock().unwrap();   // locked and unlocked on this line
 ```
 
-`let _ =` is not a binding — the guard drops immediately. Every subsequent line
+`let _ =` is not a binding, so the guard drops immediately. Every subsequent line
 runs unlocked. Same underscore, same bug as unit 05, with a worse blast radius.
 :::
 
 ### Arc<Mutex<T>>: the standard shape
 
-`Mutex` gives safe mutation. It does not give shared *ownership* — several
+`Mutex` gives safe mutation. It does not give shared *ownership*: several
 threads still need to keep the mutex alive. That is `Arc`'s job.
 
 ```rust
@@ -287,9 +289,9 @@ Two layers, two jobs, and they are not interchangeable:
 | `Arc` | who keeps this alive? (many owners, atomic count) |
 | `Mutex` | who may touch it right now? (one at a time) |
 
-Swap `Rc` for `Arc` and you get `E0277` on `spawn` — `Rc` is not `Send`. Drop the
-`Mutex` and keep the `Arc` and you get no way to mutate at all: `Arc<T>` only
-hands out `&T`.
+Swap `Rc` for `Arc` and `spawn` gives you `E0277`, because `Rc` is not `Send`.
+Drop the `Mutex` and keep the `Arc` and you lose all mutation, because `Arc<T>`
+only hands out `&T`.
 
 :::gotcha
 `*c.lock().unwrap() += 1;` unlocks at the end of the statement. This does not:
@@ -319,12 +321,12 @@ let b = m2.lock().unwrap();    let a = m1.lock().unwrap();
 ```
 
 Both block forever. That is **deadlock**, and no borrow rule is broken: each thread has exclusive
-access to what it holds. **Lock order is not a type-system property** — it is a
-fact about statement sequence.
+access to what it holds. **Lock order is not a type-system property.** It is a
+fact about the sequence of statements you happened to write.
 
 The discipline is unchanged from C: one global lock order, or one lock at a time.
 Livelock, `Rc` cycles and unbounded queues are still yours too. The claim is
-narrow and absolute — no data races, no use-after-free — not "no bugs".
+narrow and absolute: no data races, no use-after-free. It was never "no bugs".
 
 ### RwLock
 
@@ -350,7 +352,7 @@ static HITS: AtomicUsize = AtomicUsize::new(0);
 HITS.fetch_add(1, Ordering::Relaxed);
 ```
 
-One instruction, no blocking, no guard. `Ordering` says how much the compiler
+One instruction that never blocks, and no guard to drop. `Ordering` says how much the compiler
 and CPU may reorder around it: `SeqCst` is the safe default, `Relaxed` is fine
 for a counter nobody branches on.
 
@@ -368,9 +370,9 @@ let total: i32 = thread::scope(|s| {
 });
 ```
 
-No `Arc`, no `move`, no clone. Most "share a slice across four threads"
-problems are a scoped thread; before 1.63 people reached for `Arc` because there
-was nothing else.
+Nothing is moved, cloned or wrapped in an `Arc`. Most "share a slice across
+four threads" problems are really a scoped thread; before 1.63 people reached
+for `Arc` because the language offered nothing better.
 
 ### rayon
 

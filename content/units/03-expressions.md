@@ -5,7 +5,7 @@ title: Expressions and blocks
 accent: amber
 concepts: expression, statement, tail expression, block, if expression, match expression, loop, break value, never type, precedence
 needs: 01-bindings, 02-types
-blurb: Almost everything produces a value, which is why `if` can be assigned from — and why one stray semicolon turns a block into nothing at all.
+blurb: Almost everything produces a value, which is why `if` can be assigned from, and why one stray semicolon turns a block into nothing at all.
 ---
 
 %% In C, `if` is a statement and `x = cond ? a : b` is a separate, weaker construct bolted on beside it. In Rust there is no ternary operator, because there is no need for one: `if` already produces a value. So does `match`, so does `loop`, so does any block in braces.
@@ -26,7 +26,7 @@ fn helper() {}                  // an item declaration
 
 Everything else you write is an expression, sometimes with a semicolon after it
 to discard its value. `5`, `a + b`, `f(x)`, `if c { 1 } else { 2 }`,
-`match x { .. }`, `loop { .. }`, `{ .. }`, `"hi".to_string()` — all expressions.
+`match x { .. }`, `loop { .. }`, `{ .. }`, `"hi".to_string()`: all expressions.
 
 ```rust
 let x = 5;                      // statement; the `5` inside it is an expression
@@ -111,9 +111,8 @@ let label = if n > 10 {
 };
 ```
 
-`error[E0308]: if and else have incompatible types` — the `if` branch is `()`
-and the `else` branch is `&str`. One semicolon, and the branches stopped
-agreeing.
+`error[E0308]: if and else have incompatible types`. The `if` branch is `()` and
+the `else` branch is `&str`. One semicolon, and the branches stopped agreeing.
 :::
 
 ### When you *want* the semicolon
@@ -144,8 +143,8 @@ let level = if retries == 0 {
 };
 ```
 
-Both — all — arms must have the same type, because the `if` has one type and the
-compiler must know it without running the program.
+Every arm must have the same type, because the `if` itself has one type and the
+compiler has to know it without running the program.
 
 ```rust,bad
 let n = if ok { 1 } else { "one" };   // error[E0308]: expected integer, found `&str`
@@ -172,7 +171,7 @@ let bytes = match unit {
 ```
 
 Same rule, same reason: every arm's value is the `match`'s value, so every arm
-has the same type. Note the semicolon after the closing brace — the `match` is
+has the same type. Note the semicolon after the closing brace: the `match` is
 the tail of a `let` statement, and the statement ends there.
 
 ### loop, and break with a value
@@ -194,10 +193,10 @@ let connection = loop {
 };
 ```
 
-This is the idiomatic retry shape. The alternative — declaring `let mut
-connection = None;` before the loop and unwrapping it after — needs an `Option`
-that only exists to carry a value across a scope boundary, plus an `unwrap` that
-can never fire.
+This is the idiomatic retry shape. The alternative is to declare `let mut
+connection = None;` before the loop and unwrap it afterwards. That costs you an
+`Option` whose only job is carrying a value across a scope boundary, plus an
+`unwrap` that can never fire.
 
 ## Blocks as expressions
 
@@ -229,7 +228,7 @@ file handle is released at a point you chose rather than at the end of the
 function.
 
 :::compare
-**Python** — a `for` or `if` body is not a scope, so a name bound inside one
+**Python.** A `for` or `if` body is not a scope, so a name bound inside one
 leaks out and is still there afterwards. In Rust the braces are the scope,
 always, and the value the block produces is the only thing that escapes.
 :::
@@ -241,7 +240,7 @@ never comes back. `panic!`, `todo!`, `unreachable!`, `process::exit`, `return`,
 `break` and `continue` all have it.
 
 A value of type `!` can never exist, so the compiler is free to let `!` coerce to
-*any* type — there is no value that could contradict the claim.
+*any* type. No value could ever turn up to contradict the claim.
 
 ```rust
 let port: u16 = match env::var("PORT") {
@@ -277,19 +276,19 @@ fn classify(n: i32) -> &'static str {
 
 ### Precedence
 
-Method calls and `as` bind tighter than anything else, `..` binds very loosely,
-and — unlike C — the bitwise operators bind *above* comparison.
+Method calls and `as` bind tighter than anything else and `..` binds very
+loosely. Unlike C, the bitwise operators bind *above* comparison.
 
 | written | grouped as |
 |---|---|
 | `a as u64 * b` | `(a as u64) * b` |
-| `-x.abs()` | `-(x.abs())` — the method wins, so this is −1 for `x = -1` |
+| `-x.abs()` | `-(x.abs())`; the method wins, so this is −1 for `x = -1` |
 | `*p + 1` | `(*p) + 1` |
 | `1..n + 1` | `1..(n + 1)` |
 | `flags & mask == mask` | `(flags & mask) == mask` |
 
 :::compare
-**C** — that last row is the famous C bug. There `&` binds *below* `==`, so
+**C.** That last row is the famous C bug. There `&` binds *below* `==`, so
 `flags & mask == mask` means `flags & (mask == mask)`, which is `flags & 1`, and
 it compiles silently and answers the wrong question. Rust reordered the table so
 the line means what it looks like.
@@ -301,8 +300,8 @@ shift operators are also above `&` here, so `1 << n | 1` groups as
 
 ### `{` after a keyword is a block, not a struct literal
 
-In a place where a block could start — the condition of an `if` or `while`, the
-scrutinee of a `match`, the iterable of a `for` — Rust reads `{` as the start of
+In a place where a block could start (the condition of an `if` or `while`, the
+scrutinee of a `match`, the iterable of a `for`) Rust reads `{` as the start of
 the body, so a struct literal there is a parse problem.
 
 ```rust,bad

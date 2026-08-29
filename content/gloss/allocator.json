@@ -1,0 +1,11 @@
+{"terms": [
+{"t": "bump allocator", "x": "arena allocator", "p": "An allocator that is one pointer moving forward through a fixed block of memory, so allocation is an add and there is no way to free a single object."},
+{"t": "free list", "x": "block list", "p": "A linked list of the blocks an allocator has available, usually stored inside the free blocks themselves so the bookkeeping costs no extra memory."},
+{"t": "size class", "x": "size classes", "p": "One of a fixed set of block sizes an allocator rounds requests up to, so a request of a common size can be answered by popping a list instead of searching one."},
+{"t": "provenance", "x": "pointer provenance", "p": "The compiler's record of which allocated object a pointer is allowed to reach, carried along with the address and lost when the pointer is turned into an integer."},
+{"t": "coalescing", "x": "coalesce", "p": "Merging two free blocks that end and begin at the same address into one larger block, so a later big request can be served."},
+{"t": "fragmentation", "x": "external fragmentation", "p": "Free memory that cannot be used because it is split into pieces smaller than the request, even though the total is large enough."},
+{"t": "spin lock", "x": "spinlock", "p": "A lock that keeps re-testing an atomic flag instead of asking the operating system to sleep, which is right only when the section it guards is very short."},
+{"t": "soundness", "x": "sound", "p": "The property that no combination of safe calls to an API can cause undefined behaviour, no matter how wrong the caller is."},
+{"t": "arena", "x": "arena", "p": "A block of memory that many objects are allocated from and that is freed all at once, rather than object by object."}
+]}

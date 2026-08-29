@@ -30,9 +30,9 @@ calls happen.
 
 How many methods must you write to implement `Iterator`?
 
-- *A. One — `next`
-- B. Two — `next` and `size_hint`
-- C. Three — `next`, `size_hint` and `count`
+- *A. One: `next`
+- B. Two: `next` and `size_hint`
+- C. Three: `next`, `size_hint` and `count`
 - D. It depends on which adapters you want to use
 
 @why
@@ -42,7 +42,7 @@ which is not a method.
 D is the interesting wrong answer, because it is what you would expect from an
 interface. Every other method on `Iterator` is a **default method** with a body
 already written in terms of `next`, so implementing `next` gets you all seventy
-at once. `size_hint` has a default too — overriding it lets `collect`
+at once. `size_hint` has a default too, and overriding it lets `collect`
 pre-allocate, which is free performance and never required.
 
 ## 3
@@ -59,14 +59,15 @@ let n = (1..=2)
 - A. `m1 m2 f1 f2`
 - *B. `m1 f1 m2 f2`
 - C. `f1 m1 f2 m2`
-- D. Nothing — `count` does not run the chain
+- D. Nothing, `count` does not run the chain
 
 @why
 Each element travels the entire chain before the next one is pulled, so the
 stages interleave.
 
 A is the answer for an eager pipeline, where `map` builds a complete list and
-hands it to `filter`. That list does not exist here — there is nowhere to put it.
+hands it to `filter`. That list does not exist here, and there is nowhere to put
+it.
 `count` calls `next` on the `Filter`, which calls `next` on the `Map`, which
 calls `next` on the range. One element, all the way down and back, then the next.
 
@@ -109,7 +110,7 @@ v.iter().filter(|x| ...);
 
 @why
 Two references, from two different places. `v.iter()` yields `&i32`. Then
-`filter`'s closure is `FnMut(&Self::Item) -> bool` — it takes the item by
+`filter`'s closure is `FnMut(&Self::Item) -> bool`. It takes the item by
 reference so a rejected element costs nothing and an accepted one passes straight
 through untouched. `&` applied to `&i32` is `&&i32`.
 
@@ -134,7 +135,7 @@ What does this evaluate to?
 `take_while` **stops** at the first element that fails the predicate. `1` passes,
 `5` fails, iteration ends. The `2` and the second `1` are never looked at.
 
-B and C are the `filter` answers — `filter` skips failures and keeps going, so it
+B and C are the `filter` answers: `filter` skips failures and keeps going, so it
 would yield `1`, `2`, `1` for three. The two adapters read almost identically and
 mean entirely different things, and `take_while` additionally *consumes* the
 element that failed: the `5` has been pulled out of the source and is gone.
@@ -155,7 +156,7 @@ parts.len();
 
 @why
 `error[E0282]: type annotations needed`. `collect` is
-`fn collect<B: FromIterator<Self::Item>>(self) -> B` — `B` appears only in the
+`fn collect<B: FromIterator<Self::Item>>(self) -> B`, and `B` appears only in the
 return position, so nothing about the call fixes it.
 
 C is the plausible distractor and would be right for a different error entirely.
@@ -172,9 +173,9 @@ let r: Result<Vec<i32>, _> =
     ["1", "x", "3"].iter().map(|s| s.parse::<i32>()).collect();
 ```
 
-- A. `Ok(vec![1, 3])` — the failure is skipped
-- *B. `Err(ParseIntError)` — and `"3"` was never parsed
-- C. `Ok(vec![1])` — it stops and keeps what it had
+- A. `Ok(vec![1, 3])`: the failure is skipped
+- *B. `Err(ParseIntError)`, and `"3"` was never parsed
+- C. `Ok(vec![1])`: it stops and keeps what it had
 - D. It does not compile
 
 @why
@@ -184,7 +185,7 @@ is not advanced again.
 
 C is the appealing wrong answer: it sounds like `take_while`. But a `Result` has
 room for either a collection or an error, not both, so there is nowhere for the
-partial vector to go. The short-circuit is the point — you get the same behaviour
+partial vector to go. The short-circuit is the point. You get the same behaviour
 as a hand-written loop with an early `return`, without the loop.
 
 ## 9
@@ -201,7 +202,7 @@ let it = "abc".chars();
 - *D. `"abc".chars().count()`
 
 @why
-`next` takes `&mut self`, because advancing an iterator mutates it — the position
+`next` takes `&mut self`, because advancing an iterator mutates it: the position
 is state. Calling it needs a binding you are allowed to borrow mutably, so A is
 `error[E0596]` and B is the fix.
 
@@ -223,11 +224,11 @@ let rest: String = it.collect();
 - A. `"key=value"`
 - B. `"=value"`
 - *C. `"value"`
-- D. `""` — `any` consumed the whole iterator
+- D. `""`: `any` consumed the whole iterator
 
 @why
 `any` takes `&mut self`, not `self`. It short-circuits at the first `true` and
-leaves the iterator sitting immediately after the element that matched — so the
+leaves the iterator sitting immediately after the element that matched, so the
 `'='` has been consumed and `"value"` remains.
 
 D is the intuitive answer if you assume consumers always exhaust their input.
@@ -246,7 +247,7 @@ loop?
 
 - A. One allocation per adapter
 - B. One virtual call per element per adapter
-- *C. None — it compiles to the same loop
+- *C. None, it compiles to the same loop
 - D. A closure allocation, then none
 
 @why
@@ -281,21 +282,21 @@ they need contiguous memory that a general iterator does not have.
 
 C is the near miss and worth understanding: `zip` of an iterator with itself
 pairs each element with itself, giving `(3,3)`, `(7,7)`. The offset version,
-`temps.iter().zip(temps.iter().skip(1))`, does produce the overlapping pairs —
+`temps.iter().zip(temps.iter().skip(1))`, does produce the overlapping pairs,
 which is exactly what `windows` is for.
 
 ## 13
 
 An iterator returned `None`. What may it return on the next call?
 
-- A. Only `None` — that is the contract
+- A. Only `None`: that is the contract
 - *B. Anything; `None` is not final unless the iterator is fused
 - C. It panics
 - D. Undefined behaviour
 
 @why
 The `Iterator` trait makes no promise that `None` is permanent, and some
-iterators deliberately resume — a channel receiver, a file being appended to.
+iterators deliberately resume: a channel receiver, or a file being appended to.
 
 A is what almost everyone assumes and it is why `.fuse()` exists: it wraps an
 iterator so that the first `None` latches and every later call returns `None`.
@@ -317,8 +318,8 @@ never be a mistake. `cloned` and `.map(Clone::clone)` accept anything `Clone`,
 which for `i32` compiles to the same thing but for `String` would be an
 allocation per element.
 
-D is defensible for `i32` specifically — the optimiser flattens all three. It is
-wrong as a habit: `copied` documents in the type that nothing was paid for, and
+D is defensible for `i32` specifically, because the optimiser flattens all
+three. It is wrong as a habit: `copied` documents in the type that nothing was paid for, and
 fails to compile the day someone changes the element type to something expensive.
 C is a different thing again: `into_iter` on a `&[i32]` yields `&i32`, not `i32`,
 because the impl selected is the one on the reference.
@@ -341,7 +342,7 @@ Adapters allocate nothing. They build a struct on the stack holding the source
 iterator and the closure, and that is the entire cost until a consumer runs.
 
 B allocates once, for the `Vec`. D allocates once per element for the
-`to_uppercase` and once for the `Vec` — three allocations. A and C allocate
+`to_uppercase` and once for the `Vec`, so three allocations. A and C allocate
 nothing at all and, with no consumer, also *compute* nothing at all.
 
 The general shape: intermediate stages are free, and the number of allocations in

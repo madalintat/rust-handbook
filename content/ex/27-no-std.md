@@ -8,7 +8,7 @@ unit: 27-no-std
 @concept core
 @expect E0433
 
-The crate is `#![no_std]`, which is the whole point of it — this is going on a
+The crate is `#![no_std]`, which is the whole point of it. This is going on a
 microcontroller with 20 kB of RAM and no operating system underneath. The import
 on line two was copied from a hosted crate.
 
@@ -56,7 +56,8 @@ pub fn clamp_duty(requested: u16) -> u16 {
 `use of unresolved module or unlinked crate std`.
 
 `#![no_std]` tells rustc not to link the standard library, so the name `std` does
-not resolve at all. Not "some of std is unavailable" — the crate is not there.
+not resolve at all. This is not "some of std is unavailable". The crate is not
+there.
 
 What you actually lost is smaller than it looks. `std` is a shell: it re-exports
 `core` and `alloc` almost unchanged and adds the parts that need an operating
@@ -71,9 +72,9 @@ the clock, it is in `core` and the fix is one word.
 The three layers are worth keeping in your head as a diagram, because almost
 every `no_std` question is answered by asking which layer something is in.
 
-`core` — no allocation, no OS. Types, traits, iterators, arithmetic, `mem`.
-`alloc` — needs a global allocator. `Box`, `Vec`, `String`, `Rc`, `BTreeMap`.
-`std` — needs an OS. Files, threads, networking, time, `HashMap`, `println!`.
+`core`: no allocation, no OS. Types, traits, iterators, arithmetic, `mem`.
+`alloc`: needs a global allocator. `Box`, `Vec`, `String`, `Rc`, `BTreeMap`.
+`std`: needs an OS. Files, threads, networking, time, `HashMap`, `println!`.
 
 `std` re-exports the first two, which is why you never had to think about it.
 
@@ -83,8 +84,8 @@ every `no_std` question is answered by asking which layer something is in.
 @concept alloc
 @expect E0433
 
-The sampler wants a growable buffer. This board *does* have an allocator — it is
-declared elsewhere with `#[global_allocator]` — so `Vec` is genuinely available.
+The sampler wants a growable buffer. This board *does* have an allocator,
+declared elsewhere with `#[global_allocator]`, so `Vec` is genuinely available.
 
 The crate has not been told to link the library it lives in.
 
@@ -135,8 +136,8 @@ pub fn above_floor(raw: &[u16], floor: u16) -> Vec<u16> {
 `use of unresolved module or unlinked crate alloc ... you might be missing a
 crate named alloc`.
 
-Rust 2018 removed `extern crate` for ordinary dependencies — a `Cargo.toml` entry
-is enough. `alloc` and `core` are not ordinary dependencies: they ship with the
+Rust 2018 removed `extern crate` for ordinary dependencies, since a `Cargo.toml`
+entry is enough. `alloc` and `core` are not ordinary dependencies: they ship with the
 compiler and there is nothing to put in `Cargo.toml`. `core` is linked
 automatically. `alloc` is not, because linking it commits you to providing an
 allocator, and most `no_std` crates do not have one.
@@ -151,8 +152,8 @@ A driver crate that only formats registers can be `core`-only and then works on 
 works anywhere an allocator has been supplied.
 
 Notice what `alloc` gives you and what it cannot: `Box`, `Vec`, `String`, `Rc`,
-`BTreeMap` — yes. `HashMap` — no, because the default hasher seeds itself from
-the operating system's randomness, and there is no operating system. On an
+`BTreeMap`, yes. `HashMap`, no, because the default hasher seeds itself from the
+operating system's randomness, and there is no operating system. On an
 embedded target you reach for `BTreeMap`, or for a fixed-capacity map from
 `heapless` that never allocates at all.
 
@@ -235,16 +236,16 @@ pub fn furthest(points: &[(f32, f32)]) -> Option<(f32, f32)> {
 @diagnose E0599
 `no method named sqrt found for type f32 in the current scope`.
 
-A surprise the first time, and then obvious. `f32`'s arithmetic — `+`, `*`,
-comparison, `abs`, `to_bits` — is in `core`, because it is either a machine
+A surprise the first time, and then obvious. `f32`'s arithmetic (`+`, `*`,
+comparison, `abs`, `to_bits`) is in `core`, because it is either a machine
 instruction or bit twiddling. `sqrt`, `sin`, `ln`, `powf` and the rest are not:
 they are implemented by calling out to the platform's C maths library, which is
 part of the operating system's runtime. No OS, no libm, no `sqrt`.
 
 Two real fixes. Add the `libm` crate, which is that library reimplemented in
 Rust, and call `libm::sqrtf(x)`. Or notice, as here, that you did not need the
-square root — comparing squared distances gives the identical ordering and is
-both exact and faster. On a part with no floating-point unit the second is not a
+square root, because comparing squared distances gives the identical ordering
+and is both exact and faster. On a part with no floating-point unit the second is not a
 micro-optimisation; it is the difference between microseconds and milliseconds.
 
 @after
@@ -385,7 +386,7 @@ this is affordable on a chip where every byte of RAM is counted.
 @diagnose E0282
 `type annotations needed` means `Pin::new` was called in a position where nothing
 pins down `STATE`. `new` lives in `impl Pin<Unconfigured>`, so calling it fixes
-the parameter — but if you moved it to a generic impl, rustc has no way to choose.
+the parameter. Move it to a generic impl and rustc has no way to choose.
 Keep constructors in the impl for the state they produce.
 
 @after
@@ -394,7 +395,7 @@ written. It does not crash. It reads a floating input, gives you plausible
 nonsense, and you spend an afternoon with an oscilloscope.
 
 Note that `into_output` takes `self`, not `&self`. The unconfigured handle is
-consumed, so after the transition it cannot be named — the same ownership rule
+consumed, so after the transition it cannot be named. That is the ownership rule
 from unit 5, now enforcing that a peripheral has one configuration at a time. Two
 ideas that were designed for heap memory turn out to describe hardware exactly.
 
@@ -529,7 +530,7 @@ means every `Led` value has one definite pin type, chosen at the call to `new`.
 
 @diagnose E0308
 If you tried `Box<dyn OutputPin>` instead, this is the trait object route and it
-does work — but it needs `alloc`, adds a heap allocation and a vtable lookup per
+does work. But it needs `alloc`, adds a heap allocation and a vtable lookup per
 call, and on an embedded target you usually have none of those to spare.
 
 @after
@@ -541,7 +542,7 @@ peripheral write is two instructions.
 
 The testing consequence is the one you just used. Because the driver is generic
 over the trait rather than tied to one chip, a `FakePin` is a perfectly good pin,
-and the whole driver becomes testable on your laptop — which is most of why
+and the whole driver becomes testable on your laptop, which is most of why
 embedded Rust is pleasant to write.
 
 ## 6. Formatting without a heap
@@ -551,8 +552,8 @@ embedded Rust is pleasant to write.
 @expect E0046
 
 `write!` needs somewhere to put the bytes, and on this board there is no `String`
-to grow. The sink is a fixed 64-byte array on the stack, which either fits or
-returns an error — never allocates.
+to grow. The sink is a fixed 64-byte array on the stack: the write either fits
+or returns an error, and no allocation happens either way.
 
 Making it a valid target for `write!` means implementing one method.
 
@@ -635,12 +636,12 @@ impl fmt::Write for Buf {
 ```
 
 @hint The error names the one method the trait requires. Everything else on `fmt::Write` has a default.
-@hint `fn write_str(&mut self, s: &str) -> fmt::Result` — copy `s.as_bytes()` into the array at `self.len` and advance it.
+@hint `fn write_str(&mut self, s: &str) -> fmt::Result`, copying `s.as_bytes()` into the array at `self.len` and advancing it.
 @hint Check for overflow first and return `Err(fmt::Error)`; `fmt::Error` carries no detail, which is deliberate.
 
 @diagnose E0046
-`not all trait items implemented, missing: write_str` — and a `help:` line giving
-you the exact signature to paste.
+`not all trait items implemented, missing: write_str`, followed by a `help:`
+line giving you the exact signature to paste.
 
 `core::fmt::Write` has three methods. `write_char` and `write_fmt` both have
 default bodies written in terms of `write_str`, so a type only has to say how a
@@ -659,16 +660,16 @@ whole slice went in or the call failed. That is why it can work with no allocato
 and no buffering.
 
 @after
-`fmt::Error` deliberately carries nothing — no message, no errno, no `String` to
-allocate. The whole `core::fmt` stack is built to run with a fixed stack budget,
+`fmt::Error` deliberately carries nothing: no message, no errno, and no `String`
+to allocate. The whole `core::fmt` stack is built to run with a fixed stack budget,
 which is why it is in `core` at all while `io::Write` is not.
 
 There is a catch worth knowing before you rely on it. `core::fmt` is not small:
 pulling in the general formatting machinery for one `write!` can add several kB of
 flash, which on a 32 kB part is a real fraction of the budget. That is exactly why
-`defmt` exists — it sends the format string's *index* and the raw arguments over
-the wire and lets the host do the formatting, so the firmware carries no formatter
-at all.
+`defmt` exists. It sends the format string's *index* and the raw arguments over
+the wire and lets the host do the formatting, so the firmware carries no
+formatter at all.
 
 ## 7. A counter the interrupt also touches
 
@@ -732,7 +733,7 @@ pub fn ticks() -> u32 {
 ```
 
 @hint A `static` is reachable from every context at once, so its type must be safe to share. Which trait says that?
-@hint `Cell` is `!Sync` by design — read-modify-write on it is three separate steps, and an interrupt can land between them.
+@hint `Cell` is `!Sync` by design, because read-modify-write on it is three separate steps and an interrupt can land between them.
 @hint `core::sync::atomic::AtomicU32`. `fetch_add(1, Ordering::Relaxed)` to increment, `load(Ordering::Relaxed)` to read.
 
 @diagnose E0277
@@ -747,7 +748,7 @@ it.
 The hazard is concrete. `TICKS.set(TICKS.get() + 1)` is load, add, store. If the
 timer interrupt fires between the load and the store, its increment is
 overwritten and a tick vanishes. On a single-core microcontroller with no threads
-at all, this still happens — an interrupt is preemption, and the borrow rules do
+at all, this still happens. An interrupt is preemption, and the borrow rules do
 not care whether the other context is a thread or a vector table entry.
 
 `fetch_add` is one instruction the hardware cannot split.
@@ -944,7 +945,7 @@ type-checks, the wrong order does not compile, and none of it costs a byte: ever
 `Uart<S>` has identical layout, and the whole state machine is erased before code
 generation.
 
-The pattern generalises past hardware. Anything with an order — a builder that must
-be finished, a connection that must be opened, a transaction that must be committed
-— can carry its stage in its type. The cost is more type names; the return is a
-class of bug that stops being possible.
+The pattern generalises past hardware. Anything with an order can carry its
+stage in its type: a builder that must be finished, a connection that must be
+opened, a transaction that must be committed. The cost is more type names; the
+return is a class of bug that stops being possible.

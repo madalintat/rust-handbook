@@ -9,7 +9,7 @@ unit: 16-closures
 @expect E0596
 
 `bump` adds one to a variable it captured. The compiler generated a struct
-holding a `&mut` to `count`, and calling it needs `&mut self` — so the binding
+holding a `&mut` to `count`, and calling it needs `&mut self`, so the binding
 that holds the closure has to allow that.
 
 One keyword.
@@ -58,8 +58,8 @@ pub fn run() -> i32 {
 @diagnose E0596
 `cannot borrow bump as mutable, as it is not declared as mutable`.
 
-Note carefully what it is complaining about: `bump`, the closure value — not
-`count`, which you already made `mut`. Desugar and it is ordinary:
+Note carefully what it is complaining about. It is `bump`, the closure value,
+rather than `count`, which you already made `mut`. Desugar and it is ordinary:
 
 The compiler generated a struct with one field, a `&mut i32` pointing at `count`,
 and a `call` method taking `&mut self` because the body mutates through it. That
@@ -70,7 +70,7 @@ So `mut` here is not decoration. It is the same rule as `let mut v = Vec::new();
 before `v.push(1)`, applied to a value that happens to be a closure.
 
 @diagnose E0499
-You are calling `bump` while another borrow of `count` is still live — reading
+You are calling `bump` while another borrow of `count` is still live, by reading
 `count` between the calls, for instance. The closure holds a `&mut` to `count`
 for as long as it is still going to be used, and no other borrow may overlap it.
 
@@ -136,7 +136,7 @@ the current function`, with a help line suggesting `move`.
 The compiler captures with the least power that works, and the body only reads
 `name`, so it captured a `&String`. That is normally ideal. It is wrong here for
 one reason: `thread::spawn` requires `F: 'static`, meaning the closure may hold
-no borrow that could expire — and a `&name` expires when `run` returns.
+no borrow that could expire, and a `&name` expires when `run` returns.
 
 `move` changes the capture, not the trait. The closure still only reads, so it is
 still `Fn`. What changes is that the generated struct now holds a `String` by
@@ -152,7 +152,7 @@ the closure, or read the value back out of what the thread returns.
 `F: 'static` on `thread::spawn` causes more confusion than any other bound in the
 standard library, because "static" reads as "forever". It does not mean the
 closure lives forever. It means the closure's type contains no reference with a
-lifetime shorter than the program — so it *could* live that long if it had to.
+lifetime shorter than the program, so it *could* live that long if it had to.
 
 A `String` moved in satisfies that completely. If you genuinely need the thread
 to see something the parent still owns, the answer is `Arc` for shared reads or
@@ -165,7 +165,7 @@ to see something the parent still owns, the answer is `Arc` for shared reads or
 @expect E0308
 
 `adder` returns a callable that adds `n`. The return type says `fn(i32) -> i32`,
-which is a bare code address — one word, no room for anything else.
+which is a bare code address: one word, with no room for anything else.
 
 The closure needs `n`. Change the return type to one that can carry it.
 
@@ -203,12 +203,12 @@ pub fn run() -> i32 {
 ```
 
 @hint Read the help line under the error. It tells you precisely which closures can become `fn` pointers.
-@hint This closure captured `n`, so it is a struct with a field — not an address. You need a return type that describes a trait, not a pointer.
+@hint This closure captured `n`, so it is a struct with a field rather than an address. You need a return type that describes a trait, not a pointer.
 @hint `pub fn adder(n: i32) -> impl Fn(i32) -> i32`. Keep the `move`: `n` is a local.
 
 @diagnose E0308
-`mismatched types — expected fn pointer fn(i32) -> i32, found closure`, followed
-by the sentence that is the whole lesson: *closures can only be coerced to fn
+`mismatched types`, then `expected fn pointer fn(i32) -> i32, found closure`,
+followed by the sentence that is the whole lesson: *closures can only be coerced to fn
 types if they do not capture any variables*.
 
 `fn` in lowercase is a code address and nothing else: eight bytes, no
@@ -217,8 +217,8 @@ struct cannot be squeezed into a pointer, so there is no coercion.
 
 `impl Fn(i32) -> i32` in return position means "one specific type that implements
 `Fn`, which I am not naming". The concrete type is the anonymous struct, chosen
-at compile time, so the call is direct and inlinable — no allocation and no
-indirection.
+at compile time, so the call is direct and inlinable, with nothing allocated and
+nothing to chase.
 
 @diagnose E0373
 You dropped the `move`. `n` is a parameter of `adder` and dies when `adder`
@@ -232,8 +232,8 @@ The coercion does exist, and it is useful: a closure capturing nothing becomes a
 Prefer `impl Fn(..)` over `fn(..)` in your own signatures anyway. Every `fn` item
 and every non-capturing closure already implements `Fn`, so the generic form
 accepts strictly more callers and compiles to the same code. Reach for a real
-`fn` pointer only where you need the type to be nameable and `Copy` — a lookup
-table of handlers, or an `extern "C"` callback.
+`fn` pointer only where you need the type to be nameable and `Copy`, as in a
+lookup table of handlers or an `extern "C"` callback.
 
 ## 4. Called once means once
 
@@ -241,7 +241,7 @@ table of handlers, or an `extern "C"` callback.
 @concept FnOnce
 @expect E0382
 
-The closure's body is `banner` — it hands out the captured `String` itself. That
+The closure's body is `banner`, so it hands out the captured `String` itself. That
 means calling it moves the field out of the closure, which destroys the closure.
 It is `FnOnce`, and the code calls it twice.
 
@@ -282,14 +282,14 @@ pub fn run() -> String {
 
 @hint Which trait is this closure? Look at what the body does to `banner`, not at how many times it is called.
 @hint A body that gives away a capture needs `self` by value, so the call consumes the closure. To be callable twice, the body must leave the capture where it is.
-@hint `move || banner.clone()` — the closure keeps owning the `String` and produces a fresh one per call.
+@hint `move || banner.clone()`: the closure keeps owning the `String` and produces a fresh one per call.
 
 @diagnose E0382
-`use of moved value: take — value used here after move`, with a note that the
-closure `cannot be moved out of` because it implements `FnOnce` and not `Fn`.
+`use of moved value: take`, then `value used here after move`, with a note that
+the closure `cannot be moved out of` because it implements `FnOnce` and not `Fn`.
 
 The closure is a struct with one field, an owned `String`. The body evaluates to
-that field, so calling it has to move the field out — and you cannot move a field
+that field, so calling it has to move the field out, and you cannot move a field
 out of a struct you only borrowed. The `call` method therefore takes `self` by
 value, which is exactly the definition of `FnOnce`. The first call consumes
 `take`; the second has nothing left.
@@ -305,9 +305,9 @@ a reference. A closure that gives away a capture must be consumed to do it.
 @after
 Nothing declares `FnOnce` and nothing here says it. The body did.
 
-That is worth stating plainly because the traits are a hierarchy — `Fn` implies
-`FnMut` implies `FnOnce` — and the compiler always derives the strongest one the
-body permits. Your job is the mirror image: in your own generic functions, take
+That is worth stating plainly. The traits are a hierarchy, `Fn` implying `FnMut`
+implying `FnOnce`, and the compiler always derives the strongest one the body
+permits. Your job is the mirror image: in your own generic functions, take
 the *weakest* bound you can live with. `FnOnce` accepts every closure. `Fn`
 accepts the fewest. `Option::unwrap_or_else` takes `FnOnce` for precisely this
 reason: it calls at most once, so it has no business rejecting a closure that
@@ -397,7 +397,7 @@ the ordering is not obvious.
 
 The deeper point is that a closure is a value holding borrows, so it participates
 in borrow checking like any other value. The 2021 edition softened this
-considerably — before **disjoint capture**, a closure touching `cfg.retries`
+considerably. Before **disjoint capture**, a closure touching `cfg.retries`
 borrowed the whole `cfg` and blocked reads of `cfg.name`. Now it captures the
 individual field, and a great deal of code that once needed a manual workaround
 simply compiles.
@@ -412,7 +412,7 @@ simply compiles.
 only reads its captures. The closure passed to it keeps a counter, so it mutates
 one.
 
-Loosen the function, do not weaken the closure — the counter is the point.
+Loosen the function, do not weaken the closure. The counter is the point.
 
 ```starter
 pub fn apply_thrice<F: Fn(i32) -> i32>(f: F, start: i32) -> i32 {
@@ -466,13 +466,13 @@ pub fn run() -> i32 {
 implements FnMut`, with `this closure implements FnMut, not Fn` under the
 closure and `the requirement to implement Fn derives from here` under the call.
 
-You never wrote `Fn` on the closure — you could not have. The trait comes from
+You never wrote `Fn` on the closure, and could not have. The trait comes from
 `calls += 1` in the body, which needs `&mut self`, which is `FnMut`. The demand
 for `Fn` came from `apply_thrice`'s bound.
 
 The three traits are a hierarchy: `Fn` implies `FnMut` implies `FnOnce`. So
 asking for `Fn` accepts the fewest closures of the three. In a generic function,
-ask for the weakest bound the body actually needs — here `FnMut`, because
+ask for the weakest bound the body actually needs, here `FnMut`, because
 `apply_thrice` calls `f` repeatedly but never needs two callers at once.
 
 @diagnose E0596
@@ -480,8 +480,9 @@ You changed the bound to `FnMut` but left the parameter as `f: F`. Calling an
 `FnMut` borrows it mutably, so the parameter has to be `mut f: F`.
 
 @diagnose E0499
-`cannot borrow f as mutable more than once at a time` — `f(f(f(start)))`
-evaluates the inner calls while the outer one already holds `&mut f`. Three
+`cannot borrow f as mutable more than once at a time`. The expression
+`f(f(f(start)))` evaluates the inner calls while the outer one already holds
+`&mut f`. Three
 separate statements, each finishing its borrow before the next begins.
 
 @after
@@ -492,7 +493,7 @@ write something whose evaluation order you have not made explicit.
 
 Rule of thumb for your own APIs: take `FnOnce` if you call it at most once,
 `FnMut` if you call it repeatedly, and `Fn` only when you genuinely need to call
-it from several places at once — through an `Rc`, or from more than one thread.
+it from several places at once, through an `Rc` or from more than one thread.
 The standard library follows exactly this: `map` and `sort_by_key` take `FnMut`,
 `unwrap_or_else` takes `FnOnce`.
 
@@ -503,7 +504,7 @@ The standard library follows exactly this: `map` and `sort_by_key` take `FnMut`,
 @expect E0382
 
 Both closures need the data, and `move` gives it to whichever one is written
-first. Dropping the `move` is not the answer either — that is the borrow the
+first. Dropping the `move` is not the answer either; that is the borrow the
 previous thread exercise was about.
 
 What the two threads need is shared ownership.
@@ -550,7 +551,7 @@ pub fn run() -> (i32, usize) {
 ```
 
 @hint Only one value can be moved into one closure. There is one `Vec` and two closures.
-@hint `&data` will not work — a thread may outlive this frame, so it cannot hold a borrow of a local. You need a type that owns the data and can be duplicated.
+@hint `&data` will not work, because a thread may outlive this frame and so cannot hold a borrow of a local. You need a type that owns the data and can be duplicated.
 @hint Wrap it: `let data = Arc::new(vec![..])`, then make an `Arc::clone(&data)` for each thread and `move` the clone in.
 
 @diagnose E0382
@@ -558,14 +559,14 @@ pub fn run() -> (i32, usize) {
 `spawn` and `value used here after move` on the second.
 
 Nothing about this is closure-specific. `move` builds a struct that owns `data`,
-which is an ordinary move, so the `data` binding is dead afterwards — exactly as
+which is an ordinary move, so the `data` binding is dead afterwards, exactly as
 it would be after `takes(data)`.
 
 The escape people reach for is dropping `move` on the second closure, which
 trades this for `E0373`: a spawned thread has no bound on how long it runs, so it
 may not borrow a local. Neither one closure owning it nor both borrowing it
 works. The data needs an owner that outlives both threads and can be shared,
-which is `Arc` — an atomically reference-counted handle. `Arc::clone` copies a
+which is `Arc`, an atomically reference-counted handle. `Arc::clone` copies a
 pointer and increments a counter; the vector itself is never duplicated, and it
 is freed when the last handle drops.
 
@@ -575,15 +576,15 @@ You removed `move` to avoid the first error. `thread::spawn` requires `F:
 Put `move` back and give each thread its own `Arc` handle.
 
 @diagnose E0277
-`Rc<Vec<i32>> cannot be sent between threads safely` — you reached for `Rc`
+`Rc<Vec<i32>> cannot be sent between threads safely`. You reached for `Rc`
 rather than `Arc`. `Rc`'s counter is a plain integer, so two threads could
 increment it at once and lose a count. `Arc` pays for an atomic counter and is
 `Send`; `Rc` is not, and the trait system stops you at compile time.
 
 @after
 `Arc<T>` gives shared *reads*. Both closures here only read, so nothing more is
-needed. The moment one of them wants to write, `Arc<T>` alone will not compile —
-`Arc` hands out `&T`, never `&mut T`, because it cannot know how many other
+needed. The moment one of them wants to write, `Arc<T>` alone stops compiling:
+`Arc` hands out `&T` and never `&mut T`, because it cannot know how many other
 handles exist. That is where `Arc<Mutex<T>>` comes from.
 
 Also worth knowing before reaching for `Arc` at all: `std::thread::scope` lets
@@ -598,7 +599,7 @@ frame, that is cheaper and simpler than reference counting.
 @expect E0562
 
 `Pipeline` holds a list of transformations to apply in order. Each stage is a
-closure, and each closure has its own distinct anonymous type — so `Vec<impl
+closure, and each closure has its own distinct anonymous type, so `Vec<impl
 Fn(i32) -> i32>` cannot mean what it looks like it means.
 
 Give the field a type that can hold closures of different types.
@@ -679,13 +680,13 @@ pub fn run() -> i32 {
 @hint `Vec<Box<dyn Fn(i32) -> i32>>`, with `add` taking `impl Fn(i32) -> i32 + 'static` and pushing `Box::new(f)`.
 
 @diagnose E0562
-`impl Trait is not allowed in field types` — or in recent compilers, that
+`impl Trait is not allowed in field types`, or in recent compilers, that
 `impl Trait` is only permitted in argument and return position.
 
 The reason is that `impl Trait` names *one concrete type*, decided once by the
 compiler. In `-> impl Fn(i32) -> i32` that is fine: exactly one closure can be
-returned. As a field type it is meaningless — the type would have to be fixed
-when `Pipeline` is defined, and you want a different closure per stage.
+returned. As a field type it is meaningless, because the type would have to be
+fixed when `Pipeline` is defined and you want a different closure per stage.
 
 Different closures with identical bodies still have different types, so no
 generic parameter helps either. The tool for "several types behind one interface"
@@ -710,8 +711,8 @@ pipeline is built at runtime from whatever stages you like.
 
 Compare with the alternative shape, `Pipeline<F: Fn(i32) -> i32>` holding a
 single `F`: no allocation, fully inlinable, and capable of exactly one stage
-type. That is the standard trade and it shows up everywhere — `Iterator`
-adapters are the static version, `Box<dyn Error>` and event-handler registries
+type. That is the standard trade and it shows up everywhere. `Iterator`
+adapters are the static version; `Box<dyn Error>` and event-handler registries
 are the dynamic one.
 
 Note that `fold` works unchanged on `Box<dyn Fn>`: `Box<T>` derefs to `T`, so
