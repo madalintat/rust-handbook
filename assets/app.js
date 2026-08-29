@@ -128,6 +128,30 @@ function crumbs(parts) {
 
 const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
 
+/* The contents rail. `items` are {href, id, text, level, note}. The spine and
+   the per-item dots are drawn by CSS; wireRail fills them in as you read. */
+const RAIL_KEY = 'rh-rail';
+const railCollapsed = () => {
+  try { return localStorage.getItem(RAIL_KEY) === '1'; } catch (e) { return false; }
+};
+
+function rail(label, items) {
+  return `<aside class="rail">
+    <div class="railhead">
+      <span class="eyebrow">${esc(label)}</span>
+      <button class="railtoggle" id="railtoggle" aria-expanded="${!railCollapsed()}"
+        aria-controls="railol" title="Collapse the contents">${ico('chev', 14)}</button>
+    </div>
+    <div class="railscroll">
+      <div class="railtrack"><div class="railfill" id="railfill"></div></div>
+      <ol id="railol">${items.map((it) =>
+        `<li><a class="h${it.level}" href="${it.href}" data-id="${it.id}"
+          data-title="${esc(it.text)}">${esc(it.text)}${
+          it.note ? `<span class="mins">${esc(it.note)}</span>` : ''}</a></li>`).join('')}</ol>
+    </div>
+  </aside>`;
+}
+
 /* Previous / next, for the reader and for the workbench. Both built this by hand
    with four copies of the same flex-spacer literal. Each side is {href, t}
    or null. */
@@ -319,13 +343,15 @@ async function viewProject(slug) {
   const pj = await get(`data/project/${slug}.json`);
   const done = projDone(meta);
 
-  return `<div class="wrap wide" data-accent="${meta.accent}"><div class="readerlayout">
-    <aside class="rail">
-      <div class="eyebrow">Stages</div>
-      <ol id="railol">${pj.stages.map((st) =>
-        `<li><a class="h3" href="#/project/${slug}/${st.n}" data-id="stage-${st.n}">
-          ${passed(slug, st.n) ? '\u2713 ' : ''}${st.n}. ${esc(st.title)}</a></li>`).join('')}</ol>
-    </aside>
+  return `<div class="wrap wide" data-accent="${meta.accent}"><div class="readerlayout" data-rail="${
+    railCollapsed() ? 'collapsed' : 'open'}">
+    ${rail('Stages', pj.stages.map((st) => ({
+      href: `#/project/${slug}/${st.n}`,
+      id: `stage-${st.n}`,
+      text: `${st.n}. ${st.title}`,
+      level: 3,
+      note: passed(slug, st.n) ? '\u2713' : '',
+    })))}
     <div class="readercol">
       ${crumbs([{ t: 'Projects', href: '#/projects' }, { t: meta.title }])}
       <header class="unithead">
@@ -393,13 +419,11 @@ async function viewUnit(slug) {
      and render the 404, which is exactly what it did before. Routing the jump
      through `#/unit/<slug>/<id>` keeps deep links working and lets render()
      recognise it as a scroll within the page it is already showing. */
-  const rail = u.parts.map((p) => {
-    const head = `<li><a class="h2" href="#/unit/${slug}/${p.id}" data-id="${p.id}">${
-      esc(p.title)}<span class="mins">${p.mins}m</span></a></li>`;
-    return head + p.subs.map((s) =>
-      `<li><a class="h3" href="#/unit/${slug}/${s.id}" data-id="${s.id}">${
-        esc(s.text)}<span class="mins">${s.mins}m</span></a></li>`).join('');
-  }).join('');
+  const railItems = u.parts.flatMap((p) => [
+    { href: `#/unit/${slug}/${p.id}`, id: p.id, text: p.title, level: 2, note: `${p.mins}m` },
+    ...p.subs.map((sub) => ({ href: `#/unit/${slug}/${sub.id}`, id: sub.id,
+                              text: sub.text, level: 3, note: `${sub.mins}m` })),
+  ]);
 
   // The first part opens by default: it carries the argument, and a page of
   // closed rows reads as an index rather than as something worth reading.
@@ -425,8 +449,9 @@ async function viewUnit(slug) {
       <div class="progress" id="prog"></div>
     </div></div>
 
-    <div class="wrap wide"><div class="readerlayout">
-      <aside class="rail"><div class="eyebrow">In this unit</div><ol id="railol">${rail}</ol></aside>
+    <div class="wrap wide"><div class="readerlayout" data-rail="${
+      railCollapsed() ? 'collapsed' : 'open'}">
+      ${rail('In this unit', railItems)}
       <div class="readercol">
         <header class="unithead">
           <span class="eyebrow">Unit ${String(u.num).padStart(2, '0')} · ${
@@ -471,38 +496,52 @@ function wireUnit() {
   const sheetBtn = $('#opensheet');
   if (sheetBtn) sheetBtn.addEventListener('click', openSheet);
 
-  const rail = $('#railol');
+  const railol = $('#railol');
   const bar = $('#prog');
-  const links = rail ? $$('a', rail) : [];
+  const fill = $('#railfill');
+  const layout = document.querySelector('.readerlayout');
+  const links = railol ? $$('a', railol) : [];
   const targets = links.map((a) => document.getElementById(a.dataset.id));
 
-  /* Scroll fires up to ~120x/s during phone momentum scroll. Doing the work
-     inline meant a full synchronous layout flush plus one getBoundingClientRect
-     per heading, up to 22, on every one of those. Coalesced to one pass per
-     frame, and the class writes are skipped entirely when the active section has
-     not changed, which is ~99% of frames. */
+  /* One pass, driven by rAF, doing the three things the rail is for: how far
+     through the unit you are (the spine), which sections you have already gone
+     past (the dots), and where you are now (the active entry). Splitting these
+     into separate listeners would measure the same layout three times. */
   let ticking = false;
   let active = -1;
 
   const measure = () => {
     ticking = false;
-    if (bar) {
-      const h = document.documentElement;
-      const max = h.scrollHeight - h.clientHeight;
-      bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
-    }
-    // The active rail entry is the last heading whose top is above the fold.
+    const h = document.documentElement;
+    const max = h.scrollHeight - h.clientHeight;
+    const pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
+    if (bar) bar.style.width = pct + '%';
+    if (fill) fill.style.height = pct + '%';
+
+    // The active entry is the last heading whose top has passed the fold.
     let now = -1;
     for (let i = 0; i < targets.length; i++) {
       if (targets[i] && targets[i].getBoundingClientRect().top < 140) now = i;
     }
     if (now === active) return;
     active = now;
-    links.forEach((a, i) => a.classList.toggle('on', i === active));
-    if (active >= 0 && rail) {
+
+    links.forEach((a, i) => {
+      a.classList.toggle('on', i === active);
+      // `read` is "you have scrolled past this", which is what makes the rail a
+      // record of where you have been rather than only where you are.
+      a.classList.toggle('read', i < active);
+    });
+
+    // Keep the active entry in view inside the rail's own scroller, but never
+    // when it is collapsed: there is nothing to read and the jump is noise.
+    if (active >= 0 && railol && layout?.dataset.rail !== 'collapsed') {
       const a = links[active];
-      const r = a.getBoundingClientRect(), rr = rail.parentElement.getBoundingClientRect();
-      if (r.top < rr.top || r.bottom > rr.bottom) a.scrollIntoView({ block: 'nearest' });
+      const box = railol.parentElement;
+      const r = a.getBoundingClientRect(), rr = box.getBoundingClientRect();
+      if (r.top < rr.top + 8 || r.bottom > rr.bottom - 8) {
+        a.scrollIntoView({ block: 'nearest' });
+      }
     }
   };
 
@@ -514,16 +553,29 @@ function wireUnit() {
 
   // render() replaces app.innerHTML wholesale, so without aborting the previous
   // one every unit read leaves its handler behind holding a whole detached DOM.
-  // The controller has to be created here: reading .signal off a null was
-  // throwing on every unit page, which killed the progress bar, the rail
-  // highlighting and the contents sheet in one go.
   if (railWatch) railWatch.abort();
   railWatch = new AbortController();
   addEventListener('scroll', onScroll, { passive: true, signal: railWatch.signal });
+  addEventListener('resize', onScroll, { passive: true, signal: railWatch.signal });
   measure();
 
+  const toggle = $('#railtoggle');
+  if (toggle && layout) {
+    toggle.addEventListener('click', () => {
+      const now = layout.dataset.rail !== 'collapsed';
+      layout.dataset.rail = now ? 'collapsed' : 'open';
+      toggle.setAttribute('aria-expanded', String(!now));
+      toggle.title = now ? 'Show the contents' : 'Collapse the contents';
+      try { localStorage.setItem(RAIL_KEY, now ? '1' : '0'); } catch (e) {}
+      // The reading column changed width, so every heading moved.
+      requestAnimationFrame(() => { active = -1; measure(); });
+    });
+  }
+
+  // The mobile sheet shows the same list. `rail` is the markup function now, so
+  // reading .innerHTML off it silently produced <ol>undefined</ol>.
   const sb = $('#sheetbody');
-  if (sb && rail) sb.innerHTML = `<ol>${rail.innerHTML}</ol>`;
+  if (sb && railol) sb.innerHTML = `<ol>${railol.innerHTML}</ol>`;
 }
 
 /* --------------------------------------------------------------------- */
@@ -1216,7 +1268,7 @@ async function render() {
     else if (route === 'projects') html = viewProjects(a || null);
     else if (route === 'project') {
       if (b) { html = await viewWork(a, b, 'project'); after = () => wireWork(a, b, 'project'); }
-      else html = await viewProject(a);
+      else { html = await viewProject(a); after = wireUnit; }
     }
     else if (route === 'drills') { html = await viewDrills(a); after = wireDrills; }
     else if (route === 'progress') { html = viewProgress(); after = wireProgress; }

@@ -144,6 +144,27 @@ console.log('--- the toolchain the content was validated on ---');
      `carried=${DB.audit.carried}`);
 }
 
+console.log('--- the contents rail ---');
+{
+  const html = await ctx.viewUnit('05-ownership');
+  ok('has a collapse toggle', html.includes('id="railtoggle"'));
+  ok('the toggle declares its state', /aria-expanded="(true|false)"/.test(html));
+  ok('has a progress spine', html.includes('class="railtrack"') && html.includes('id="railfill"'));
+  ok('the layout declares the rail state',
+     /data-rail="(open|collapsed)"/.test(html), (html.match(/data-rail="[^"]*"/) || [''])[0]);
+  const items = [...html.matchAll(/<a class="h[23]" href="([^"]+)" data-id="([^"]+)"\s+data-title="([^"]*)"/g)];
+  ok('every entry carries an id and a title for the collapsed tooltip',
+     items.length > 10 && items.every((m) => m[2] && m[3]), String(items.length));
+  ok('every entry is a real route', items.every((m) => m[1].startsWith('#/unit/05-ownership/')));
+
+  // the project overview uses the same rail, so it gets the same guarantees
+  const pj = DB.projects[0];
+  const ph = await ctx.viewProject(pj.slug);
+  ok('the project overview has the same rail', ph.includes('id="railfill"')
+     && ph.includes('id="railtoggle"'));
+  ok('its entries route to stages', /href="#\/project\/[^/]+\/\d+"/.test(ph));
+}
+
 console.log('--- the wiring runs without throwing ---');
 /* Two wiring bugs shipped because the suite rendered views and never wired them.
    The worst was `railWatch.signal` read off a null, which threw on every unit
@@ -154,6 +175,30 @@ for (const [name, fn] of [['wireUnit', ctx.wireUnit], ['wireDrills', ctx.wireDri
   let threw = null;
   try { fn(); } catch (e) { threw = `${e.constructor.name}: ${e.message}`; }
   ok(`${name} does not throw`, threw === null, threw || '');
+}
+
+/* Nothing the wiring writes into the DOM may be the string "undefined". That is
+   what a renamed variable produced in the mobile contents sheet: `rail` had
+   become a function, `rail.innerHTML` was undefined, and a function is truthy so
+   the guard let it through. */
+{
+  const writes = [];
+  const spy = () => new Proxy({ innerHTML: '', textContent: '', style: {}, dataset: {},
+    classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
+    addEventListener: noop, querySelector: () => spy(), querySelectorAll: () => [],
+    getBoundingClientRect: () => ({ top: 0, bottom: 0 }), scrollIntoView: noop,
+    setAttribute: noop, getAttribute: () => '', closest: () => null,
+  }, {
+    get: (t, k) => (k in t ? t[k] : spy()),
+    set: (t, k, v) => { if (k === 'innerHTML' || k === 'textContent') writes.push(String(v)); t[k] = v; return true; },
+  });
+  const realQS = document.querySelector;
+  document.querySelector = () => spy();
+  try { ctx.wireUnit(); } catch (e) { /* covered by the checks above */ }
+  document.querySelector = realQS;
+  const bad = writes.filter((w) => /\bundefined\b/.test(w));
+  ok('the wiring never writes "undefined" into the DOM', bad.length === 0,
+     JSON.stringify(bad.slice(0, 2)));
 }
 
 console.log('--- the totals agree with each other ---');

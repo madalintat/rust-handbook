@@ -52,7 +52,7 @@
   --r-md: 8px;
   --r-lg: 16px;
   --drop: 2px;
-  --rail: 208px;
+  --rail: 252px;
   --measure: 72ch;
 
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -513,7 +513,8 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
 .readerlayout {
   display: grid;
   grid-template-columns: var(--rail) minmax(0, 1fr);
-  gap: 48px;
+  gap: 44px;
+  transition: grid-template-columns var(--med) var(--ease), gap var(--med) var(--ease);
   padding: 26px 0 60px;
   align-items: start;
 }
@@ -524,48 +525,178 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
    whatever space is left, so the page stays balanced at every width. */
 .readercol { max-width: 840px; margin: 0 auto; width: 100%; }
 
-/* Pinned, not scrolling with the page. It has its own scrollbar for units long
-   enough to need one, and the mask fades both ends so entries do not appear to
-   be cut in half by an invisible edge. */
+/* The contents rail.
+ *
+ * Three jobs, and each one is why a plain list of links is not enough. It has to
+ * stay put while the prose moves, which is `position: sticky`. It has to say
+ * where you are, which is the spine: a vertical track that fills as you read,
+ * with a dot per section that fills once you have passed it. And it has to get
+ * out of the way, which is the collapse: not to zero, but to the spine alone, so
+ * you keep the map and lose only the words.
+ */
+
 .rail {
   position: sticky;
-  top: 104px;
-  max-height: calc(100vh - 128px);
+  top: 96px;
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  transition: opacity var(--med);
+}
+
+.railhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 8px 0;
+  flex: none;
+}
+.railhead .eyebrow {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity var(--fast);
+}
+.railtoggle {
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-4);
+  cursor: pointer;
+  flex: none;
+  transition: background var(--fast), color var(--fast), transform var(--med) var(--ease);
+}
+.railtoggle:hover { background: var(--raised); color: var(--ink); }
+.railtoggle svg { display: block; }
+
+/* The scroller holds the spine and the list together so they share one origin,
+   which is what keeps every dot centred on the line at any zoom level. */
+.railscroll {
+  position: relative;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  padding: 4px 10px 14px 0;
-  mask-image: linear-gradient(to bottom, transparent, #000 14px,
-                              #000 calc(100% - 20px), transparent);
+  padding: 2px 8px 14px 0;
+  mask-image: linear-gradient(to bottom, transparent, #000 12px,
+                              #000 calc(100% - 18px), transparent);
 }
-.rail::-webkit-scrollbar { width: 5px; }
-.rail::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 99px; }
-.rail::-webkit-scrollbar-thumb:hover { background: var(--border); }
+.railscroll::-webkit-scrollbar { width: 5px; }
+.railscroll::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 99px; }
+.railscroll::-webkit-scrollbar-thumb:hover { background: var(--border); }
 
-.rail ol { list-style: none; margin-top: 9px; }
-.rail a {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 4px 9px; border-radius: var(--r-sm);
-  font-size: var(--t-micro); color: var(--ink-3); line-height: 1.4;
-  border-left: 2px solid transparent;
-  transition: background var(--fast), color var(--fast), border-color var(--fast);
+/* The spine. The track is the whole unit; the fill is how far down it you are. */
+.railtrack {
+  position: absolute;
+  left: 5px; top: 4px; bottom: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--border-soft);
 }
+.railfill {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%;
+  height: 0;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: height 0.12s linear;
+}
+
+.rail ol { list-style: none; position: relative; }
+
+.rail a {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 8px 5px 20px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  line-height: 1.45;
+  transition: background var(--fast), color var(--fast);
+}
+
+/* One dot per entry, sitting on the spine. Hollow until you have read past it. */
+.rail a::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.72em;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1.5px var(--border);
+  transition: box-shadow var(--med), background var(--med), transform var(--med) var(--ease);
+}
+.rail a.read::before { background: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.rail a.on::before {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  transform: scale(1.15);
+}
+
 .rail a:hover { background: var(--raised); color: var(--ink); }
 .rail a.h2 {
-  font-weight: 700; color: var(--ink-2); margin-top: 9px;
-  font-size: var(--t-tiny); letter-spacing: -0.01em;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-top: 10px;
+  font-size: var(--t-tiny);
+  letter-spacing: -0.01em;
 }
-.rail a.h3 { padding-left: 19px; }
-.rail a.on {
-  color: var(--accent);
-  border-left-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
+.rail a.h3 { padding-left: 32px; font-size: var(--t-micro); }
+.rail a.h3::before { width: 6px; height: 6px; left: 3px; }
+.rail a.on { color: var(--accent); font-weight: 600; }
+.rail .mins {
+  margin-left: auto;
+  font-size: 9.5px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+  opacity: 0.75;
+  transition: opacity var(--fast);
+}
+
+/* --- collapsed ------------------------------------------------------------
+ * Not hidden: reduced to the spine. You still see how far through you are and
+ * you can still jump, because the dots stay clickable and keep their titles.
+ */
+.readerlayout[data-rail="collapsed"] { grid-template-columns: 26px minmax(0, 1fr); gap: 30px; }
+.readerlayout[data-rail="collapsed"] .railhead .eyebrow { opacity: 0; pointer-events: none; }
+.readerlayout[data-rail="collapsed"] .railtoggle { transform: rotate(180deg); }
+.readerlayout[data-rail="collapsed"] .railscroll { padding-right: 0; overflow: visible; }
+.readerlayout[data-rail="collapsed"] .rail a {
+  padding: 5px 0 5px 20px;
+  height: 0;
+  overflow: hidden;
+  color: transparent;
+}
+.readerlayout[data-rail="collapsed"] .rail a.h2 { margin-top: 6px; }
+.readerlayout[data-rail="collapsed"] .rail a::before { top: 2px; }
+.readerlayout[data-rail="collapsed"] .rail .mins { opacity: 0; }
+.readerlayout[data-rail="collapsed"] .rail a:hover { background: transparent; }
+/* Hovering a collapsed dot names its section, so the map stays usable. */
+.readerlayout[data-rail="collapsed"] .rail a:hover::after {
+  content: attr(data-title);
+  position: absolute;
+  left: 22px; top: -4px;
+  z-index: 40;
+  white-space: nowrap;
+  padding: 4px 9px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px var(--shadow);
+  color: var(--ink);
+  font-size: var(--t-micro);
   font-weight: 600;
 }
-.rail .mins {
-  margin-left: auto; font-size: 9.5px; color: var(--ink-4);
-  font-variant-numeric: tabular-nums; flex: none; opacity: 0.8;
+
+@media (prefers-reduced-motion: reduce) {
+  .railfill { transition: none; }
 }
 
 .unithead { padding-bottom: 22px; margin-bottom: 8px; border-bottom: 1px solid var(--border-soft); }
