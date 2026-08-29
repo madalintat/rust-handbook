@@ -56,10 +56,16 @@ jobs:
         run: node test_vim.mjs
 
       - name: Prose rules
+        # Everything a human reads, including the documents that state the rule.
+        # CONTRIBUTING says CI enforces this, so CI has to actually check the
+        # file CONTRIBUTING lives in.
         run: |
-          if grep -rlq '—\|–' content assets build.py index.html README.md docs test_*.* 2>/dev/null; then
+          TARGETS="content assets build.py index.html README.md CONTRIBUTING.md
+                   CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md docs
+                   .github/ISSUE_TEMPLATE .github/pull_request_template.md test_*.*"
+          if grep -rlq '—\|–' $TARGETS 2>/dev/null; then
             echo "::error::em or en dashes found. The prose rule in docs/AUTHORING.md is absolute."
-            grep -rn '—\|–' content assets build.py index.html README.md docs test_*.* 2>/dev/null | head -20
+            grep -rn '—\|–' $TARGETS 2>/dev/null | head -20
             exit 1
           fi
 

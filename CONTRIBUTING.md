@@ -9,7 +9,8 @@ and open a pull request, and every change lands on `main` through review.
 2. Make your change.
 3. Run the checks below. They are the same ones CI runs, so a green run locally
    means a green run there.
-4. Open a pull request. It will be reviewed before merging.
+4. Open a pull request. It needs an approving review and a green CI run before
+   it can merge.
 
 ## Running the checks
 

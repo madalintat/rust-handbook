@@ -106,6 +106,7 @@ of a diagnostic is wrong, open an issue with the code you ran and what rustc
 actually said. The compiler settles most arguments.
 
 **[CONTRIBUTING.md](CONTRIBUTING.md)** has the detail.
+
 **[docs/AUTHORING.md](docs/AUTHORING.md)** is the contract for writing a unit or
 a project.
 
