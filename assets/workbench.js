@@ -362,5 +362,9 @@ function mountEditor(host, starter, onRun) {
   };
 }
 
-return { run, parse, snippet, mountEditor, toolchain, esc };
+/* hlRust is exported for a consumer outside the browser: the clip project in
+   ~/cetusian/content/the-rust-handbook highlights its source with this function
+   at build time, so a video and a page tokenize Rust the same way. It was
+   dropped from here once as unused, and a second tokenizer is the alternative. */
+return { hlRust, run, parse, snippet, mountEditor, toolchain, esc };
 })();
