@@ -31,8 +31,8 @@ const MID = [
 ];
 
 const LAST = [
-  'Unit finished. Every one of those compiled on real rustc, so you know it works rather than hoping.',
-  'That is the unit. Worth going back and deliberately breaking one, reading an error you caused on purpose teaches more than reading one you did not.',
+  'That is the last one. Every one of them compiled on real rustc, so you know it works rather than hoping.',
+  'All of them green. Worth going back and deliberately breaking one, reading an error you caused on purpose teaches more than reading one you did not.',
 ];
 
 const REST = [
@@ -60,13 +60,15 @@ function hide() {
   if (node) { node.remove(); node = null; }
 }
 
-/* Called from the workbench when an exercise passes. `done` is how many of the
-   unit's exercises are now green. */
-function cheer(n, done) {
+/* Called from the workbench when an exercise or a stage passes: `done` of
+   `total` are now green. The total comes from the caller because it varies. It
+   used to be hardcoded as seven, which fired five stages early on the twelve
+   stage projects and could never fire at all on the four stage ones. */
+function cheer(done, total) {
   const hours = (Date.now() - START) / 36e5;
   if (hours > 1.6) return say(pick(REST), 12000);
   if (done === 1) return say(pick(FIRST));
-  if (n >= 7 || done >= 7) return say(pick(LAST), 11000);
+  if (done >= total) return say(pick(LAST), 11000);
   if (done % 3 === 0) return say(pick(MID));
 }
 

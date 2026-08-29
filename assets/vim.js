@@ -510,7 +510,7 @@ function create(opts = {}) {
         let from = st.cur, to = st.cur;
         if (k !== 'c') {
           const m = motion(k, n());
-          if (!m) { st.op = null; reset(); emit(); return true; }
+          if (!m) return abandon(`not a motion: ${k}`);
           from = Math.min(st.cur, m.to);
           to = Math.max(st.cur, m.to);
         } else if (n() > 1) {
@@ -544,7 +544,6 @@ function create(opts = {}) {
           const inclusive = a === 'f' || a === 't';
           const from = Math.min(st.cur, found), to = Math.max(st.cur, found) + (inclusive ? 1 : 0);
           applyOp(st.op, from, to, false);
-          st.op = null;
         } else {
           st.cur = found;
           st.want = col(text, st.cur);
@@ -590,7 +589,6 @@ function create(opts = {}) {
         const from = Math.min(st.cur, m.to);
         const to = Math.max(st.cur, m.to) + (m.inclusive ? 1 : 0);
         applyOp(st.op, from, to, m.linewise);
-        st.op = null;
       } else {
         st.cur = st.mode === 'visual' || st.mode === 'vline' ? m.to : clampNormal(m.to);
         if (k !== 'j' && k !== 'k') st.want = col(text, st.cur);
@@ -727,11 +725,13 @@ function create(opts = {}) {
         return true;
     }
 
-    st.count = st.opCount = '';
     if (st.mode === 'normal') st.cur = clampNormal(st.cur);
     st.want = col(text, st.cur);
-    emit();
-    return true;
+    // done() clears the operator as well. Spelling this epilogue out by hand
+    // was the third, unnamed terminator: every `break` in the switch above
+    // left `d` armed, so `d` then `p` then `w` deleted a word nobody asked to
+    // delete. Motions never reach here; they return at the motion() branch.
+    return done();
   }
 
   function doPendingLinewise(to) {

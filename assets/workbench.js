@@ -3,7 +3,6 @@
  * Four things live here, and they are together because they all know how Rust
  * is spelled:
  *
- *   hlRust(src)                 -> highlighted HTML
  *   mountEditor(host, code, cb) -> a live editor over that highlighter
  *   run(code, {tests})          -> the real compiler, on play.rust-lang.org
  *   parse(stderr, userLines)    -> diagnostics we can render as objects
@@ -363,5 +362,5 @@ function mountEditor(host, starter, onRun) {
   };
 }
 
-return { hlRust, run, parse, snippet, mountEditor, toolchain, esc };
+return { run, parse, snippet, mountEditor, toolchain, esc };
 })();

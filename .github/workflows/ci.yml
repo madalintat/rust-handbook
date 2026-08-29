@@ -12,6 +12,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build and test
@@ -35,39 +38,11 @@ jobs:
           test ! -f package.json || (echo "package.json appeared" && exit 1)
           test ! -f requirements.txt || (echo "requirements.txt appeared" && exit 1)
 
-      - name: Build
-        run: python3 build.py
-
-      - name: data/ is committed and matches content/
-        run: |
-          if [ -n "$(git status --porcelain data/)" ]; then
-            echo "::error::data/ is stale. Run 'python3 build.py' and commit the result."
-            git --no-pager diff --stat data/
-            exit 1
-          fi
-
-      - name: Build pipeline tests
-        run: python3 test_build.py
-
-      - name: View tests
-        run: node test_views.mjs
-
-      - name: Vim mode tests
-        run: node test_vim.mjs
-
-      - name: Prose rules
-        # Everything a human reads, including the documents that state the rule.
-        # CONTRIBUTING says CI enforces this, so CI has to actually check the
-        # file CONTRIBUTING lives in.
-        run: |
-          TARGETS="content assets build.py index.html README.md CONTRIBUTING.md
-                   CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md docs
-                   .github/ISSUE_TEMPLATE .github/pull_request_template.md test_*.*"
-          if grep -rlq '—\|–' $TARGETS 2>/dev/null; then
-            echo "::error::em or en dashes found. The prose rule in docs/AUTHORING.md is absolute."
-            grep -rn '—\|–' $TARGETS 2>/dev/null | head -20
-            exit 1
-          fi
+      # Build, data/ freshness, the prose rule, and all three offline suites.
+      # release.sh owns the sequence so that CI and a release cannot disagree
+      # about what "verified" means.
+      - name: Verify
+        run: ./release.sh --check
 
   compiler:
     name: Exercises compile
@@ -107,3 +82,34 @@ jobs:
         with:
           node-version: '22'
       - run: node test_workbench.mjs
+
+  deploy:
+    name: Publish to Pages
+    # The site is static, so this publishes the tree as committed. It waits on
+    # the build job: as a workflow of its own it had no ordering against CI at
+    # all, and could put a failing commit on the domain before a single test
+    # had run.
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # A Pages deploy already in flight is left to finish; queue behind it.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage the site
+        run: ./release.sh --site _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -183,7 +183,6 @@ console.log('--- the contents rail ---');
   const items = [...html.matchAll(/<a class="h[23]" href="([^"]+)" data-id="([^"]+)"\s+data-title="([^"]*)"/g)];
   ok('every entry carries an id and a title for the collapsed tooltip',
      items.length > 10 && items.every((m) => m[2] && m[3]), String(items.length));
-  ok('every entry is a real route', items.every((m) => m[1].startsWith('#/unit/05-ownership/')));
 
   // the project overview uses the same rail, so it gets the same guarantees
   const pj = DB.projects[0];

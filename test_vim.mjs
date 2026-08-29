@@ -235,6 +235,22 @@ t('a working gcc is unaffected', '|let x;', 'gcc', '|// let x;');
   ok('the operator is cleared after an unknown g key', v.state.op === null, String(v.state.op));
 }
 
+/* The switch that handles every non-motion key ended with a hand-written
+   epilogue that cleared the counts and not the operator, so `d` followed by any
+   of them stayed armed and the next motion cut. Six keys reached it. */
+for (const k of ['p', 'x', 'J', 'u', '~', 'P']) {
+  const v = Vim.create(); v.text = 'alpha beta gamma'; v.setCursor(0);
+  v.key('d'); v.key(k);
+  ok(`d then ${k} leaves no operator armed`.padEnd(40), v.state.op === null,
+     String(v.state.op));
+}
+tText('d p w cuts nothing', '|alpha beta gamma', 'dpw', 'alpha beta gamma');
+{
+  const v = Vim.create(); v.text = 'alpha beta'; v.setCursor(0);
+  v.key('g'); v.key('c'); v.key('q');
+  ok('an unknown gc motion says so', /not a motion/.test(v.state.status), v.state.status);
+}
+
 console.log('\n--- the : command line ---');
 {
   let ran = 0;

@@ -28,18 +28,12 @@ jobs:
         with: { node-version: '22' }
 
       # A release is a promise that the content compiles. Verify before tagging
-      # anything, not after.
-      - name: Build
-        run: python3 build.py
-
-      - name: Test
-        run: |
-          python3 test_build.py
-          node test_views.mjs
-          node test_vim.mjs
-
-      - name: Validate every exercise against real rustc
-        run: python3 build.py --validate
+      # anything, not after. Same sequence CI runs, plus the network suites,
+      # because release.sh owns it: this step used to spell out its own and had
+      # already drifted, skipping both the workbench suite and the check that
+      # data/ still matches content/.
+      - name: Verify
+        run: ./release.sh --check --net
 
       - name: Collect the numbers this release ships
         id: facts
@@ -91,15 +85,14 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+      # release.sh --site is the one definition of what the site is; the
+      # Pages deploy stages the same list.
       - name: Package the built site
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          ./release.sh --site "rust-handbook-${TAG}"
           mkdir -p dist
-          tar --exclude='.git' --exclude='.github' --exclude='content' \
-              --exclude='docs' --exclude='dist' --exclude='test_*' \
-              --exclude='data/.validate-cache.json' \
-              -czf "dist/rust-handbook-${TAG}.tar.gz" \
-              index.html assets data llms.txt vercel.json README.md LICENSE
+          tar -czf "dist/rust-handbook-${TAG}.tar.gz" "rust-handbook-${TAG}"
           ls -lh dist/
 
       - uses: softprops/action-gh-release@v2

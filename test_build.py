@@ -358,5 +358,31 @@ meta, body = build.front_matter("No front matter.")
 ok("absent front matter is not an error", meta == {} and body == "No front matter.")
 
 # --------------------------------------------------------------------------
+# the carried verdict
+# --------------------------------------------------------------------------
+print("--- carried verdict ---")
+VERDICT = {"ran": True, "checked": 316, "cached": 0,
+           "toolchain": {"version": "1.98.0", "date": "2026-08-18"},
+           "findings": [{"ref": "05-ownership#1"}, {"ref": "06-borrowing#2"}]}
+
+c = build.carry(VERDICT, {"05-ownership#1"}, {"06-borrowing#2"})
+ok("the toolchain survives a plain build", c["toolchain"]["version"] == "1.98.0")
+ok("only covered items are counted", c["cached"] == 1, c["cached"])
+ok("a finding for an edited item is dropped",
+   [f["ref"] for f in c["findings"]] == ["05-ownership#1"], c["findings"])
+ok("what the cache no longer covers is named", c["unvalidated"] == ["06-borrowing#2"])
+
+# The latch. A plain build used to gate the whole carry on the previous run's
+# `ran` flag, so one false wrote itself forward for ever and the footer lost
+# its rustc version until someone thought to run --validate again.
+lapsed = build.carry({**VERDICT, "ran": False}, {"05-ownership#1"}, set())
+ok("a lapsed verdict is restored by the cache, not latched off", lapsed["ran"])
+ok("and it brings the toolchain back with it",
+   lapsed["toolchain"]["version"] == "1.98.0")
+
+ok("no cache means no claim", build.carry(VERDICT, set(), {"x#1"}) ==
+   {"checked": 0, "cached": 0, "findings": [], "ran": False})
+
+# --------------------------------------------------------------------------
 print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

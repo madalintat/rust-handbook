@@ -462,16 +462,18 @@ def build_units():
             "title": TITLES[slug],
             "blurb": meta.get("blurb", ""),
             "concepts": [c.strip() for c in meta.get("concepts", "").split(",") if c.strip()],
-            "needs": [c.strip() for c in meta.get("needs", "").split(",") if c.strip()],
             "words": w,
             "mins": mins_of(w),
-            "toc": toc,
             "lead": lead,
             "parts": parts,
         }
         (OUT / "unit").mkdir(parents=True, exist_ok=True)
         (OUT / "unit" / f"{slug}.json").write_text(json.dumps(unit))
         units[slug] = unit
+        lo, hi = NOTE_WORDS
+        if not lo <= w <= hi:
+            raise ValueError(f"{path.name}: {w:,} words, the note should be "
+                             f"{lo:,} to {hi:,}")
         print(f"  unit  {slug:18s} {w:6,d} words  {unit['mins']:3d}m  {len(parts)} parts")
     return units
 
@@ -613,6 +615,9 @@ def build_exercises():
         _, slug, _, exs = parse_exercise_file(path)
         (OUT / "ex").mkdir(parents=True, exist_ok=True)
         (OUT / "ex" / f"{slug}.json").write_text(json.dumps({"unit": slug, "exercises": exs}))
+        if len(exs) != PER_UNIT["exercises"]:
+            raise ValueError(f"{path.name}: {len(exs)} exercises, "
+                             f"the contract is {PER_UNIT['exercises']}")
         got[slug] = exs
         print(f"  ex    {slug:18s} {len(exs):3d} exercises")
     return got
@@ -626,10 +631,18 @@ def build_exercises():
 # Tiers, so the section reads as a shelf rather than a pile. A mini is one idea
 # done properly in an evening; a core project is a real program; a deep one is a
 # weekend and leaves you with something you would actually reach for.
+# Label, description, and the stage count the description promises. The third
+# field is checked: docs/AUTHORING.md stated all three counts and nothing
+# verified any of them, so a tier was a label a project could simply contradict.
+# docs/AUTHORING.md states these. Every one of them held by discipline alone
+# until now, and a number a build prints without checking is decoration.
+PER_UNIT = {"exercises": 8, "drills": 15}
+NOTE_WORDS = (1400, 2200)
+
 TIERS = {
-    "mini": ("Mini", "four stages, one idea, about twenty minutes"),
-    "core": ("Core", "eight stages, a real program end to end"),
-    "deep": ("Deep", "twelve stages or more, a weekend, something you would use"),
+    "mini": ("Mini", "four stages, one idea, about twenty minutes", 4),
+    "core": ("Core", "eight stages, a real program end to end", 8),
+    "deep": ("Deep", "twelve stages or more, a weekend, something you would use", 12),
 }
 TIER_ORDER = ["mini", "core", "deep"]
 
@@ -666,6 +679,12 @@ def build_projects():
         domain = meta.get("domain", "tools")
         if domain not in DOMAINS:
             raise ValueError(f"{path.name}: domain {domain!r} is not one of {DOMAINS}")
+        want = TIERS[tier][2]
+        if len(stages) < want or (tier != "deep" and len(stages) != want):
+            raise ValueError(
+                f"{path.name}: tier {tier} promises {TIERS[tier][1]}, "
+                f"but this has {len(stages)} stages"
+            )
 
         project = {
             "slug": slug,
@@ -736,6 +755,9 @@ def build_drills():
         qs.sort(key=lambda q: q["n"])
         (OUT / "drills").mkdir(parents=True, exist_ok=True)
         (OUT / "drills" / f"{slug}.json").write_text(json.dumps({"unit": slug, "questions": qs}))
+        if len(qs) != PER_UNIT["drills"]:
+            raise ValueError(f"{path.name}: {len(qs)} drills, "
+                             f"the contract is {PER_UNIT['drills']}")
         got[slug] = qs
         print(f"  drill {slug:18s} {len(qs):3d} questions")
     return got
@@ -827,6 +849,26 @@ def cache_split(items):
             ref = ref_of(slug, ex)
             (fresh if cache.get(ref, {}).get("key") == cache_key(ex) else stale).add(ref)
     return cache, fresh, stale
+
+
+def carry(old, fresh, stale):
+    """The verdict a plain build inherits: what the cache still speaks for.
+
+    What speaks for an item is the cache, not the previous run's `ran` flag.
+    Gating on the flag made it a latch: one plain build over a manifest saying
+    `ran: false` and nothing short of --validate could set it back, so a false
+    committed once shipped a live site whose footer named no rustc version at
+    all. Carrying only the covered items matters just as much: a wholesale copy
+    of the old verdict once claimed "308 validated, no findings" over stages
+    nothing had ever compiled.
+    """
+    if not fresh:
+        return {"checked": 0, "cached": 0, "findings": [], "ran": False}
+    return {**old, "ran": True, "checked": 0, "cached": len(fresh),
+            "findings": [f for f in old.get("findings", [])
+                         if f.get("ref") in fresh],
+            "unvalidated": sorted(stale)[:20],
+            "unvalidated_count": len(stale)}
 
 
 def cache_key(ex):
@@ -977,7 +1019,6 @@ def build_manifest(units, exercises, drills, projects, audit):
             "ready": bool(u),
             "words": u["words"] if u else 0,
             "mins": u["mins"] if u else 0,
-            "parts": len(u["parts"]) if u else 0,
             "exercises": len(exs),
             "drills": len(drills.get(slug, [])),
         })
@@ -1014,13 +1055,11 @@ def build_manifest(units, exercises, drills, projects, audit):
             # would put "17 hours of reading" under a word count of 72,000.
             "mins": sum(e["mins"] for e in entries)
                     + sum(mins_of(p["words"]) for p in project_entries),
-            "unit_mins": sum(e["mins"] for e in entries),
             "project_mins": sum(p["mins"] for p in project_entries),
             "exercises": sum(e["exercises"] for e in entries),
             "drills": sum(e["drills"] for e in entries),
             "projects": len(project_entries),
             "stages": sum(p["stages"] for p in project_entries),
-            "terms": len(GLOSSARY),
         },
         "audit": audit,
         "edition": "2024",
@@ -1040,7 +1079,7 @@ def build_manifest(units, exercises, drills, projects, audit):
     return manifest
 
 
-def build_llms_txt(m, units, projects):
+def build_llms_txt(m):
     """A description of the whole handbook that an assistant can read in one go.
 
     Follows the llmstxt.org shape: a title, one paragraph of what this is, then
@@ -1105,7 +1144,6 @@ def build_llms_txt(m, units, projects):
             ""]
 
     text = "\n".join(out)
-    (OUT / "llms.txt").write_text(text)
     (ROOT / "llms.txt").write_text(text)
     return text
 
@@ -1171,6 +1209,17 @@ def main():
     projects = build_projects()
     drills = build_drills()
 
+    # data/ is a pure function of content/. Without this a deleted source left
+    # its JSON behind, and CI's `git status --porcelain data/` can only report
+    # files the build wrote, never one it should have removed: an abandoned
+    # test project stayed live on the site long after its source was gone.
+    for sub, keep in (("unit", units), ("ex", exercises),
+                      ("project", projects), ("drills", drills)):
+        for f in (OUT / sub).glob("*.json"):
+            if f.stem not in keep:
+                f.unlink()
+                print(f"removed data/{sub}/{f.name}, its source is gone")
+
     # A rebuild that does not validate carries the previous verdict forward
     # rather than erasing it. Editing a paragraph is not evidence that the
     # exercises stopped compiling, and blanking the record would take the
@@ -1180,18 +1229,7 @@ def main():
     if prev.exists():
         try:
             old = json.loads(prev.read_text()).get("audit", {})
-            if old.get("ran"):
-                # Carry the verdict, but only over the items the cache still
-                # speaks for. A wholesale copy reported "308 validated, no
-                # findings" over stages nothing had ever compiled, with a
-                # toolchain version printed behind the claim.
-                _, fresh, stale = cache_split({**exercises, **projects})
-                audit = {**old,
-                         "checked": 0, "cached": len(fresh),
-                         "findings": [f for f in old.get("findings", [])
-                                      if f.get("ref") in fresh],
-                         "unvalidated": sorted(stale)[:20],
-                         "unvalidated_count": len(stale)}
+            audit = carry(old, *cache_split({**exercises, **projects})[1:])
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -1210,7 +1248,7 @@ def main():
     _CUR["kind"] = "unit"
     terms = build_glossary()
     m = build_manifest(units, exercises, drills, projects, audit)
-    llms = build_llms_txt(m, units, projects)
+    llms = build_llms_txt(m)
 
     t = m["totals"]
     print(f"llms.txt: {len(llms.splitlines())} lines")

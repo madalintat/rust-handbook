@@ -21,7 +21,8 @@ on. Say what the compiler is protecting, what the memory looks like, which bug
 the rule prevents, what a C++ or Python intuition gets wrong here.
 
 **Short. Fewer words is better.** The reader complained the first draft was too
-wordy and they were right. Target **1,400 to 2,000 words** for the note. Prefer:
+wordy and they were right. Target **1,400 to 2,200 words** for the note, and the
+build refuses a note outside that range. Prefer:
 
 - a code block over a paragraph describing code
 - a table over three parallel sentences
@@ -134,8 +135,9 @@ Other inline: `` `code` ``, *italic*, `[text](url)`, tables, `>` blockquotes,
 
 ## The exercise format
 
-**8 exercises per unit.** This is the core of the product. Each must compile for
-real, so every claim you make is checked.
+**8 exercises per unit**, and the build refuses any other number. This is the
+core of the product. Each must compile for real, so every claim you make is
+checked.
 
 ````markdown
 ---
@@ -282,8 +284,9 @@ Why the right answer is right, **and why the tempting wrong one is tempting**.
 1. All three files exist and are valid.
 2. `python3 build.py --check content/ex/<slug>.md` prints `8 clean`.
 3. `python3 build.py` runs without error and reports your unit.
-4. The note is 1,400 to 2,000 words with at least one `:::memory` or table where
-   memory or cost is discussed.
+4. The note is 1,400 to 2,200 words with at least one `:::memory` or table where
+   memory or cost is discussed. The build checks the word count; the diagram is
+   on you.
 5. Any new glossary terms are in `content/gloss/<slug>.json` and it parses.
 
 Do not edit files outside `content/`. Do not edit another unit's files. Do not
@@ -348,6 +351,11 @@ parsed value. A stage that only satisfies a type checker is a bad stage.
 No em dashes and no en dashes. Not "used sparingly": none. Replace each one
 with a full stop, a comma, a colon, or parentheses, or rewrite the sentence.
 The same goes for a spaced hyphen used as a dash.
+
+This one rule is mechanical, and CI greps for it: those two characters have no
+other use in this corpus. Everything below is for review, not for a grep, and
+deliberately so. A spaced hyphen is subtraction in every Rust snippet here, and
+`underscore` is the `_` character far more often than it is the verb.
 
 Also avoid:
 

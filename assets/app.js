@@ -131,6 +131,8 @@ const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
 /* The contents rail. `items` are {href, id, text, level, note}. The spine and
    the per-item dots are drawn by CSS; wireRail fills them in as you read. */
 const RAIL_KEY = 'rh-rail';
+const railState = () => (railCollapsed() ? 'collapsed' : 'open');
+
 const railCollapsed = () => {
   try { return localStorage.getItem(RAIL_KEY) === '1'; } catch (e) { return false; }
 };
@@ -140,7 +142,7 @@ function rail(label, items) {
     <div class="railhead">
       <span class="eyebrow">${esc(label)}</span>
       <button class="railtoggle" id="railtoggle" aria-expanded="${!railCollapsed()}"
-        aria-controls="railol" title="Collapse the contents">${ico('chev', 14)}</button>
+        aria-controls="railol" title="${railCollapsed() ? 'Show' : 'Collapse'} the contents">${ico('chev', 14)}</button>
     </div>
     <div class="railscroll">
       <div class="railtrack"><div class="railfill" id="railfill"></div></div>
@@ -343,8 +345,7 @@ async function viewProject(slug) {
   const pj = await get(`data/project/${slug}.json`);
   const done = projDone(meta);
 
-  return `<div class="wrap wide" data-accent="${meta.accent}"><div class="readerlayout" data-rail="${
-    railCollapsed() ? 'collapsed' : 'open'}">
+  return `<div class="wrap wide" data-accent="${meta.accent}"><div class="readerlayout" data-rail="${railState()}">
     ${rail('Stages', pj.stages.map((st) => ({
       href: `#/project/${slug}/${st.n}`,
       id: `stage-${st.n}`,
@@ -449,8 +450,7 @@ async function viewUnit(slug) {
       <div class="progress" id="prog"></div>
     </div></div>
 
-    <div class="wrap wide"><div class="readerlayout" data-rail="${
-      railCollapsed() ? 'collapsed' : 'open'}">
+    <div class="wrap wide"><div class="readerlayout" data-rail="${railState()}">
       ${rail('In this unit', railItems)}
       <div class="readercol">
         <header class="unithead">
@@ -484,9 +484,12 @@ async function viewUnit(slug) {
 let railWatch = null;
 
 function wireUnit() {
+  // Every block below guards its own node. This one used to guard the whole
+  // function on #expandall, which only the unit reader has, so a project
+  // overview rendered the rail and then wired none of it: a dead collapse
+  // button, a fill that never moved, no stage ever marked read.
   const seg = $('#expandall');
-  if (!seg) return;
-  seg.addEventListener('click', () => {
+  if (seg) seg.addEventListener('click', () => {
     const open = seg.dataset.open === '0';
     $$('.sect').forEach((d) => { d.open = open; });
     seg.dataset.open = open ? '1' : '0';
@@ -864,7 +867,8 @@ function wireWork(slug, nRaw, source = 'ex') {
               if (st) st.textContent = '\u2713';
             }
           });
-          Companion.cheer(ex.n, doneCount(slug, BENCH[source].count(BENCH[source].meta(slug))));
+          const total = BENCH[source].count(BENCH[source].meta(slug));
+          Companion.cheer(doneCount(slug, total), total);
         }
       } finally {
         BUSY = false;
