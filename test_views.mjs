@@ -138,10 +138,16 @@ console.log('--- the toolchain the content was validated on ---');
   ok('a validation verdict is present', DB.audit.ran === true);
   ok('and found nothing', (DB.audit.findings || []).length === 0,
      JSON.stringify(DB.audit.findings));
-  // A plain rebuild must not erase the verdict; it carries it and says so.
-  ok('a carried verdict is labelled as carried',
-     DB.audit.carried === true || DB.audit.carried === false,
-     `carried=${DB.audit.carried}`);
+  /* The verdict must account for every item. Asserting only that a flag is a
+     boolean passed whether carrying worked or was completely broken. */
+  const items = DB.totals.exercises + DB.totals.stages;
+  ok('the verdict covers every exercise and stage',
+     DB.audit.cached + DB.audit.checked + DB.audit.unvalidated_count === items,
+     `${DB.audit.cached} + ${DB.audit.checked} + ${DB.audit.unvalidated_count} != ${items}`);
+  ok('no finding refers to an item marked unvalidated',
+     !(DB.audit.findings || []).some((f) => (DB.audit.unvalidated || []).includes(f.ref)));
+  ok('the build mode is not recorded in the artifact',
+     !('carried' in DB.audit), 'carried is still in the manifest');
 }
 
 console.log('--- nothing above the rail may be a scroll container ---');

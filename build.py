@@ -1186,7 +1186,7 @@ def main():
                 # findings" over stages nothing had ever compiled, with a
                 # toolchain version printed behind the claim.
                 _, fresh, stale = cache_split({**exercises, **projects})
-                audit = {**old, "carried": True,
+                audit = {**old,
                          "checked": 0, "cached": len(fresh),
                          "findings": [f for f in old.get("findings", [])
                                       if f.get("ref") in fresh],
@@ -1202,7 +1202,6 @@ def main():
         audit = validate({**exercises, **projects})
         # After validate(), which returns a fresh dict.
         audit["ran"] = True
-        audit["carried"] = False
         audit["unvalidated"] = []
         audit["unvalidated_count"] = 0
         audit["toolchain"] = tc
@@ -1220,6 +1219,11 @@ def main():
         f"{t['exercises']} exercises · {t['stages']} project stages · "
         f"{t['drills']} drills · {len(terms)} terms"
     )
+    if audit["ran"] and "--validate" not in sys.argv:
+        n = audit.get("unvalidated_count", 0)
+        print(f"verdict carried from the last --validate"
+              + (f", {n} item(s) added since" if n else ", covering everything"))
+
     if audit["ran"]:
         tc = audit.get("toolchain")
         if tc:
