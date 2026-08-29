@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, for example v1.2.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish a release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the changelog needs the history
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      # A release is a promise that the content compiles. Verify before tagging
+      # anything, not after.
+      - name: Build
+        run: python3 build.py
+
+      - name: Test
+        run: |
+          python3 test_build.py
+          node test_views.mjs
+          node test_vim.mjs
+
+      - name: Validate every exercise against real rustc
+        run: python3 build.py --validate
+
+      - name: Collect the numbers this release ships
+        id: facts
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          m = json.load(open('data/manifest.json'))
+          t, a = m['totals'], m['audit']
+          tc = a.get('toolchain') or {}
+          print(f"units={t['ready']}")
+          print(f"projects={len(m['projects'])}")
+          print(f"items={t['exercises'] + t['stages']}")
+          print(f"drills={t['drills']}")
+          print(f"words={t['words']:,}")
+          print(f"rustc={tc.get('version','stable')}")
+          print(f"edition={m.get('edition','2024')}")
+          PY
+
+      - name: Write the release notes
+        id: notes
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          PREV=$(git tag --sort=-v:refname | grep -A1 -x "$TAG" | tail -1)
+          {
+            echo "notes<<EOF"
+            echo "### What ships"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Units | ${{ steps.facts.outputs.units }} |"
+            echo "| Projects | ${{ steps.facts.outputs.projects }} |"
+            echo "| Compiled exercises and stages | ${{ steps.facts.outputs.items }} |"
+            echo "| Drills | ${{ steps.facts.outputs.drills }} |"
+            echo "| Words | ${{ steps.facts.outputs.words }} |"
+            echo "| Verified against | rustc ${{ steps.facts.outputs.rustc }}, edition ${{ steps.facts.outputs.edition }} |"
+            echo
+            echo "Every exercise and project stage in this release was compiled on"
+            echo "play.rust-lang.org and passed its own hidden tests."
+            echo
+            if [ -n "$PREV" ] && [ "$PREV" != "$TAG" ]; then
+              echo "### Changes since $PREV"
+              echo
+              git log --no-merges --format='- %s' "$PREV..$TAG"
+            else
+              echo "### Changes"
+              echo
+              git log --no-merges --format='- %s' -20
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Package the built site
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          mkdir -p dist
+          tar --exclude='.git' --exclude='.github' --exclude='content' \
+              --exclude='docs' --exclude='dist' --exclude='test_*' \
+              --exclude='data/.validate-cache.json' \
+              -czf "dist/rust-handbook-${TAG}.tar.gz" \
+              index.html assets data llms.txt vercel.json README.md LICENSE
+          ls -lh dist/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          body: ${{ steps.notes.outputs.notes }}
+          files: dist/*.tar.gz
+          draft: false
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}

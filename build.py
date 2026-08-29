@@ -38,6 +38,7 @@ CONTENT = ROOT / "content"
 OUT = ROOT / "data"
 
 WPM = 230  # a careful read of technical prose, not a skim
+SITE = "https://github.com/madalintat/rust-handbook"
 
 # The full track. Units without a file in content/units are emitted as stubs so
 # the map is honest about what exists and what is still to come.
@@ -1039,6 +1040,76 @@ def build_manifest(units, exercises, drills, projects, audit):
     return manifest
 
 
+def build_llms_txt(m, units, projects):
+    """A description of the whole handbook that an assistant can read in one go.
+
+    Follows the llmstxt.org shape: a title, one paragraph of what this is, then
+    linked sections. Generated from the manifest rather than written by hand, so
+    it cannot drift from the content the way a hand-kept summary does.
+    """
+    t = m["totals"]
+    tc = (m.get("audit") or {}).get("toolchain") or {}
+    out = [
+        "# Rust Handbook",
+        "",
+        f"> Learn Rust by fighting the compiler. {t['units']} units and "
+        f"{len(m['projects'])} projects, {t['words']:,} words, and "
+        f"{t['exercises'] + t['stages']} exercises that compile for real on "
+        f"play.rust-lang.org. When rustc rejects your code you get its actual "
+        f"diagnostic and, beside it, a written reading of that specific error.",
+        "",
+        "Every exercise ships a `diagnose` map from error code to prose, so the",
+        "explanation you see is about the error you hit rather than the topic you",
+        "are on. `build.py --validate` compiles every starter and solution and",
+        "fails the build if a starter stops raising the code its explanation",
+        "describes, which is what stops the content rotting when rustc changes its",
+        "diagnostics.",
+        "",
+        f"Built and verified against rustc {tc.get('version', 'stable')}, "
+        f"edition {m.get('edition', '2024')}. No dependencies: no npm, no CDN, no",
+        "framework. `build.py` turns authored markdown into JSON once and the",
+        "browser routes and paints.",
+        "",
+        "## Units",
+        "",
+        "The track, in order. Each unit is a note, eight exercises and fifteen drills.",
+        "",
+    ]
+    for u in m["units"]:
+        if not u["ready"]:
+            continue
+        out.append(f"- [{u['num']:02d} {u['title']}]({SITE}/blob/main/content/units/{u['slug']}.md): "
+                   f"{u['blurb']}")
+
+    out += ["", "## Projects", "",
+            "One real program each, built in stages that accumulate. "
+            f"{t['project_mins'] // 60}h {t['project_mins'] % 60:02d}m of building in total.",
+            ""]
+    for pj in m["projects"]:
+        out.append(f"- [{pj['title']}]({SITE}/blob/main/content/projects/{pj['slug']}.md) "
+                   f"({pj['tier']}, {pj['domain']}, {pj['stages']} stages): {pj['blurb']}")
+
+    out += ["", "## How the content is written", "",
+            f"- [Authoring guide]({SITE}/blob/main/docs/AUTHORING.md): the contract every "
+            "unit and project follows, including the exercise format and the prose rules",
+            f"- [Sources]({SITE}/blob/main/docs/SOURCES.md): which of the twelve official "
+            "Rust books each unit draws on",
+            f"- [Design]({SITE}/blob/main/docs/superpowers/specs/2026-08-29-rust-handbook-design.md): "
+            "why the platform is shaped this way",
+            "",
+            "## Optional", "",
+            f"- [build.py]({SITE}/blob/main/build.py): content to JSON, and the validator",
+            f"- [assets/workbench.js]({SITE}/blob/main/assets/workbench.js): the Rust "
+            "tokenizer, the playground client and the diagnostics parser",
+            f"- [assets/vim.js]({SITE}/blob/main/assets/vim.js): the editor's Vim mode",
+            ""]
+
+    text = "\n".join(out)
+    (OUT / "llms.txt").write_text(text)
+    (ROOT / "llms.txt").write_text(text)
+    return text
+
+
 def build_glossary():
     terms = []
     for key, e in sorted(GLOSSARY.items()):
@@ -1140,8 +1211,10 @@ def main():
     _CUR["kind"] = "unit"
     terms = build_glossary()
     m = build_manifest(units, exercises, drills, projects, audit)
+    llms = build_llms_txt(m, units, projects)
 
     t = m["totals"]
+    print(f"llms.txt: {len(llms.splitlines())} lines")
     print(
         f"\n{t['ready']}/{t['units']} units · {t['words']:,} words · "
         f"{t['exercises']} exercises · {t['stages']} project stages · "

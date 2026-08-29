@@ -256,6 +256,59 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .searchbox input:focus { width: 280px; outline: none; border-color: var(--ferris); }
 @media (max-width: 620px) { .searchbox input { width: 130px; } .searchbox input:focus { width: 170px; } }
 
+/* Source link. Same weight as the theme toggle: present, not shouting. */
+.ghlink {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border-radius: var(--r);
+  color: var(--ink-3);
+  flex: none;
+  transition: background var(--fast), color var(--fast);
+}
+.ghlink:hover { background: var(--raised); color: var(--ink); }
+
+/* The assistant marks overlap so they read as a group rather than a toolbar,
+   and fan apart on hover to say they are one control with several audiences. */
+.llms {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 11px 0 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  cursor: pointer;
+  flex: none;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
+}
+.llms:hover { background: var(--raised); color: var(--ink); border-color: var(--border); }
+.llms .stack { display: flex; }
+.llms .av {
+  width: 19px; height: 19px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--surface);
+  color: var(--surface);
+  transition: transform var(--med) var(--ease), border-color var(--fast);
+}
+.llms:hover .av { border-color: var(--raised); }
+.llms .a1 { background: var(--ferris); }
+.llms .a2 { background: var(--slate); margin-left: -7px; }
+.llms .a3 { background: var(--moss); margin-left: -7px; }
+.llms:hover .a1 { transform: translateX(-2px); }
+.llms:hover .a3 { transform: translateX(2px); }
+.llms.copied {
+  background: color-mix(in srgb, var(--ok) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+  color: color-mix(in srgb, var(--ok) 74%, var(--ink));
+}
+@media (max-width: 900px) { .llms .lbl { display: none; } .llms { padding: 0 8px; } }
+@media (max-width: 620px) { .llms { display: none; } }
+
 .iconbtn {
   width: 32px; height: 32px;
   display: grid; place-items: center;
@@ -510,9 +563,13 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .readerbar .progress {
-  position: absolute; left: 0; bottom: -1px; height: 2px;
-  background: var(--accent); width: 0;
-  transition: width 0.1s linear;
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  will-change: transform;
 }
 @media (max-width: 760px) { .readerbar .title { display: none; } }
 
@@ -605,10 +662,12 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
   position: absolute;
   left: 0; top: 0;
   width: 100%;
-  height: 0;
+  height: 100%;
   border-radius: 2px;
   background: var(--accent);
-  transition: height 0.12s linear;
+  transform: scaleY(0);
+  transform-origin: top;
+  will-change: transform;
 }
 
 .rail ol { list-style: none; position: relative; }
@@ -636,9 +695,21 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
   border-radius: 50%;
   background: var(--bg);
   box-shadow: inset 0 0 0 1.5px var(--border);
-  transition: box-shadow var(--med), background var(--med), transform var(--med) var(--ease);
+  transition: box-shadow 0.32s var(--ease), background 0.32s var(--ease),
+              transform 0.32s var(--ease);
 }
-.rail a.read::before { background: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.rail a.read::before {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+/* A dot ticks over as you pass it, so it gets one small beat rather than a
+   silent swap. Not on load: only when the class actually changes. */
+.rail.live a.read::before { animation: tick 0.34s var(--ease); }
+@keyframes tick {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
 .rail a.on::before {
   background: var(--accent);
   box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
@@ -703,7 +774,7 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .railfill { transition: none; }
+  .railfill, .readerbar .progress { will-change: auto; }
 }
 
 .unithead { padding-bottom: 22px; margin-bottom: 8px; border-bottom: 1px solid var(--border-soft); }

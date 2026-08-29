@@ -1,210 +1,103 @@
+<div align="center">
+
+<img src="assets/ferris.png" alt="" width="120">
+
 # Rust Handbook
 
-Learn Rust by fighting the compiler. Every exercise here compiles for real on
-`play.rust-lang.org`. Not a simulation, not a quiz. When rustc rejects your code
-you get its actual diagnostic, and beside it a plain-English reading of what the
-borrow checker saw and why it cared.
+**Learn Rust by fighting the compiler.**
 
-Static site, no framework, no build step at deploy time. `build.py` turns
-authored markdown into JSON once, and the browser fetches one unit at a time.
+Every exercise compiles for real on [play.rust-lang.org](https://play.rust-lang.org).
+When rustc rejects your code you get its actual diagnostic and, beside it, a
+written reading of that specific error.
+
+[![CI](https://github.com/madalintat/rust-handbook/actions/workflows/ci.yml/badge.svg)](https://github.com/madalintat/rust-handbook/actions/workflows/ci.yml)
+![rustc 1.98.0](https://img.shields.io/badge/rustc-1.98.0-CE422B)
+![edition 2024](https://img.shields.io/badge/edition-2024-CE422B)
+![dependencies none](https://img.shields.io/badge/dependencies-none-3f8f4f)
+
+</div>
+
+---
+
+Rustlings gives you a hint. The Book gives you a rule. Neither tells you what the
+borrow checker actually saw.
+
+Each exercise carries a map from error code to prose. Your run fails, the
+workbench pulls `error[E0382]` out of stderr, and you get the explanation for
+*that* error rather than for the topic you happen to be on.
 
 ## What is in it
 
 | | |
 |---|---|
-| **28 units** | A single ordered path through the official books, each unit needing only what came before it |
-| **72,572 words** | 1,400 to 2,000 per unit, dense rather than long. Every rule attached to the reason it exists, what the compiler is protecting, what the memory looks like, which bug the rule prevents |
-| **316 compiled items** | Broken code you fix, verified by hidden tests against real `rustc`. Every likely error is pre-written with an explanation of that specific diagnostic |
-| **420 drills** | Fast multiple choice, does this compile, and if not, which error, each with a worked answer |
-| **218 glossed terms** | Every bolded term carries one plain sentence saying what it means, on hover and on its own page |
+| **28 units** | One ordered path through the twelve official books. Each has a note, 8 compiled exercises and 15 drills. |
+| **13 projects** | One real program each, built in stages that accumulate. A BPE tokenizer, an autodiff engine, a regex engine, a memory allocator. |
+| **316 compiled items** | Every exercise and stage verified against real rustc, with hidden tests. |
+| **420 drills** | Does this compile, and if not which error. Each with a worked answer. |
+| **218 glossed terms** | Hover any bolded term. |
 
-Units 00 to 24 walk the language. Three more exist in no single book and are the
-reason this is not just a re-skin of the docs:
+Three units cover ground no single book does: **reading rustc diagnostics**,
+**shipping a real CLI**, and **`no_std`**.
 
-- **25 · Reading the compiler**, the thirty error codes you will actually meet,
-  what each is really saying, and how to read a diagnostic you have never seen
-- **26 · Ship it**, a real command-line tool end to end: cargo, clap, anyhow,
-  tests, docs, release. Everything so far, used at once
-- **27 · No_std and embedded**, what the standard library actually is, what
-  survives without it, and how the same language runs on a microcontroller
+## Run it
 
-The track page is honest about which units are written; the rest say "soon".
+```sh
+python3 build.py            # content/ -> data/
+python3 -m http.server 8901
+```
 
-## Projects
+Python 3 and a browser. No npm, no CDN, no framework, no dependencies at all.
 
-A unit teaches a concept and drills it. A project spends eight stages building
-one real program, and the last stage leaves you something that runs.
-
-| | |
-|---|---|
-| **A BPE tokenizer** | The algorithm GPT and Llama actually use to turn text into token IDs. Byte alphabet, pair counting, learned merges, encode, decode, round trip. Ends at 1.73 bytes per token on a real paragraph. |
-| **Backprop from scratch** | A reverse-mode autodiff engine and a tiny MLP trained on XOR. The machinery under PyTorch: a graph that builds itself as a side effect of arithmetic, a topological sort, and the chain rule in three lines. |
-| **A JSON parser** | Recursive descent over an enum, with real error positions. The canonical argument for sum types, made concrete. |
-| **A bytecode VM** | A stack machine with a compiler front end. How Python, Lua and the JVM actually run code. |
-
-Thirteen of them, in three sizes: **mini** is four stages and about twenty
-minutes, **core** is eight stages and a real program, **deep** is twelve stages
-and a weekend. 13h 55m of building in total.
-
-Stages accumulate: stage N starts from stage N-1's finished code, so you are
-editing one growing program rather than a set of unrelated snippets. Every stage
-is compiled and tested exactly the way every exercise is.
-
-## The point of the thing
-
-Rustlings gives you a hint. The Book gives you a rule. Neither tells you what the
-borrow checker actually saw.
-
-Each exercise carries a `diagnose` map from error code to prose. When your run
-fails, the workbench parses `error[E0382]` out of `stderr` and renders our
-reading of it next to rustc's own output, with the offending line echoed from
-your buffer and a caret under the column. Codes we have not written for fall back
-to rustc's text plus a link into the error index.
-
-That is the whole differentiator, and it is why the exercises are per-error
-rather than per-topic.
-
-## Vim mode
-
-The `vim` button in the workbench toolbar turns on Vim keybindings. The setting
-lives in this browser's local storage, so it stays on across exercises, reloads
-and sessions until you turn it off.
-
-Hand-written, because this project ships no JavaScript libraries and pulling in
-CodeMirror to get `@codemirror/vim` would have meant replacing the editor. What
-it covers:
-
-| | |
-|---|---|
-| motions | `h j k l` · `w W b B e E` · `0 ^ $` · `gg G` · `{ }` · `f F t T` |
-| operators | `d c y > <` with any motion, doubled for linewise (`dd cc yy >> <<`) |
-| shortcuts | `x X D C Y s S r ~ J` |
-| insert | `i I a A o O`, `Esc` back to normal |
-| visual | `v` charwise, `V` linewise, then any operator |
-| put | `p P`, charwise and linewise |
-| undo | `u`, `Ctrl-r`, one insert session is one undo step, as in Vim |
-| counts | `3j`, `2dd`, `d3w` |
-| commands | `:w` and `:x` run the code |
-
-Deliberately not covered: named registers, macros, marks, `.` repeat, and ex
-commands beyond `:w`. Those matter in a real editing session; here the longest
-starter is 53 lines, and they would double the size of the file.
-
-The mode shows in a badge at the editor's bottom-right, and the normal-mode
-cursor is a block in the accent colour so it can never be mistaken for a visual
-selection. `node test_vim.mjs` covers the motions and operators as pure
-functions, 86 cases in a `buffer|with|cursor` notation.
-
-## Validation: the content has a test suite
+## The content has a test suite
 
 ```sh
 python3 build.py --validate
 ```
 
-sends every exercise's starter and solution to the playground and asserts:
+Sends every starter and solution to the playground and asserts the starter
+**fails with the error its explanation describes**, and that the solution
+compiles and passes its hidden tests.
 
-- the starter **fails**, with the error code the exercise claims it will raise
-- there is a written explanation for the code it actually raised
-- the solution **compiles** and passes every hidden test
-
-A hand-written Rust exercise rots silently: rustc changes its diagnostics between
-releases, and an exercise promising E0382 quietly starts emitting E0505 instead.
-Because the source of truth is the actual compiler, that is now a build failure
-rather than a confused reader. Results are cached by content hash, so a rebuild
-after editing one paragraph sends zero requests.
-
-## Running it
+rustc changes its diagnostics between releases. An exercise promising `E0382`
+that quietly starts emitting `E0505` is now a build failure rather than a
+confused reader.
 
 ```sh
-python3 build.py                 # regenerate data/ from content/
-python3 -m http.server 8901      # any static server will do
+python3 test_build.py   node test_views.mjs   node test_vim.mjs   node test_workbench.mjs
 ```
 
-Then open <http://localhost:8901>. `build.py` needs nothing but Python 3: no pip,
-no npm, and the site itself ships zero JavaScript libraries.
+## Vim mode
 
-Tests:
-
-```sh
-node test_workbench.mjs   # tokenizer, playground client, diagnostics parser (hits the network)
-node test_views.mjs       # every view renders, balanced HTML, no missing fields, output rendering
-node test_vim.mjs         # vim motions, operators, counts, undo, the : command line
-python3 build.py --validate                        # every exercise, cached by content hash
-python3 build.py --check content/ex/<slug>.md      # one unit, writes nothing, safe in parallel
-```
-
-## Design
-
-The structure is lifted from the Medical Student Handbook, which lifted its
-palette from PostHog. What changes is temperature: PostHog's tan `#EEEFE9` is
-faintly green, and next to rust orange a green-grey ground goes muddy, so every
-neutral is rotated warm, light ground `#EFEBE4`, dark `#1C1917` rather than a
-cool `#1e1f23`. The button keeps PostHog's shape, a solid fill sitting on a hard
-shadow that it moves down onto when pressed, with Ferris's orange in it
-(`#F7681F` fill, `#A8380F` border, `#C04A12` shadow).
-
-Light and dark are both first-class. Light is the default and the system
-preference is deliberately not consulted.
-
-Ferris is CC0 from [rustacean.net](https://rustacean.net). The Rust logo in the
-footer is used to refer to the language, per the Rust trademark policy; this
-project is not affiliated with or endorsed by the Rust Foundation.
+The `vim` button in the workbench. Motions, operators with counts, text objects
+(`ciw`, `di"`, `ca{`), visual mode, registers, undo, `gc`, `gs`, `/` with
+smartcase, `jk` to leave insert, relative line numbers, and `:w` to run.
+Hand-written, because the no-dependency rule is not negotiable.
 
 ## Layout
 
 ```
-build.py              content/ -> data/, and --validate compiles every exercise
-content/
-  units/NN-slug.md    the deep notes
-  ex/NN-slug.md       exercises: @kind @expect, starter/tests/solution, hints, diagnose
-  drills/NN-slug.md   multiple choice, `*` marks the correct option
-  glossary.json       plain-English definitions, input to build.py
-  gloss/<slug>.json   per-unit terms, so parallel authors never share a file
-index.html            the shell
-assets/app.css        design tokens and components
-assets/app.js         hash router, views, search, glossary, progress
-assets/workbench.js   Rust tokenizer, editor, playground client, diagnostics parser
-assets/vim.js         Vim keybindings for the editor, toggled and remembered
-assets/gate.js        the lock screen (off by default)
-assets/companion.js   Ferris's two voices
-data/                 generated
-  manifest.json       the index; loads on every page view, so it stays small
-  search.json         section titles and concepts, only search reads these
-  unit/ ex/ drills/   one file per unit, fetched on demand
-  glossary.json  audit.json
+content/     authored markdown, the source of truth
+build.py     content -> data, and the validator
+assets/      app.js, workbench.js, vim.js, app.css
+data/        generated, committed so the site needs no build step
+llms.txt     the whole project, for an assistant
 ```
 
-## Writing a unit
+Writing a unit or a project: **[docs/AUTHORING.md](docs/AUTHORING.md)**.
+Which book each unit draws on: **[docs/SOURCES.md](docs/SOURCES.md)**.
 
-`docs/AUTHORING.md` is the contract: voice, structure, block syntax, the
-exercise format and the definition of done. Read it before writing anything, and
-read the three `05-ownership` files as the reference standard.
+## Releasing
 
-## The format, in brief
+```sh
+./release.sh 1.2.0
+git push origin main --follow-tags
+```
 
-Three files, all markdown, all optional except the first:
+Builds, tests, compiles every exercise, writes the changelog, tags. The tag
+triggers the release workflow, so nothing ships that has not already passed here.
 
-`content/units/09-enums.md`, front matter (`num`, `slug`, `title`, `accent`,
-`concepts`, `blurb`), then prose. `##` starts a part, `###` a sub-topic. Fences
-`:::note`, `:::gotcha`, `:::compare` and `:::memory <title>` give you the
-callouts; ` ```rust,bad ` marks code that is not supposed to compile.
+## Licence
 
-`content/ex/09-enums.md`, `## N. Title`, then `@kind` / `@concept` / `@expect`,
-prose, then fenced ` ```starter `, ` ```tests `, ` ```solution `, then `@hint`
-lines, `@diagnose EXXXX` blocks and an `@after` block.
-
-`content/drills/09-enums.md`, `## N`, the stem, `- A.` options with `*` marking
-correct ones, then `@why`.
-
-Then `python3 build.py --check content/ex/<slug>.md` and iterate until it says
-`8 clean`. That writes nothing shared, so several authors can run it at once;
-`--validate` does the whole book and is the one that writes `data/`.
-
-## Not yet
-
-The reference library, the Reference, the Nomicon, the Cargo, rustdoc and rustc
-books, the ~500-code error index, the CLI book, the Embedded book and the
-Unstable book, is phase two. The workbench already links out to the error index
-for every code it shows, so that is the seam it will slot into.
-
-Study notes. The official books remain the authority.
+MIT. Ferris is CC0 from [rustacean.net](https://rustacean.net). The Rust logo is
+used to refer to the language under the Rust trademark policy; this project is
+not affiliated with the Rust Foundation.

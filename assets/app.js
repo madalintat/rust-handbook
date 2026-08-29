@@ -514,9 +514,12 @@ function wireUnit() {
     ticking = false;
     const h = document.documentElement;
     const max = h.scrollHeight - h.clientHeight;
-    const pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
-    if (bar) bar.style.width = pct + '%';
-    if (fill) fill.style.height = pct + '%';
+    // A ratio, not a percentage string: both indicators scale rather than
+    // resize, so neither one triggers layout on a frame the browser is already
+    // spending on the scroll itself.
+    const ratio = max > 0 ? Math.min(1, h.scrollTop / max) : 0;
+    if (bar) bar.style.transform = `scaleX(${ratio})`;
+    if (fill) fill.style.transform = `scaleY(${ratio})`;
 
     // The active entry is the last heading whose top has passed the fold.
     let now = -1;
@@ -558,6 +561,9 @@ function wireUnit() {
   addEventListener('scroll', onScroll, { passive: true, signal: railWatch.signal });
   addEventListener('resize', onScroll, { passive: true, signal: railWatch.signal });
   measure();
+  // Only after the first measure, so arriving part-way down a unit does not set
+  // off a cascade of ticks for everything above you.
+  requestAnimationFrame(() => $('.rail')?.classList.add('live'));
 
   const toggle = $('#railtoggle');
   if (toggle && layout) {
@@ -1296,6 +1302,35 @@ $('#theme').addEventListener('click', () => {
   document.documentElement.dataset.theme = next;
   try { localStorage.setItem('rh-theme', next); } catch (e) {}
 });
+
+/* One click hands an assistant the whole project. llms.txt is generated from
+   the manifest at build time, so what gets copied cannot drift from what the
+   site actually contains. Falls back to opening the file if the clipboard is
+   unavailable, which it is on any page not served over https or localhost. */
+const llmsBtn = $('#llms');
+if (llmsBtn) {
+  llmsBtn.addEventListener('click', async () => {
+    const lbl = llmsBtn.querySelector('.lbl');
+    const restore = (text, ok) => {
+      if (lbl) lbl.textContent = text;
+      llmsBtn.classList.toggle('copied', ok);
+      setTimeout(() => {
+        if (lbl) lbl.textContent = 'for LLMs';
+        llmsBtn.classList.remove('copied');
+      }, 2200);
+    };
+    try {
+      const r = await fetch('llms.txt');
+      if (!r.ok) throw new Error('missing');
+      const text = await r.text();
+      await navigator.clipboard.writeText(text);
+      restore(`copied ${(text.length / 1024).toFixed(1)} KB`, true);
+    } catch (e) {
+      window.open('llms.txt', '_blank', 'noopener');
+      restore('opened', false);
+    }
+  });
+}
 
 const qbox = $('#q');
 qbox.addEventListener('keydown', (e) => {

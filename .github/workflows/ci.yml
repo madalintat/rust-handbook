@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A push that lands while an earlier run is still going cancels it: the older
+# result is about code nobody will ship.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # No lockfile and no install step: the project has no dependencies, and
+      # this job failing on a missing one would be the signal that changed.
+      - name: Assert there are no dependencies
+        run: |
+          test ! -f package.json || (echo "package.json appeared" && exit 1)
+          test ! -f requirements.txt || (echo "requirements.txt appeared" && exit 1)
+
+      - name: Build
+        run: python3 build.py
+
+      - name: data/ is committed and matches content/
+        run: |
+          if [ -n "$(git status --porcelain data/)" ]; then
+            echo "::error::data/ is stale. Run 'python3 build.py' and commit the result."
+            git --no-pager diff --stat data/
+            exit 1
+          fi
+
+      - name: Build pipeline tests
+        run: python3 test_build.py
+
+      - name: View tests
+        run: node test_views.mjs
+
+      - name: Vim mode tests
+        run: node test_vim.mjs
+
+      - name: Prose rules
+        run: |
+          if grep -rlq '—\|–' content assets build.py index.html README.md docs test_*.* 2>/dev/null; then
+            echo "::error::em or en dashes found. The prose rule in docs/AUTHORING.md is absolute."
+            grep -rn '—\|–' content assets build.py index.html README.md docs test_*.* 2>/dev/null | head -20
+            exit 1
+          fi
+
+  compiler:
+    name: Exercises compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Every exercise is compiled on play.rust-lang.org, so this job depends on a
+    # third party being up. It runs on main and on demand, not on every push to
+    # a branch, to keep the load on a free service proportionate.
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate every exercise and stage against real rustc
+        run: python3 build.py --validate
+
+      - name: Report the toolchain that validated them
+        run: |
+          python3 - <<'PY'
+          import json
+          a = json.load(open('data/manifest.json'))['audit']
+          tc = a.get('toolchain') or {}
+          print(f"rustc {tc.get('version','?')} ({tc.get('date','?')})")
+          print(f"checked {a['checked']}, cached {a['cached']}, findings {len(a['findings'])}")
+          PY
+
+  live:
+    name: Workbench against the live compiler
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node test_workbench.mjs
