@@ -15,20 +15,22 @@ and open a pull request, and every change lands on `main` through review.
 ## Running the checks
 
 ```sh
-python3 build.py            # content/ -> data/
-python3 test_build.py       # the markdown pipeline
-node test_views.mjs         # every view renders, and the wiring does not throw
-node test_vim.mjs           # the editor's Vim mode
+./release.sh --check
 ```
 
-Two more hit the network and run on `main` rather than on every pull request,
-because they compile against [play.rust-lang.org](https://play.rust-lang.org),
-which is a free service:
+That is the whole sequence, and it is the one CI runs: the build, a check that
+`data/` matches `content/`, the prose rule, and the three offline suites. Add
+`--net` to include the two that hit the network:
 
 ```sh
-python3 build.py --validate     # compiles all 316 exercises and stages
-node test_workbench.mjs         # the playground client and diagnostics parser
+./release.sh --check --net
 ```
+
+Those two compile against [play.rust-lang.org](https://play.rust-lang.org),
+which is a free service, so CI runs them on `main` rather than on every pull
+request. They are `python3 build.py --validate`, which compiles all 316
+exercises and stages, and `node test_workbench.mjs`, which exercises the
+playground client and the diagnostics parser.
 
 If you touched anything under `content/`, commit the regenerated `data/` with
 it. CI fails if the two disagree.

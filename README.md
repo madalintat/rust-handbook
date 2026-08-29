@@ -63,7 +63,7 @@ that quietly starts emitting `E0505` is now a build failure rather than a
 confused reader.
 
 ```sh
-python3 test_build.py   node test_views.mjs   node test_vim.mjs   node test_workbench.mjs
+./release.sh --check --net
 ```
 
 ## Vim mode
