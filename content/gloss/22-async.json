@@ -1,0 +1,9 @@
+{"terms": [
+{"t": "suspension point", "x": "a place a future can pause", "p": "An await inside an async function: the one kind of place where the task can give control back and be resumed later."},
+{"t": "state machine", "x": "what an async fn compiles into", "p": "The enum the compiler builds from an async function, with one variant per await point holding exactly the variables that must survive it."},
+{"t": "waker", "x": "the callback that says try again", "p": "The handle a future gives to whatever it is waiting on, so that when the data arrives the executor is told to poll that task again."},
+{"t": "executor", "x": "the thing that runs futures", "p": "The library component that holds a queue of tasks and polls them; Rust ships none, so you pick tokio or another runtime."},
+{"t": "Pin", "x": "a promise not to move a value", "p": "A wrapper saying the value behind it will stay at one address forever, which is what makes it safe for a future to hold a pointer into itself."},
+{"t": "Function colour", "x": "async infecting its callers", "p": "The problem that async code can call ordinary code but not the reverse, so making one function async tends to force every caller to become async too."},
+{"t": "Poll", "x": "ready or not ready", "p": "The two-variant enum a future's poll method returns: Ready with the final value, or Pending meaning ask again after the waker fires."}
+]}

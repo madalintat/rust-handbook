@@ -1,0 +1,8 @@
+{"terms": [
+{"t": "adapter", "x": "an iterator that wraps an iterator", "p": "A method such as map or filter that returns a new iterator wrapping the old one and does no work at all until something asks it for an element."},
+{"t": "consumer", "x": "the thing that actually runs the chain", "p": "A method such as collect, sum or count that calls next until the iterator is finished, which is the only point at which any of the work happens."},
+{"t": "laziness", "x": "nothing runs until asked", "p": "Building a description of a computation and doing none of it until a result is demanded, so work that is never needed is never performed."},
+{"t": "default method", "x": "a trait method that comes pre-written", "p": "A method a trait supplies a body for, so every implementor gets it free and only overrides it when it has a faster way."},
+{"t": "fuse", "x": "make None mean None forever", "p": "Wrapping an iterator so that once it has returned None it keeps returning None, which the trait itself does not promise."},
+{"t": "FromIterator", "x": "the trait collect uses", "p": "The trait a collection implements to say it can be built out of an iterator, which is what lets collect produce a Vec, a String, a HashMap or a Result."}
+]}

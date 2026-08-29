@@ -1,0 +1,12 @@
+{"terms": [
+{"t": "sum type", "x": "one of several", "p": "A type whose values are exactly one of a listed set of shapes, so the number of possible values is the sum of the alternatives rather than the product of a set of fields."},
+{"t": "variant", "x": "one case of an enum", "p": "One of the named alternatives an enum value can be, together with whatever data that alternative carries."},
+{"t": "discriminant", "x": "the tag", "p": "The small hidden number stored inside an enum value that says which variant it currently is."},
+{"t": "niche optimisation", "x": "a free Option", "p": "The compiler using a bit pattern the payload can never hold, such as a null pointer, to stand for a variant, so the enum needs no separate tag and takes no extra space."},
+{"t": "binding mode", "x": "by value or by reference", "p": "Whether the names introduced by a pattern take the matched data itself or a reference to it, which the compiler chooses based on whether you matched on a value or on a reference."},
+{"t": "match ergonomics", "x": "auto-borrowing patterns", "p": "The rule that matching a reference against an ordinary pattern quietly borrows instead of failing, so every name the pattern binds comes out as a reference and nothing is moved."},
+{"t": "match guard", "x": "an if on an arm", "p": "An extra condition written after a pattern that must also be true for the arm to be chosen, and which the exhaustiveness check deliberately ignores."},
+{"t": "or-pattern", "x": "alternatives in one arm", "p": "Several patterns joined with a vertical bar so one arm handles all of them, which requires every alternative to bind the same names at the same types."},
+{"t": "state machine", "x": "states and transitions", "p": "A design where a value is in exactly one of a fixed set of states and changes between them only through a function that maps an old state and an event to a new state."},
+{"t": "exhaustive", "x": "every case covered", "p": "Describing a match that handles every value the scrutinee could possibly be, which the compiler checks and refuses to compile without."}
+]}

@@ -1,0 +1,3 @@
+{"terms": [
+{"t": "binding", "x": "a name for a value", "p": "A name introduced by `let` and attached to a value, immutable unless declared `mut` and live until the end of its scope."}
+]}

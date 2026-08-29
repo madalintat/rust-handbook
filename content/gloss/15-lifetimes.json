@@ -1,0 +1,6 @@
+{"terms": [
+{"t": "region", "x": "what a lifetime names", "p": "The set of points in your code over which a reference has to stay valid; a lifetime name like 'a is a name for one of these, not a length of time."},
+{"t": "covariance", "x": "longer for shorter", "p": "The rule that a reference valid for a long region may be used wherever one valid for a shorter region is wanted."},
+{"t": "invariant", "x": "no substitution allowed", "p": "A position in a type where no other lifetime may be swapped in, in either direction, because the value can be both read and written through it."},
+{"t": "elision", "x": "the lifetimes rustc writes for you", "p": "The compiler filling in lifetime names in a function signature using three fixed rules, so that most signatures need no annotation at all."}
+]}

@@ -1,0 +1,7 @@
+{"terms": [
+{"t": "doctest", "x": "an example that is run", "p": "A code block in a documentation comment, which cargo test extracts, compiles as a separate crate against your library, and executes."},
+{"t": "unit test", "x": "a test from inside", "p": "A test written in a child module beside the code, which can therefore reach private items the rest of the world cannot."},
+{"t": "integration test", "x": "a test from outside", "p": "A test in the tests directory, compiled as its own crate, which can only reach what your library makes public."},
+{"t": "test harness", "x": "the generated main", "p": "The hidden entry point the compiler builds from every function marked with the test attribute, which runs them in parallel and reports the results."},
+{"t": "property testing", "x": "assert a law, not an example", "p": "Testing by stating a rule that should hold for every input and letting a tool search for a counterexample, then shrink it to the smallest case that still fails."}
+]}

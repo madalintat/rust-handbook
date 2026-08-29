@@ -1,0 +1,9 @@
+{"terms": [
+{"t": "package", "x": "one Cargo.toml", "p": "A directory with a Cargo.toml that Cargo can build, test and publish, holding at most one library crate and any number of binary crates."},
+{"t": "workspace", "x": "packages that build together", "p": "A set of packages sharing one lockfile, one build directory and one set of Cargo commands, so every member resolves to the same version of every dependency."},
+{"t": "re-export", "x": "publishing an item at a new path", "p": "A pub use line that makes an item reachable by a name other than the one its own module gives it, which is how a crate's public API is kept separate from its internal layout."},
+{"t": "prelude", "x": "names you never import", "p": "The small set of standard library names the compiler injects into every module automatically, which is why Option and Vec need no use line."},
+{"t": "semver", "x": "what the version number promises", "p": "The convention that a version number says how much a release broke, so a change to anything publicly reachable forces a new major version."},
+{"t": "visibility", "x": "who is allowed to name this", "p": "How far an item can be reached from, ranging from the defining module alone up to every other crate."},
+{"t": "module tree", "x": "the shape of a crate", "p": "The nested arrangement of modules inside one crate, rooted at src/main.rs or src/lib.rs and built out by mod declarations rather than by the filesystem."}
+]}

@@ -1,0 +1,7 @@
+{"terms": [
+{"t": "amortised", "x": "averaged over many operations", "p": "A cost that is occasionally large but averages out small across a run of operations, which is why growing a Vec one push at a time is still linear overall."},
+{"t": "reallocation", "x": "buying a bigger buffer", "p": "Asking the allocator for a larger block, copying every element into it and freeing the old one, which is what a Vec does when it runs out of capacity."},
+{"t": "SipHash", "x": "the default hasher", "p": "The hash function a Rust HashMap uses by default, seeded randomly at startup so that an attacker cannot craft keys that all collide."},
+{"t": "entry API", "x": "one lookup instead of three", "p": "HashMap::entry, which hands you the slot for a key whether or not anything is in it, so look-up-then-insert-then-update costs a single hash."},
+{"t": "ring buffer", "x": "a buffer with wrapping ends", "p": "One fixed allocation with a head and a tail index that wrap around to the start, giving constant-time insertion and removal at both ends without shifting anything."}
+]}

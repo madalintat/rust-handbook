@@ -1,0 +1,29 @@
+{
+ "terms": [
+  {
+   "t": "typestate",
+   "x": "state in the type",
+   "p": "Encoding what stage a value is at in its type, so that calling a method too early or in the wrong order is a compile error rather than a runtime bug."
+  },
+  {
+   "t": "target triple",
+   "x": "the platform you are building for",
+   "p": "The string naming an architecture, operating system and ABI, such as thumbv7em-none-eabihf, where none means there is no operating system."
+  },
+  {
+   "t": "panic handler",
+   "x": "where panic! ends up",
+   "p": "The single function a program without the standard library must provide to say what happens when code panics, since there is no default."
+  },
+  {
+   "t": "global allocator",
+   "x": "where the heap comes from",
+   "p": "The one type a program nominates to serve every heap allocation, which a program without an operating system has to supply itself."
+  },
+  {
+   "t": "critical section",
+   "x": "interrupts off",
+   "p": "A stretch of code during which interrupts are disabled, so that shared data cannot be modified halfway through by a handler."
+  }
+ ]
+}

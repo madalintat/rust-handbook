@@ -1,0 +1,7 @@
+{"terms": [
+{"t": "niche optimisation", "x": "a free Option", "p": "The compiler using a bit pattern the payload can never hold, such as a null pointer, to stand for a variant, so the enum needs no separate tag and takes no extra space."},
+{"t": "niche", "x": "a spare bit pattern", "p": "A bit pattern a type can never legally hold, which the compiler is free to reuse to mean something else, such as the empty case of an Option."},
+{"t": "combinator", "x": "a method that transforms without unpacking", "p": "A small method that takes a value and a closure and hands back a new value of the same shape, letting you describe a transformation without writing out the match by hand."},
+{"t": "prelude", "x": "imported everywhere", "p": "The small set of names the standard library brings into scope in every file automatically, which is why Some, None, Ok and Err need no import."},
+{"t": "billion dollar mistake", "x": "the null reference", "p": "Tony Hoare's name for adding a null reference to a language in 1965, so called because absence and presence share one type and the check is never forced."}
+]}

@@ -1,0 +1,9 @@
+{"terms": [
+{"t": "IntoIterator", "x": "what a for loop asks for", "p": "The trait that says a value can be turned into an iterator, which is the only thing a for loop knows how to consume."},
+{"t": "half-open range", "x": "a..b", "p": "A range that includes its start and excludes its end, so its length is always the end minus the start and adjacent ranges never overlap."},
+{"t": "match guard", "x": "an if on an arm", "p": "An extra condition attached to a match arm, tested after the pattern matches, and ignored by the compiler's check that every case is covered."},
+{"t": "diverge", "x": "never returns normally", "p": "An expression that does not produce a value because control leaves instead, by returning, breaking, continuing or panicking."},
+{"t": "labelled break", "x": "break 'name", "p": "A break that names an enclosing loop or block, so it exits that one rather than the innermost one."},
+{"t": "let else", "x": "bind or leave", "p": "A let that binds a pattern when it matches and otherwise runs a block that must leave the function, so the binding is usable in everything that follows."},
+{"t": "desugaring", "x": "what the syntax really is", "p": "The simpler form a piece of convenient syntax expands into before the compiler type-checks it."}
+]}

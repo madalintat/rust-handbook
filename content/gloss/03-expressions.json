@@ -1,0 +1,6 @@
+{"terms": [
+{"t": "expression", "x": "produces a value", "p": "Any piece of code that evaluates to a value, which in Rust is almost everything including if, match, loop and a block in braces."},
+{"t": "statement", "x": "produces nothing", "p": "A piece of code that does something without producing a value; Rust has only two, a let binding and an item declaration."},
+{"t": "tail expression", "x": "a block's value", "p": "The last expression in a block, written without a semicolon, whose value becomes the value of the whole block."},
+{"t": "never type", "x": "!", "p": "The type of an expression that never hands control back, such as panic! or return, which is allowed to stand in for any type because no value of it can ever exist."}
+]}

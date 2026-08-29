@@ -1,0 +1,5 @@
+{"terms": [
+{"t": "type parameter", "x": "a stand-in for a type", "p": "A name written in angle brackets, such as the T in fn largest<T>, that stands for a type the caller picks rather than one you fixed in advance."},
+{"t": "const generics", "x": "a value as a parameter", "p": "A generic parameter that is a compile-time value rather than a type, most often the length N in an array type [T; N]."},
+{"t": "where clause", "x": "bounds written after the signature", "p": "The form that lists trait requirements after a function's return type instead of inside the angle brackets, and can constrain types you did not declare."}
+]}

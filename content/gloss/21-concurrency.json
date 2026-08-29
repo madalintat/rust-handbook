@@ -1,0 +1,10 @@
+{"terms": [
+{"t": "JoinHandle", "x": "a handle to a running thread", "p": "The value thread::spawn gives back, whose join method waits for that thread to finish and hands you what it returned."},
+{"t": "auto traits", "x": "traits the compiler implements for you", "p": "Traits like Send and Sync that nobody writes an impl for: the compiler decides a type has them if every one of its fields does."},
+{"t": "MutexGuard", "x": "proof that you hold the lock", "p": "The value a lock call returns, which gives access to the data inside the mutex and releases the lock when it is dropped."},
+{"t": "lock poisoning", "x": "a mutex marked unreliable", "p": "The flag a mutex sets when a thread panics while holding it, so later lockers are told the data may have been left half-updated."},
+{"t": "deadlock", "x": "two threads waiting on each other", "p": "Two or more threads each holding a lock the other needs, so none of them can ever continue."},
+{"t": "scoped thread", "x": "a thread that cannot outlive its scope", "p": "A thread started inside thread::scope, which the compiler knows will be joined before the scope ends, so it may borrow local variables."},
+{"t": "atomic", "x": "an indivisible read-modify-write", "p": "An operation the hardware guarantees no other core can observe halfway through, which is how a counter can be shared without a lock."},
+{"t": "back-pressure", "x": "a full queue slowing the producer", "p": "What a bounded channel gives you: once it is full the sender blocks, so a fast producer cannot pile up unbounded work for a slow consumer."}
+]}

@@ -1,0 +1,14 @@
+{"terms": [
+{"t": "hygiene", "x": "names cannot collide", "p": "The rule that an identifier written inside a macro is resolved where the macro was defined, so it can neither capture nor be captured by a name at the call site."},
+{"t": "fragment specifier", "x": "expr, ident, ty", "p": "The label after a metavariable in a macro matcher saying what kind of syntax it accepts, and therefore where in the output it may be used."},
+{"t": "metavariable", "x": "$x", "p": "A name in a macro pattern that binds whatever syntax matched at that position, then stands in for it in the generated code."},
+{"t": "matcher", "x": "the left of =>", "p": "The pattern a macro rule matches its arguments against, written in tokens rather than types."},
+{"t": "transcriber", "x": "the right of =>", "p": "The tokens a macro rule emits, with each metavariable replaced by whatever it matched."},
+{"t": "repetition", "x": "$(...),*", "p": "A macro construct that matches a group any number of times and emits its body once per match, which is how a macro takes a variable number of arguments."},
+{"t": "token tree", "x": "tt", "p": "A single token, or a whole group enclosed in brackets treated as one unit, which is the coarsest thing a macro pattern can match."},
+{"t": "procedural macro", "x": "proc macro", "p": "A compile-time function taking a stream of tokens and returning a stream of tokens, which must live in its own crate."},
+{"t": "declarative macro", "x": "macro_rules!", "p": "A macro defined by pattern-matching rules over syntax rather than by arbitrary code."},
+{"t": "TokenStream", "x": "what a proc macro sees", "p": "The sequence of tokens a procedural macro receives and returns, carrying no type information at all."},
+{"t": "cargo expand", "x": "show the generated code", "p": "A tool that prints your crate with every macro expanded, so generated code can be read as ordinary Rust."},
+{"t": "recursion limit", "x": "128 by default", "p": "The maximum depth of nested macro expansions the compiler will perform before giving up."}
+]}

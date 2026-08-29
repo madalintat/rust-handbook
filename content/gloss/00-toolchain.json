@@ -1,0 +1,6 @@
+{"terms": [
+{"t": "crates.io", "x": "the package registry", "p": "The public registry cargo downloads dependencies from, where every published version of a crate stays available forever."},
+{"t": "semver", "x": "semantic versioning", "p": "The MAJOR.MINOR.PATCH convention crates follow, where only a major bump is allowed to break code that already compiled."},
+{"t": "clippy", "x": "the extra lints", "p": "A cargo subcommand that runs several hundred lints beyond the compiler's own, mostly about idiom and needless work."},
+{"t": "rustfmt", "x": "the formatter", "p": "The standard code formatter, run as `cargo fmt`, which has one style and almost no options so that every Rust codebase looks the same."}
+]}

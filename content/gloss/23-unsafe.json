@@ -1,0 +1,14 @@
+{"terms": [
+{"t": "raw pointer", "x": "*const T, *mut T", "p": "An address with no guarantees attached: it may be null, may point at freed memory, and nothing tracks what else points at the same place."},
+{"t": "soundness", "x": "sound, unsound", "p": "The property that no possible use of a safe API can cause undefined behaviour; an API that can be broken by an ordinary caller is unsound."},
+{"t": "safe abstraction", "x": "unsafe inside, safe outside", "p": "A safe interface built over unsafe operations, where the wrapper itself checks whatever the compiler could not."},
+{"t": "safety comment", "x": "// SAFETY:", "p": "A comment above an unsafe block stating which precondition it relies on and why that precondition holds at that point."},
+{"t": "provenance", "x": "where a pointer came from", "p": "The record of which allocation and which permission a pointer was derived from, which is part of whether using it is legal even when the address is right."},
+{"t": "Miri", "x": "the UB detector", "p": "An interpreter that runs Rust at the intermediate-representation level and reports undefined behaviour that ordinary testing cannot see."},
+{"t": "repr", "x": "#[repr(C)]", "p": "An attribute fixing how a type is laid out in memory, needed whenever another language has to agree about where the fields are."},
+{"t": "FFI", "x": "foreign function interface", "p": "Calling code written in another language, which is always unsafe because the compiler cannot see what that code does."},
+{"t": "union", "x": "overlapping fields", "p": "A type whose fields share one piece of storage, so reading a field asserts it is the field that was last written."},
+{"t": "static mut", "x": "a global with no lock", "p": "A mutable global variable with no synchronisation, so any two threads touching it are a data race and therefore undefined behaviour."},
+{"t": "transmute", "x": "reinterpret the bytes", "p": "Reading one type's bytes as another type, which is undefined behaviour unless every possible bit pattern is valid for the target."},
+{"t": "unsafe trait", "x": "the implementor promises", "p": "A trait whose correctness other code relies on for safety, so writing an impl requires the unsafe keyword and a stated justification."}
+]}

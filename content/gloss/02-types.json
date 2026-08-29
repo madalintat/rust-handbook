@@ -1,0 +1,4 @@
+{"terms": [
+{"t": "Unicode scalar value", "x": "what a char holds", "p": "Any Unicode code point except the surrogate range, which is exactly what fits in Rust's four-byte char."},
+{"t": "unit type", "x": "()", "p": "The type written (), which has exactly one value, takes up no space, and is what a function returns when it returns nothing."}
+]}

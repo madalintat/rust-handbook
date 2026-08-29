@@ -1,0 +1,7 @@
+{"terms": [
+{"t": "recoverable", "x": "the caller can do something", "p": "A failure that a correct program will meet in normal operation and that the caller can sensibly act on, which is what Result is for."},
+{"t": "unwinds", "x": "walking the stack back", "p": "What a panic does by default: it returns through every frame in turn, running the destructor of each live value, so locks are released and files are closed on the way out."},
+{"t": "error context", "x": "what you were trying to do", "p": "A short description attached to an error as it passes up through a layer, so the final message says which file was being read rather than only that something was missing."},
+{"t": "thiserror", "x": "derive for library errors", "p": "A crate that generates the Display and Error impls for your own error enum, leaving the type concrete so callers can still match on its variants."},
+{"t": "anyhow", "x": "one error type for binaries", "p": "A crate giving applications a single boxed error type that any error converts into, plus a chain of context strings for the human reading the message."}
+]}

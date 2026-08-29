@@ -1,0 +1,19 @@
+{
+ "terms": [
+  {
+   "t": "integration test",
+   "x": "a test in tests/",
+   "p": "A test file under tests/, compiled as its own crate, which can only see the public API of your library \u2014 the same view an outside user gets."
+  },
+  {
+   "t": "LTO",
+   "x": "link-time optimisation",
+   "p": "Optimising across crate boundaries at link time instead of one crate at a time, which lets the compiler inline and delete code it otherwise could not see."
+  },
+  {
+   "t": "yank",
+   "x": "withdraw a published version",
+   "p": "Marking a version on crates.io so no new project resolves to it, without deleting it \u2014 existing lockfiles keep building."
+  }
+ ]
+}

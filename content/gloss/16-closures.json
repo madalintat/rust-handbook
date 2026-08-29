@@ -1,0 +1,8 @@
+{"terms": [
+{"t": "capture", "x": "what a closure keeps", "p": "A variable from the surrounding scope that a closure stores in its generated struct, either as a reference or as an owned value."},
+{"t": "disjoint capture", "x": "per-field capture", "p": "The rule since edition 2021 that a closure captures the individual struct fields its body mentions rather than the whole struct."},
+{"t": "function pointer", "x": "a bare code address", "p": "The type written fn(i32) -> i32, a single word holding the address of some code, with no room for captured variables."},
+{"t": "FnOnce", "x": "callable once", "p": "The trait for a closure whose body consumes something it captured, so calling it destroys it."},
+{"t": "FnMut", "x": "callable repeatedly, mutating", "p": "The trait for a closure whose body changes something it captured, so it needs unique access each call."},
+{"t": "Fn", "x": "callable repeatedly, reading", "p": "The trait for a closure whose body only reads what it captured, so it can be called from several places at once."}
+]}

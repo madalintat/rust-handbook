@@ -1,0 +1,9 @@
+{"terms": [
+{"t": "orphan rule", "x": "who may write an impl", "p": "The restriction that you may implement a trait for a type only if you defined the trait or you defined the type, so that no two crates can supply conflicting implementations."},
+{"t": "object safe", "x": "usable as dyn Trait", "p": "A trait whose every method can be reached through a table of function pointers, which rules out generic methods, methods with no self, and methods returning Self by value."},
+{"t": "object safety", "x": "usable as dyn Trait", "p": "The set of conditions a trait must meet before values of it can be used behind dyn, mainly that every method has a receiver and no type parameters of its own."},
+{"t": "supertrait", "x": "a trait another trait requires", "p": "A trait named after a colon in another trait's declaration, meaning anything implementing the second must also implement the first."},
+{"t": "associated type", "x": "one type chosen by the implementor", "p": "A type named inside a trait that each implementing type fixes exactly once, such as the Item an iterator yields."},
+{"t": "default method", "x": "a trait method with a body", "p": "A method written inside the trait itself in terms of the required ones, which every implementor receives for free and may override."},
+{"t": "impl Trait", "x": "an unnamed type meeting a bound", "p": "Syntax standing for some single concrete type satisfying a trait, used as shorthand for a type parameter in an argument and to return a type that has no name."}
+]}

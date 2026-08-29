@@ -1,0 +1,7 @@
+{"terms": [
+{"t": "aliasing", "x": "two ways to reach one value", "p": "Having more than one path to the same piece of memory, which is harmless on its own and dangerous the moment one of those paths can write."},
+{"t": "non-lexical lifetimes", "x": "a borrow ends at its last use", "p": "The rule, since the 2018 edition, that a borrow lasts until the last place it is used rather than until the end of the block it was created in."},
+{"t": "reborrow", "x": "a borrow through a borrow", "p": "A shorter borrow taken through an existing mutable reference, which freezes the original for its duration and then hands it back."},
+{"t": "split borrow", "x": "one field at a time", "p": "Borrowing two different fields of the same value at once, which is allowed because the compiler tracks each field path separately."},
+{"t": "iterator invalidation", "x": "the reference that outlived its buffer", "p": "A reference or iterator into a collection left pointing at freed memory because the collection grew and moved its contents elsewhere."}
+]}
