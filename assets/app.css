@@ -52,7 +52,7 @@
   --r-md: 8px;
   --r-lg: 16px;
   --drop: 2px;
-  --rail: 252px;
+  --rail: 288px;
   --measure: 72ch;
 
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -122,7 +122,13 @@ html {
   html { scroll-behavior: auto; }
   * { transition: none !important; animation: none !important; }
 }
-html, body { overflow-x: hidden; max-width: 100%; }
+/* `overflow-x: hidden` here would make body a scroll container, and every
+   `position: sticky` descendant then sticks relative to body instead of the
+   viewport, which means it never sticks at all: the contents rail scrolled
+   away with the prose. `clip` does the same job without establishing a scroll
+   container. Anything that genuinely overflows (tables, code blocks, memory
+   diagrams, the editor) carries its own overflow-x: auto. */
+html, body { overflow-x: clip; max-width: 100%; }
 
 body {
   background: var(--bg);
@@ -590,7 +596,7 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
 /* The spine. The track is the whole unit; the fill is how far down it you are. */
 .railtrack {
   position: absolute;
-  left: 5px; top: 4px; bottom: 10px;
+  left: 7px; top: 4px; bottom: 10px;
   width: 2px;
   border-radius: 2px;
   background: var(--border-soft);
@@ -612,11 +618,11 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 5px 8px 5px 20px;
+  padding: 6px 9px 6px 22px;
   border-radius: var(--r-sm);
-  font-size: var(--t-micro);
+  font-size: var(--t-tiny);
   color: var(--ink-3);
-  line-height: 1.45;
+  line-height: 1.5;
   transition: background var(--fast), color var(--fast);
 }
 
@@ -624,8 +630,8 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
 .rail a::before {
   content: "";
   position: absolute;
-  left: 2px;
-  top: 0.72em;
+  left: 4px;
+  top: 0.78em;
   width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--bg);
@@ -643,17 +649,18 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
 .rail a.h2 {
   font-weight: 700;
   color: var(--ink-2);
-  margin-top: 10px;
-  font-size: var(--t-tiny);
-  letter-spacing: -0.01em;
+  margin-top: 12px;
+  font-size: var(--t-sm);
+  letter-spacing: -0.015em;
 }
-.rail a.h3 { padding-left: 32px; font-size: var(--t-micro); }
-.rail a.h3::before { width: 6px; height: 6px; left: 3px; }
+.rail a.h3 { padding-left: 34px; }
+.rail a.h3::before { width: 6px; height: 6px; left: 5px; }
 .rail a.on { color: var(--accent); font-weight: 600; }
 .rail .mins {
   margin-left: auto;
-  font-size: 9.5px;
+  font-size: var(--t-micro);
   color: var(--ink-4);
+  padding-left: 6px;
   font-variant-numeric: tabular-nums;
   flex: none;
   opacity: 0.75;

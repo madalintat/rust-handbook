@@ -144,6 +144,28 @@ console.log('--- the toolchain the content was validated on ---');
      `carried=${DB.audit.carried}`);
 }
 
+console.log('--- nothing above the rail may be a scroll container ---');
+/* `position: sticky` sticks to the nearest scrolling ancestor. `overflow-x:
+   hidden` on body makes body one, so the rail stuck to a container the size of
+   the whole document and therefore never stuck at all. `clip` clips without
+   scrolling. This is invisible in the markup and only shows up by scrolling. */
+{
+  const css = fs.readFileSync('assets/app.css', 'utf8');
+  const rule = (sel) => {
+    const m = css.match(new RegExp(`^${sel}[^{]*\\{([^}]*)\\}`, 'm'));
+    return m ? m[1] : '';
+  };
+  const scrolls = (decls) => /overflow(-[xy])?\s*:\s*(auto|scroll|hidden)/.test(decls);
+
+  ok('body does not become a scroll container', !scrolls(rule('html, body')),
+     rule('html, body').trim());
+  ok('body still clips horizontal overflow', /overflow-x:\s*clip/.test(rule('html, body')));
+  for (const [name, sel] of [['.wrap', '\\.wrap '], ['.readerlayout', '\\.readerlayout \\{']]) {
+    ok(`${name} does not scroll`, !scrolls(rule(sel)), rule(sel).trim().slice(0, 60));
+  }
+  ok('the rail is sticky', /\.rail\s*\{[^}]*position:\s*sticky/.test(css));
+}
+
 console.log('--- the contents rail ---');
 {
   const html = await ctx.viewUnit('05-ownership');
