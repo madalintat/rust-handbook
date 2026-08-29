@@ -1,11 +1,16 @@
 name: Deploy
 
 # The site is static and needs no build step at deploy time, so this publishes
-# the repository as it stands. Enable Pages in Settings first, or point the
-# custom domain at it once there is one.
+# the repository as it stands.
+#
+# Manual until you want it live. Publishing is a decision, not a side effect of
+# pushing. To turn it on:
+#   1. Settings > Pages > Source: GitHub Actions
+#   2. uncomment the push trigger below
+#   3. add the custom domain there, and a CNAME file at the repo root
 on:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]
   workflow_dispatch:
 
 permissions:
