@@ -49,6 +49,9 @@ globalThis.addEventListener = noop;
 globalThis.scrollTo = noop;
 globalThis.location = { hash: '#/' };
 globalThis.innerWidth = 1200;
+// The reader asks whether it is above the rail's breakpoint. 1200 is, so the
+// stub answers the way the width above already says it should.
+globalThis.matchMedia = () => ({ matches: true, addEventListener: noop });
 globalThis.scrollX = 0; globalThis.scrollY = 0;
 globalThis.confirm = () => false;
 globalThis.AbortController = class { constructor() { this.signal = { aborted: false }; }

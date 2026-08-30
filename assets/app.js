@@ -52,6 +52,7 @@ const I = {
   spin: '<path d="M12 3a9 9 0 1 0 9 9" opacity=".9"/><path d="M12 3a9 9 0 0 1 9 9" opacity=".25"/>',
   book2: '<path d="M12 6.5S9.5 4 6 4H3v14h3c3.5 0 6 2 6 2s2.5-2 6-2h3V4h-3c-3.5 0-6 2.5-6 2.5z"/><path d="M12 6.5V20"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  wrap: '<path d="M3 6h18M3 19h4"/><path d="M3 12.5h13a3.5 3.5 0 0 1 0 6.5h-4"/><path d="m11.5 15.5-3.5 3.5 3.5 3.5"/>',
   flame: '<path d="M12 22c4 0 7-2.7 7-6.5 0-4.5-4.5-6-4.5-9.5 0 0-2 1.5-2 4C12.5 8 11 6 9 4.5c0 2-1 3-2 4.5S5 12 5 15.5C5 19.3 8 22 12 22z"/>',
 };
 const ico = (n, s = 18) =>
@@ -128,14 +129,21 @@ function crumbs(parts) {
 
 const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
 
+/* Every remembered on/off in the app. localStorage throws rather than returning
+   null in a locked-down browser, and each preference used to carry its own copy
+   of that try/catch. Off is the safe default for all of them. */
+const flag = (k) => {
+  try { return localStorage.getItem(k) === '1'; } catch (e) { return false; }
+};
+const setFlag = (k, on) => {
+  try { localStorage.setItem(k, on ? '1' : '0'); } catch (e) {}
+};
+
 /* The contents rail. `items` are {href, id, text, level, note}. The spine and
    the per-item dots are drawn by CSS; wireRail fills them in as you read. */
 const RAIL_KEY = 'rh-rail';
 const railState = () => (railCollapsed() ? 'collapsed' : 'open');
-
-const railCollapsed = () => {
-  try { return localStorage.getItem(RAIL_KEY) === '1'; } catch (e) { return false; }
-};
+const railCollapsed = () => flag(RAIL_KEY);
 
 function rail(label, items) {
   return `<aside class="rail">
@@ -442,8 +450,9 @@ async function viewUnit(slug) {
     <div class="readerbar"><div class="inner">
       <a class="btn ghost sm back" href="#/track">${ico('chev', 15)} <span>The track</span></a>
       <span class="title" style="flex:1">${esc(u.title)}</span>
-      <button class="btn quiet sm" id="expandall" data-open="0">${ico('layers', 13)} <span>Expand all</span></button>
-      <button class="btn quiet sm mobile-only" id="opensheet">${ico('layers', 13)} Contents</button>
+      <button class="btn quiet sm" id="expandall" data-open="0"
+        title="Expand or collapse every part" aria-label="Expand all">${ico('layers', 13)} <span>Expand all</span></button>
+      <button class="btn quiet sm" id="opensheet">${ico('layers', 13)} Contents</button>
       <button class="btn quiet sm toggle desk-only" data-toggle="hide-terms" data-key="rh-terms"
         title="Show or hide the highlighted terms">${ico('check', 12)} Terms</button>
       ${meta.exercises ? `<a class="btn sm" href="#/work/${slug}">${ico('wrench', 13)} Workbench</a>` : ''}
@@ -493,7 +502,10 @@ function wireUnit() {
     const open = seg.dataset.open === '0';
     $$('.sect').forEach((d) => { d.open = open; });
     seg.dataset.open = open ? '1' : '0';
-    seg.querySelector('span').textContent = open ? 'Collapse all' : 'Expand all';
+    const label = open ? 'Collapse all' : 'Expand all';
+    seg.querySelector('span').textContent = label;
+    // Below 420px the span is hidden and this label is the only name there is.
+    seg.setAttribute('aria-label', label);
   });
 
   const sheetBtn = $('#opensheet');
@@ -503,6 +515,8 @@ function wireUnit() {
   const bar = $('#prog');
   const fill = $('#railfill');
   const layout = document.querySelector('.readerlayout');
+  // Matches the rail's own breakpoint in app.css. Evaluated once, not per scroll.
+  const wide = matchMedia('(min-width: 1061px)');
   const links = railol ? $$('a', railol) : [];
   const targets = links.map((a) => document.getElementById(a.dataset.id));
 
@@ -541,7 +555,9 @@ function wireUnit() {
 
     // Keep the active entry in view inside the rail's own scroller, but never
     // when it is collapsed: there is nothing to read and the jump is noise.
-    if (active >= 0 && railol && layout?.dataset.rail !== 'collapsed') {
+    // Nor below the rail's breakpoint, where it has no box at all and these two
+    // reads would flush layout to compare a pair of empty rects.
+    if (active >= 0 && railol && wide.matches && layout?.dataset.rail !== 'collapsed') {
       const a = links[active];
       const box = railol.parentElement;
       const r = a.getBoundingClientRect(), rr = box.getBoundingClientRect();
@@ -575,16 +591,12 @@ function wireUnit() {
       layout.dataset.rail = now ? 'collapsed' : 'open';
       toggle.setAttribute('aria-expanded', String(!now));
       toggle.title = now ? 'Show the contents' : 'Collapse the contents';
-      try { localStorage.setItem(RAIL_KEY, now ? '1' : '0'); } catch (e) {}
+      setFlag(RAIL_KEY, now);
       // The reading column changed width, so every heading moved.
       requestAnimationFrame(() => { active = -1; measure(); });
     });
   }
 
-  // The mobile sheet shows the same list. `rail` is the markup function now, so
-  // reading .innerHTML off it silently produced <ol>undefined</ol>.
-  const sb = $('#sheetbody');
-  if (sb && railol) sb.innerHTML = `<ol>${railol.innerHTML}</ol>`;
 }
 
 /* --------------------------------------------------------------------- */
@@ -593,6 +605,15 @@ function wireUnit() {
 
 let ED = null;      // the mounted editor for the exercise on screen
 let HINTS = 0;      // how many hints the reader has revealed here
+
+/* Soft wrap in the editor. A phone is 375px wide and a Rust line is not, so the
+   choice is scrolling sideways while you type or letting lines fold. It is a
+   reading preference, not a per-exercise one, so it is remembered.
+   ponytail: wrapping hides the gutter, because one number per logical line
+   cannot line up with lines that occupy two rows. Per-line numbering that
+   measures wrapped height would fix it if anyone misses it. */
+const WRAP_KEY = 'rh-wrap';
+const wrapOn = () => flag(WRAP_KEY);
 let BUSY = false;
 
 /* A unit's exercises and a project's stages are the same thing, so one bench
@@ -666,14 +687,15 @@ async function viewWork(slug, nRaw, source = 'ex') {
         </div>
         <div class="wbbrief">${ex.brief}</div>
 
-        <div class="editor" id="ed"></div>
+        <div class="editor${wrapOn() ? ' softwrap' : ''}" id="ed"></div>
         <div class="runbar" id="runbar" hidden></div>
 
         <div class="wbbar">
           <button class="btn" id="run"><span class="ic">${ico('play', 14)}</span> Run</button>
           <button class="btn quiet" id="hint">${ico('bulb', 13)} Hint</button>
           <button class="btn quiet" id="reset">${ico('reset', 13)} Reset</button>
-          <button class="btn ghost" id="sol">Show solution</button>
+          <button class="btn quiet" id="wrap" aria-pressed="false"
+            title="Wrap long lines instead of scrolling sideways">${ico('wrap', 13)} Wrap</button>
           <button class="btn ghost desk-only" id="vim" aria-pressed="false"
             title="Vim keybindings: motions, operators, counts, visual, undo">vim</button>
           <span class="kbd desk-only" id="toolchain-wb"></span>
@@ -788,12 +810,21 @@ function wireWork(slug, nRaw, source = 'ex') {
 
     $('#reset').addEventListener('click', () => { ED.reset(); $('#out').innerHTML = ''; });
     $('#run').addEventListener('click', doRun);
-    $('#sol').addEventListener('click', () => {
-      ED.set(ex.solution);
-      HINTS = (ex.hints || []).length;
-      $('#hints').innerHTML = `<div class="hintbox"><div class="lbl">Solution</div>
-        One correct answer, now in the editor. Run it, then change it and break it: 
-        that is where the understanding is.</div>`;
+    /* The markup already carries the class, so on mount the button only has to
+       catch up with it and the editor is not told anything: that keeps mount to
+       the one paint mountEditor already does. */
+    const wrapBtn = $('#wrap');
+    const paintWrapBtn = (on) => {
+      wrapBtn.classList.toggle('on', on);
+      wrapBtn.setAttribute('aria-pressed', String(on));
+    };
+    paintWrapBtn(wrapOn());
+    wrapBtn.addEventListener('click', () => {
+      const on = !wrapOn();
+      setFlag(WRAP_KEY, on);
+      paintWrapBtn(on);
+      ED.wrap(on);
+      ED.focus();
     });
     $('#hint').addEventListener('click', () => {
       const hs = ex.hints || [];
@@ -1167,8 +1198,7 @@ addEventListener('scroll', closePop, { passive: true });
 
 function syncToggles() {
   $$('[data-toggle]').forEach((b) => {
-    let on = false;
-    try { on = localStorage.getItem(b.dataset.key) === '1'; } catch (e) {}
+    const on = flag(b.dataset.key);
     document.body.classList.toggle(b.dataset.toggle, on);
     b.style.opacity = on ? '0.55' : '1';
   });
@@ -1176,8 +1206,7 @@ function syncToggles() {
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-toggle]');
   if (!b) return;
-  const on = !document.body.classList.contains(b.dataset.toggle);
-  try { localStorage.setItem(b.dataset.key, on ? '1' : '0'); } catch (err) {}
+  setFlag(b.dataset.key, !document.body.classList.contains(b.dataset.toggle));
   syncToggles();
 });
 
@@ -1185,11 +1214,30 @@ document.addEventListener('click', (e) => {
 /* the mobile sheet                                                       */
 /* --------------------------------------------------------------------- */
 
-function openSheet() { $('#sheet').hidden = false; $('#scrim').hidden = false; }
-function closeSheet() { $('#sheet').hidden = true; $('#scrim').hidden = true; }
+/* The sheet is modal: while it is up the page behind it holds still, or a flick
+   meant for the contents scrolls the prose and you land somewhere you did not
+   pick. Closing on a contents tap is what makes it a jump list rather than a
+   panel you have to dismiss twice. */
+function openSheet() {
+  /* Filled at open, not at render: the rail's scroll watcher marks where you
+     are on its own links, and a copy taken once at wire time froze that at the
+     top of the unit. The sheet is a plain reading list, not the spine, so it
+     takes the entries and leaves the decoration behind in the CSS. */
+  const src = $('#railol');
+  if (src) $('#sheetbody').innerHTML = `<ol>${src.innerHTML}</ol>`;
+  $('#sheet').hidden = false;
+  $('#scrim').hidden = false;
+  document.body.classList.add('sheetopen');
+}
+function closeSheet() {
+  $('#sheet').hidden = true;
+  $('#scrim').hidden = true;
+  document.body.classList.remove('sheetopen');
+}
 $('#scrim').addEventListener('click', closeSheet);
 $('#sheetclose').addEventListener('click', closeSheet);
 $('#sheet').addEventListener('click', (e) => { if (e.target.closest('a')) closeSheet(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
 /* Two versions matter and they are not the same question. The manifest records
    which rustc last validated every exercise; the playground answers with

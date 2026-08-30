@@ -11,8 +11,10 @@ then crashed the whole build on a KeyError. Two authors hit it independently.
 """
 
 import json
+import os
 import pathlib
 import sys
+import tempfile
 
 import build
 
@@ -382,6 +384,24 @@ ok("and it brings the toolchain back with it",
 
 ok("no cache means no claim", build.carry(VERDICT, set(), {"x#1"}) ==
    {"checked": 0, "cached": 0, "findings": [], "ran": False})
+
+# --------------------------------------------------------------------------
+# The reproduction guide is inlined into llms.txt with every heading demoted one
+# level. A guide about writing this repo's markdown is exactly where a ````
+# block wrapping a ``` example turns up, and a naive toggle would treat the
+# inner fence as a close and start demoting the guide's own code.
+with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
+    f.write("# Title\n\n## Kept as is\n\n````markdown\n# not a heading\n```rust\nlet x = 1;\n```\n"
+            "## also not a heading\n````\n\n## Demoted too\n")
+out = "\n".join(build.build_your_own(pathlib.Path(f.name)))
+os.unlink(f.name)
+
+ok("the guide's own h1 does not survive as one", "# Title" not in out, repr(out[:60]))
+ok("headings outside a fence are demoted", "### Kept as is" in out and "### Demoted too" in out)
+ok("headings inside a fence are left alone", "# not a heading" in out and "## not a heading" not in out)
+ok("an inner fence does not close the outer one",
+   "## also not a heading" in out and "### also not a heading" not in out)
+ok("the inner fence survives verbatim", "```rust" in out and "````markdown" in out)
 
 # --------------------------------------------------------------------------
 print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
