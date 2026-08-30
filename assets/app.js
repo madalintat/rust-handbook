@@ -52,6 +52,7 @@ const I = {
   spin: '<path d="M12 3a9 9 0 1 0 9 9" opacity=".9"/><path d="M12 3a9 9 0 0 1 9 9" opacity=".25"/>',
   book2: '<path d="M12 6.5S9.5 4 6 4H3v14h3c3.5 0 6 2 6 2s2.5-2 6-2h3V4h-3c-3.5 0-6 2.5-6 2.5z"/><path d="M12 6.5V20"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  wrap: '<path d="M3 6h18M3 19h4"/><path d="M3 12.5h13a3.5 3.5 0 0 1 0 6.5h-4"/><path d="m11.5 15.5-3.5 3.5 3.5 3.5"/>',
   flame: '<path d="M12 22c4 0 7-2.7 7-6.5 0-4.5-4.5-6-4.5-9.5 0 0-2 1.5-2 4C12.5 8 11 6 9 4.5c0 2-1 3-2 4.5S5 12 5 15.5C5 19.3 8 22 12 22z"/>',
 };
 const ico = (n, s = 18) =>
@@ -581,10 +582,6 @@ function wireUnit() {
     });
   }
 
-  // The mobile sheet shows the same list. `rail` is the markup function now, so
-  // reading .innerHTML off it silently produced <ol>undefined</ol>.
-  const sb = $('#sheetbody');
-  if (sb && railol) sb.innerHTML = `<ol>${railol.innerHTML}</ol>`;
 }
 
 /* --------------------------------------------------------------------- */
@@ -593,6 +590,17 @@ function wireUnit() {
 
 let ED = null;      // the mounted editor for the exercise on screen
 let HINTS = 0;      // how many hints the reader has revealed here
+
+/* Soft wrap in the editor. A phone is 375px wide and a Rust line is not, so the
+   choice is scrolling sideways while you type or letting lines fold. It is a
+   reading preference, not a per-exercise one, so it is remembered.
+   ponytail: wrapping hides the gutter, because one number per logical line
+   cannot line up with lines that occupy two rows. Per-line numbering that
+   measures wrapped height would fix it if anyone misses it. */
+const WRAP_KEY = 'rh-wrap';
+const wrapOn = () => {
+  try { return localStorage.getItem(WRAP_KEY) === '1'; } catch (e) { return false; }
+};
 let BUSY = false;
 
 /* A unit's exercises and a project's stages are the same thing, so one bench
@@ -673,7 +681,8 @@ async function viewWork(slug, nRaw, source = 'ex') {
           <button class="btn" id="run"><span class="ic">${ico('play', 14)}</span> Run</button>
           <button class="btn quiet" id="hint">${ico('bulb', 13)} Hint</button>
           <button class="btn quiet" id="reset">${ico('reset', 13)} Reset</button>
-          <button class="btn ghost" id="sol">Show solution</button>
+          <button class="btn quiet" id="wrap" aria-pressed="${wrapOn()}"
+            title="Wrap long lines instead of scrolling sideways">${ico('wrap', 13)} Wrap</button>
           <button class="btn ghost desk-only" id="vim" aria-pressed="false"
             title="Vim keybindings: motions, operators, counts, visual, undo">vim</button>
           <span class="kbd desk-only" id="toolchain-wb"></span>
@@ -788,12 +797,18 @@ function wireWork(slug, nRaw, source = 'ex') {
 
     $('#reset').addEventListener('click', () => { ED.reset(); $('#out').innerHTML = ''; });
     $('#run').addEventListener('click', doRun);
-    $('#sol').addEventListener('click', () => {
-      ED.set(ex.solution);
-      HINTS = (ex.hints || []).length;
-      $('#hints').innerHTML = `<div class="hintbox"><div class="lbl">Solution</div>
-        One correct answer, now in the editor. Run it, then change it and break it: 
-        that is where the understanding is.</div>`;
+    const wrapBtn = $('#wrap');
+    const paintWrap = () => {
+      const on = wrapOn();
+      $('#ed').classList.toggle('softwrap', on);
+      wrapBtn.classList.toggle('on', on);
+      wrapBtn.setAttribute('aria-pressed', String(on));
+    };
+    paintWrap();
+    wrapBtn.addEventListener('click', () => {
+      try { localStorage.setItem(WRAP_KEY, wrapOn() ? '0' : '1'); } catch (e) {}
+      paintWrap();
+      ED.focus();
     });
     $('#hint').addEventListener('click', () => {
       const hs = ex.hints || [];
@@ -1185,11 +1200,30 @@ document.addEventListener('click', (e) => {
 /* the mobile sheet                                                       */
 /* --------------------------------------------------------------------- */
 
-function openSheet() { $('#sheet').hidden = false; $('#scrim').hidden = false; }
-function closeSheet() { $('#sheet').hidden = true; $('#scrim').hidden = true; }
+/* The sheet is modal: while it is up the page behind it holds still, or a flick
+   meant for the contents scrolls the prose and you land somewhere you did not
+   pick. Closing on a contents tap is what makes it a jump list rather than a
+   panel you have to dismiss twice. */
+function openSheet() {
+  /* Filled at open, not at render: the rail's scroll watcher marks where you
+     are on its own links, and a copy taken once at wire time froze that at the
+     top of the unit. The sheet is a plain reading list, not the spine, so it
+     takes the entries and leaves the decoration behind in the CSS. */
+  const src = $('#railol');
+  if (src) $('#sheetbody').innerHTML = `<ol>${src.innerHTML}</ol>`;
+  $('#sheet').hidden = false;
+  $('#scrim').hidden = false;
+  document.body.classList.add('sheetopen');
+}
+function closeSheet() {
+  $('#sheet').hidden = true;
+  $('#scrim').hidden = true;
+  document.body.classList.remove('sheetopen');
+}
 $('#scrim').addEventListener('click', closeSheet);
 $('#sheetclose').addEventListener('click', closeSheet);
 $('#sheet').addEventListener('click', (e) => { if (e.target.closest('a')) closeSheet(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
 /* Two versions matter and they are not the same question. The manifest records
    which rustc last validated every exercise; the playground answers with
