@@ -129,14 +129,21 @@ function crumbs(parts) {
 
 const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
 
+/* Every remembered on/off in the app. localStorage throws rather than returning
+   null in a locked-down browser, and each preference used to carry its own copy
+   of that try/catch. Off is the safe default for all of them. */
+const flag = (k) => {
+  try { return localStorage.getItem(k) === '1'; } catch (e) { return false; }
+};
+const setFlag = (k, on) => {
+  try { localStorage.setItem(k, on ? '1' : '0'); } catch (e) {}
+};
+
 /* The contents rail. `items` are {href, id, text, level, note}. The spine and
    the per-item dots are drawn by CSS; wireRail fills them in as you read. */
 const RAIL_KEY = 'rh-rail';
 const railState = () => (railCollapsed() ? 'collapsed' : 'open');
-
-const railCollapsed = () => {
-  try { return localStorage.getItem(RAIL_KEY) === '1'; } catch (e) { return false; }
-};
+const railCollapsed = () => flag(RAIL_KEY);
 
 function rail(label, items) {
   return `<aside class="rail">
@@ -508,6 +515,8 @@ function wireUnit() {
   const bar = $('#prog');
   const fill = $('#railfill');
   const layout = document.querySelector('.readerlayout');
+  // Matches the rail's own breakpoint in app.css. Evaluated once, not per scroll.
+  const wide = matchMedia('(min-width: 1061px)');
   const links = railol ? $$('a', railol) : [];
   const targets = links.map((a) => document.getElementById(a.dataset.id));
 
@@ -546,7 +555,9 @@ function wireUnit() {
 
     // Keep the active entry in view inside the rail's own scroller, but never
     // when it is collapsed: there is nothing to read and the jump is noise.
-    if (active >= 0 && railol && layout?.dataset.rail !== 'collapsed') {
+    // Nor below the rail's breakpoint, where it has no box at all and these two
+    // reads would flush layout to compare a pair of empty rects.
+    if (active >= 0 && railol && wide.matches && layout?.dataset.rail !== 'collapsed') {
       const a = links[active];
       const box = railol.parentElement;
       const r = a.getBoundingClientRect(), rr = box.getBoundingClientRect();
@@ -580,7 +591,7 @@ function wireUnit() {
       layout.dataset.rail = now ? 'collapsed' : 'open';
       toggle.setAttribute('aria-expanded', String(!now));
       toggle.title = now ? 'Show the contents' : 'Collapse the contents';
-      try { localStorage.setItem(RAIL_KEY, now ? '1' : '0'); } catch (e) {}
+      setFlag(RAIL_KEY, now);
       // The reading column changed width, so every heading moved.
       requestAnimationFrame(() => { active = -1; measure(); });
     });
@@ -602,9 +613,7 @@ let HINTS = 0;      // how many hints the reader has revealed here
    cannot line up with lines that occupy two rows. Per-line numbering that
    measures wrapped height would fix it if anyone misses it. */
 const WRAP_KEY = 'rh-wrap';
-const wrapOn = () => {
-  try { return localStorage.getItem(WRAP_KEY) === '1'; } catch (e) { return false; }
-};
+const wrapOn = () => flag(WRAP_KEY);
 let BUSY = false;
 
 /* A unit's exercises and a project's stages are the same thing, so one bench
@@ -678,14 +687,14 @@ async function viewWork(slug, nRaw, source = 'ex') {
         </div>
         <div class="wbbrief">${ex.brief}</div>
 
-        <div class="editor" id="ed"></div>
+        <div class="editor${wrapOn() ? ' softwrap' : ''}" id="ed"></div>
         <div class="runbar" id="runbar" hidden></div>
 
         <div class="wbbar">
           <button class="btn" id="run"><span class="ic">${ico('play', 14)}</span> Run</button>
           <button class="btn quiet" id="hint">${ico('bulb', 13)} Hint</button>
           <button class="btn quiet" id="reset">${ico('reset', 13)} Reset</button>
-          <button class="btn quiet" id="wrap" aria-pressed="${wrapOn()}"
+          <button class="btn quiet" id="wrap" aria-pressed="false"
             title="Wrap long lines instead of scrolling sideways">${ico('wrap', 13)} Wrap</button>
           <button class="btn ghost desk-only" id="vim" aria-pressed="false"
             title="Vim keybindings: motions, operators, counts, visual, undo">vim</button>
@@ -801,18 +810,20 @@ function wireWork(slug, nRaw, source = 'ex') {
 
     $('#reset').addEventListener('click', () => { ED.reset(); $('#out').innerHTML = ''; });
     $('#run').addEventListener('click', doRun);
+    /* The markup already carries the class, so on mount the button only has to
+       catch up with it and the editor is not told anything: that keeps mount to
+       the one paint mountEditor already does. */
     const wrapBtn = $('#wrap');
-    const paintWrap = () => {
-      const on = wrapOn();
-      $('#ed').classList.toggle('softwrap', on);
+    const paintWrapBtn = (on) => {
       wrapBtn.classList.toggle('on', on);
       wrapBtn.setAttribute('aria-pressed', String(on));
-      ED.relayout();
     };
-    paintWrap();
+    paintWrapBtn(wrapOn());
     wrapBtn.addEventListener('click', () => {
-      try { localStorage.setItem(WRAP_KEY, wrapOn() ? '0' : '1'); } catch (e) {}
-      paintWrap();
+      const on = !wrapOn();
+      setFlag(WRAP_KEY, on);
+      paintWrapBtn(on);
+      ED.wrap(on);
       ED.focus();
     });
     $('#hint').addEventListener('click', () => {
@@ -1187,8 +1198,7 @@ addEventListener('scroll', closePop, { passive: true });
 
 function syncToggles() {
   $$('[data-toggle]').forEach((b) => {
-    let on = false;
-    try { on = localStorage.getItem(b.dataset.key) === '1'; } catch (e) {}
+    const on = flag(b.dataset.key);
     document.body.classList.toggle(b.dataset.toggle, on);
     b.style.opacity = on ? '0.55' : '1';
   });
@@ -1196,8 +1206,7 @@ function syncToggles() {
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-toggle]');
   if (!b) return;
-  const on = !document.body.classList.contains(b.dataset.toggle);
-  try { localStorage.setItem(b.dataset.key, on ? '1' : '0'); } catch (err) {}
+  setFlag(b.dataset.key, !document.body.classList.contains(b.dataset.toggle));
   syncToggles();
 });
 

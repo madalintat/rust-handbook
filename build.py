@@ -1156,7 +1156,7 @@ def onboarding():
     ]
 
 
-def build_your_own():
+def build_your_own(path=None):
     """docs/BUILD-YOUR-OWN.md, inlined so the assistant needs no second fetch.
 
     Linked rather than copied would be tidier, and useless: whoever pastes this
@@ -1164,12 +1164,20 @@ def build_your_own():
     One authored source, two destinations, headings demoted one level so the
     document still has exactly one h1.
     """
-    src = (ROOT / "docs" / "BUILD-YOUR-OWN.md").read_text().strip().splitlines()
-    body, fenced = [], False
-    for line in src[1:]:                      # its own h1 becomes the section head
-        if line.startswith("```"):
-            fenced = not fenced
-        body.append("#" + line if not fenced and line.startswith("#") else line)
+    src = (path or ROOT / "docs" / "BUILD-YOUR-OWN.md").read_text().strip().splitlines()
+    body, i = [], 1                           # its own h1 becomes the section head
+    while i < len(src):
+        # read_fence, not a three-backtick toggle: a guide about writing this
+        # repo's markdown is exactly where a ````markdown block appears, and a
+        # scanner that closes on the first inner fence would then demote every
+        # heading after it on the wrong side of the block. That bug is already
+        # written down in read_fence's docstring; do not rediscover it here.
+        if FENCE.match(src[i].strip()):
+            _, _, i, raw = read_fence(src, i)
+            body += raw.splitlines()
+            continue
+        body.append("#" + src[i] if src[i].startswith("#") else src[i])
+        i += 1
     return ["", "## Build your own", "",
             f"The full text of [docs/BUILD-YOUR-OWN.md]({SITE}/blob/main/docs/BUILD-YOUR-OWN.md), "
             "so you can act on it without fetching anything.", *body, ""]

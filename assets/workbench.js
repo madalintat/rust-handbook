@@ -358,11 +358,12 @@ function mountEditor(host, starter, onRun) {
     reset() { this.set(starter); },
     focus() { ta.focus(); },
     mark(ls) { errLines = ls || []; paint(); },
-    /* paint() sizes the textarea to the widest line with an inline width,
-       because CSS cannot. Anything that changes how the <pre> lays out has to
-       ask for that again, or the caret keeps the old line width while the
-       glyphs fold to the new one. */
-    relayout() { paint(); },
+    /* Soft wrap. The editor owns this rather than exposing a repaint hook,
+       because paint() sizes the textarea to the widest line with an inline
+       width that CSS cannot express: a caller that toggled the class and
+       forgot the repaint would leave the caret on the old line width while the
+       glyphs folded to the new one. */
+    wrap(on) { host.classList.toggle('softwrap', on); paint(); },
     vim,
   };
 }

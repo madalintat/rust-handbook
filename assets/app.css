@@ -584,6 +584,8 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
   padding: 26px 0 60px;
   align-items: start;
 }
+/* Below 1060px this becomes one column and the rail goes. That block cannot
+   live here: see "below the rail breakpoint", after the collapsed rules. */
 
 /* The rail sits at the far left of a wide frame, which would otherwise leave the
    prose hugging it and a dead gutter on the right. Centre the reading column in
@@ -729,13 +731,17 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
 .rail a.h3 { padding-left: 34px; }
 .rail a.h3::before { width: 6px; height: 6px; left: 5px; }
 .rail a.on { color: var(--accent); font-weight: 600; }
-.rail .mins {
+/* The minutes caption. The rail and the sheet render the same markup, so this
+   is shared and each adds only what is its own. */
+.mins {
   margin-left: auto;
+  flex: none;
   font-size: var(--t-micro);
   color: var(--ink-4);
-  padding-left: 6px;
   font-variant-numeric: tabular-nums;
-  flex: none;
+}
+.rail .mins {
+  padding-left: 6px;
   opacity: 0.75;
   transition: opacity var(--fast);
 }
@@ -744,7 +750,9 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
  * Not hidden: reduced to the spine. You still see how far through you are and
  * you can still jump, because the dots stay clickable and keep their titles.
  */
-.readerlayout[data-rail="collapsed"] { grid-template-columns: 26px minmax(0, 1fr); gap: 30px; }
+/* :where() keeps this at one class of weight, so the one-column rule in the
+   1060px block outranks it on source order without naming it. */
+.readerlayout:where([data-rail="collapsed"]) { grid-template-columns: 26px minmax(0, 1fr); gap: 30px; }
 .readerlayout[data-rail="collapsed"] .railhead .eyebrow { opacity: 0; pointer-events: none; }
 .readerlayout[data-rail="collapsed"] .railtoggle { transform: rotate(180deg); }
 .readerlayout[data-rail="collapsed"] .railscroll { padding-right: 0; overflow: visible; }
@@ -784,8 +792,7 @@ a.card:active { transform: translateY(0); transition-duration: var(--fast); }
  * attribute selector and outranks a plain `.readerlayout` wherever it sits.
  */
 @media (max-width: 1060px) {
-  .readerlayout,
-  .readerlayout[data-rail="collapsed"] { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .readerlayout { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .rail { display: none; }
 }
 
@@ -1584,17 +1591,6 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
 @media (max-width: 760px) {
   .wrap { padding: 0 15px; }
 
-  /* Touch targets, and nothing relies on hover. Lists and the tab bar clear
-     44px. The two sticky bars settle for 40: a 44px row of buttons under a
-     56px topbar is a fifth of a phone given to chrome before a word is read. */
-  .btn { padding: 10px 15px; min-height: 44px; }
-  .btn.sm { padding: 8px 12px; min-height: 40px; }
-  .iconbtn, .ghlink { width: 40px; height: 40px; }
-  .exlist a { min-height: 44px; }
-  .letters button { width: 38px; height: 38px; }
-  /* An inline <a> ignores min-height, so the pills get a box first. */
-  .pill { display: inline-flex; align-items: center; min-height: 40px; }
-  a.chip { min-height: 36px; }
   a.card:hover { transform: none; box-shadow: none; }
   .rail a, .exlist a, .letters button { -webkit-tap-highlight-color: transparent; }
 
@@ -1656,7 +1652,7 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
 
   .wbhead h1 { font-size: var(--t-lede); }
   .wbbar { gap: 7px; }
-  .wbbar .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+  .wbbar .btn { flex: 1 1 auto; justify-content: center; }
   .wbbar #run { flex: 2 1 auto; }
 
   /* 16px in the editor is not a style choice: iOS Safari zooms the viewport on
@@ -1681,6 +1677,27 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
   .pop { display: none; }
 }
 
+/* Touch targets. Keyed on the pointer rather than the width, because a tablet
+   in landscape is 1024px of thumb and a narrow desktop window is still a mouse.
+   Four sizes, largest first, and each one is a different argument:
+     44  lists and the tab bar, where there is room and it is the standard
+     40  the two sticky bars, because a 44px row of buttons under a 56px topbar
+         is a fifth of a phone given to chrome before a word is read
+     38  the glossary's 26 letters, which wrap to four rows at 44
+     36  inline chips, which sit in running text and cannot grow without
+         opening gaps between the lines around them
+   Nothing relies on hover at any of these sizes. */
+@media (max-width: 760px), (pointer: coarse) {
+  .btn { padding: 10px 15px; min-height: 44px; }
+  .btn.sm { padding: 8px 12px; min-height: 40px; }
+  .iconbtn, .ghlink { width: 40px; height: 40px; }
+  .exlist a { min-height: 44px; }
+  .letters button { width: 38px; height: 38px; }
+  /* An inline <a> ignores min-height, so the pills get a box first. */
+  .pill { display: inline-flex; align-items: center; min-height: 40px; }
+  a.chip { min-height: 36px; }
+}
+
 @media (max-width: 420px) {
   .hero h1 { font-size: clamp(28px, 8.5vw, 38px); }
 
@@ -1688,8 +1705,7 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
      all is the one whose icon carries it, the same trade the back arrow made a
      breakpoint earlier; it keeps its title and aria-label. */
   .readerbar #expandall span { display: none; }
-  .readerbar #expandall { padding: 7px 9px; }
-  .readerbar .inner { padding: 7px 12px; gap: 6px; }
+  .readerbar .inner { padding: 7px 12px; }
 }
 
 .sheet-scrim {
@@ -1718,7 +1734,6 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
   /* Without this a flick that reaches the end of the contents keeps going and
      scrolls the page underneath, so you close the sheet onto somewhere else. */
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   padding: 10px 12px calc(18px + env(safe-area-inset-bottom));
 }
 /* The page behind a modal sheet does not scroll. */
@@ -1743,19 +1758,20 @@ body.sheetopen { overflow-y: hidden; }
 }
 .sheet-body a.h2 { font-weight: 700; color: var(--ink); margin-top: 6px; }
 .sheet-body a.h3 { padding-left: 26px; font-size: var(--t-tiny); color: var(--ink-3); }
+/* Read but not current. The rail says this with a filled dot; without a dot to
+   fill, the sheet fades the row. Opacity rather than colour, because colour is
+   already carrying the heading level here and a read h2 turning fainter than an
+   unread h3 inverts the hierarchy. Same class either way, set by the rail's
+   scroll watcher on the links this list is copied from. */
+.sheet-body a.read:not(.on) { opacity: 0.6; }
+/* No weight here on purpose: weight is the heading level, and 600 made the
+   current h2 lighter than every h2 above it. The accent and the tint say
+   "here" without borrowing a channel that is already spoken for. */
 .sheet-body a.on {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
-  font-weight: 600;
 }
 .sheet-body a:active { background: var(--raised); }
-.sheet-body .mins {
-  margin-left: auto;
-  flex: none;
-  font-size: var(--t-micro);
-  color: var(--ink-4);
-  font-variant-numeric: tabular-nums;
-}
 
 /* ======================================================================= */
 /* companion                                                               */
