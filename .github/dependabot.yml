@@ -9,3 +9,11 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "ci"
+    # One pull request for the lot. Without this Dependabot opens one per action,
+    # and since the ruleset wants a branch up to date before it merges, four
+    # one-line bumps cost four rebase rounds and four CI runs. They are all the
+    # same kind of change and they are reviewed together anyway.
+    groups:
+      actions:
+        patterns:
+          - "*"
