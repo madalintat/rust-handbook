@@ -445,7 +445,7 @@ async function viewUnit(slug) {
       <span class="title" style="flex:1">${esc(u.title)}</span>
       <button class="btn quiet sm" id="expandall" data-open="0"
         title="Expand or collapse every part" aria-label="Expand all">${ico('layers', 13)} <span>Expand all</span></button>
-      <button class="btn quiet sm mobile-only" id="opensheet">${ico('layers', 13)} Contents</button>
+      <button class="btn quiet sm" id="opensheet">${ico('layers', 13)} Contents</button>
       <button class="btn quiet sm toggle desk-only" data-toggle="hide-terms" data-key="rh-terms"
         title="Show or hide the highlighted terms">${ico('check', 12)} Terms</button>
       ${meta.exercises ? `<a class="btn sm" href="#/work/${slug}">${ico('wrench', 13)} Workbench</a>` : ''}
@@ -495,7 +495,10 @@ function wireUnit() {
     const open = seg.dataset.open === '0';
     $$('.sect').forEach((d) => { d.open = open; });
     seg.dataset.open = open ? '1' : '0';
-    seg.querySelector('span').textContent = open ? 'Collapse all' : 'Expand all';
+    const label = open ? 'Collapse all' : 'Expand all';
+    seg.querySelector('span').textContent = label;
+    // Below 420px the span is hidden and this label is the only name there is.
+    seg.setAttribute('aria-label', label);
   });
 
   const sheetBtn = $('#opensheet');
@@ -804,6 +807,7 @@ function wireWork(slug, nRaw, source = 'ex') {
       $('#ed').classList.toggle('softwrap', on);
       wrapBtn.classList.toggle('on', on);
       wrapBtn.setAttribute('aria-pressed', String(on));
+      ED.relayout();
     };
     paintWrap();
     wrapBtn.addEventListener('click', () => {

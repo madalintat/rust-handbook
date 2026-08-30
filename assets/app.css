@@ -1571,7 +1571,11 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
   body { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
   .desk-only { display: none !important; }
 }
-@media (min-width: 901px) { .mobile-only { display: none !important; } }
+/* The Contents button stands in for the rail, so it shows exactly where the
+   rail does not: the rail's breakpoint, not the tab bar's. Sharing the tab
+   bar's 901px left everything between 901 and 1060 with no rail and no button,
+   which is a unit page with no contents at all. */
+@media (min-width: 1061px) { #opensheet { display: none !important; } }
 
 /* ======================================================================= */
 /* phones                                                                  */
