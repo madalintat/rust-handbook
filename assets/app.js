@@ -443,7 +443,8 @@ async function viewUnit(slug) {
     <div class="readerbar"><div class="inner">
       <a class="btn ghost sm back" href="#/track">${ico('chev', 15)} <span>The track</span></a>
       <span class="title" style="flex:1">${esc(u.title)}</span>
-      <button class="btn quiet sm" id="expandall" data-open="0">${ico('layers', 13)} <span>Expand all</span></button>
+      <button class="btn quiet sm" id="expandall" data-open="0"
+        title="Expand or collapse every part" aria-label="Expand all">${ico('layers', 13)} <span>Expand all</span></button>
       <button class="btn quiet sm mobile-only" id="opensheet">${ico('layers', 13)} Contents</button>
       <button class="btn quiet sm toggle desk-only" data-toggle="hide-terms" data-key="rh-terms"
         title="Show or hide the highlighted terms">${ico('check', 12)} Terms</button>

@@ -254,7 +254,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .searchbox input::placeholder { color: var(--ink-4); }
 .searchbox input:focus { width: 280px; outline: none; border-color: var(--ferris); }
-@media (max-width: 620px) { .searchbox input { width: 130px; } .searchbox input:focus { width: 170px; } }
+/* Below this the row is tight and the field is the only thing in it that can
+   give. A fixed width could not: an input's intrinsic min-width stops flex from
+   shrinking it, so the theme button was pushed off the side of a 320px screen.
+   Fluid, with a cap so it does not swallow the row on a roomier phone. */
+@media (max-width: 620px) {
+  .searchbox { flex: 1 1 auto; min-width: 0; max-width: 190px; }
+  .searchbox input,
+  .searchbox input:focus { width: 100%; min-width: 0; }
+}
 
 /* Source link and the icon buttons beside it. Same 32px target, same hover:
    the difference is only that a button carries a surface and a border. */
@@ -1006,8 +1014,23 @@ code, kbd, samp, pre { font-family: var(--mono); font-variant-ligatures: none; }
 .wblayout { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 36px; padding: 22px 0 60px; align-items: start; }
 @media (max-width: 1040px) { .wblayout { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
 
-.exlist { position: sticky; top: 116px; display: flex; flex-direction: column; gap: 4px; }
-@media (max-width: 1040px) { .exlist { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 6px; } }
+/* The whole column sticks, not the list inside it. Sticking only .exlist left
+   `Back to the note` and `Drills` in normal flow: they scrolled up and slid
+   underneath the pinned list, two buttons drawn over the exercise names. If the
+   column is taller than the screen it scrolls itself rather than being cut. */
+.wblayout > aside {
+  position: sticky;
+  top: 116px;
+  max-height: calc(100vh - 136px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.exlist { display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 1040px) {
+  .wblayout > aside { position: static; max-height: none; overflow: visible; }
+  .exlist { flex-direction: row; overflow-x: auto; padding-bottom: 6px; }
+}
 
 .exlist a {
   display: flex; align-items: center; gap: 9px;
@@ -1557,15 +1580,24 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
 @media (max-width: 760px) {
   .wrap { padding: 0 15px; }
 
-  /* Every tappable thing clears 44px, and nothing relies on hover. */
-  .btn { padding: 10px 15px; }
-  .btn.sm { padding: 8px 12px; }
-  .iconbtn { width: 36px; height: 36px; }
+  /* Touch targets, and nothing relies on hover. Lists and the tab bar clear
+     44px. The two sticky bars settle for 40: a 44px row of buttons under a
+     56px topbar is a fifth of a phone given to chrome before a word is read. */
+  .btn { padding: 10px 15px; min-height: 44px; }
+  .btn.sm { padding: 8px 12px; min-height: 40px; }
+  .iconbtn, .ghlink { width: 40px; height: 40px; }
+  .exlist a { min-height: 44px; }
+  .letters button { width: 38px; height: 38px; }
+  /* An inline <a> ignores min-height, so the pills get a box first. */
+  .pill { display: inline-flex; align-items: center; min-height: 40px; }
+  a.chip { min-height: 36px; }
   a.card:hover { transform: none; box-shadow: none; }
   .rail a, .exlist a, .letters button { -webkit-tap-highlight-color: transparent; }
 
   .topbar { padding: 0 12px; gap: 6px; }
-  .brand { font-size: var(--t-tiny); gap: 7px; }
+  /* The wordmark is one line of 13px text; without this its hit area is that
+     line and nothing else. */
+  .brand { font-size: var(--t-tiny); gap: 7px; padding: 8px 6px 8px 0; }
   .brand .mascot { width: 26px; }
 
   /* The reader bar is the densest row in the app and it does not fit. Drop the
@@ -1641,8 +1673,13 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
 
 @media (max-width: 420px) {
   .hero h1 { font-size: clamp(28px, 8.5vw, 38px); }
-  .searchbox input { width: 108px; }
-  .searchbox input:focus { width: 140px; }
+
+  /* Three labelled buttons plus the back arrow do not fit across 320px. Expand
+     all is the one whose icon carries it, the same trade the back arrow made a
+     breakpoint earlier; it keeps its title and aria-label. */
+  .readerbar #expandall span { display: none; }
+  .readerbar #expandall { padding: 7px 9px; }
+  .readerbar .inner { padding: 7px 12px; gap: 6px; }
 }
 
 .sheet-scrim {
