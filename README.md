@@ -96,6 +96,25 @@ git push origin main --follow-tags
 Builds, tests, compiles every exercise, writes the changelog, tags. The tag
 triggers the release workflow, so nothing ships that has not already passed here.
 
+## Build your own
+
+The design here is not specific to Rust. It is a shape: a note, exercises that
+a real tool judges, and a reading of the exact complaint that tool made. It
+works for any subject where something can execute the learner's work and answer
+specifically.
+
+**[docs/BUILD-YOUR-OWN.md](docs/BUILD-YOUR-OWN.md)** is the reproduction guide:
+the two colour ramps, the fluid type scale, the layout rules that are not
+obvious, the whole functional inventory, the content pipeline, and the order to
+build in. Swap the subject, the mascot and the palette; keep the four inks, the
+fluid tokens, the validated content, and the hints without answers.
+
+The fastest way in is the **for LLMs** button in the site header. It copies
+[llms.txt](llms.txt), which carries that guide in full plus an opening that
+makes an assistant ask which of three things you actually want: build one of
+your own, work on this one, or learn Rust with it. Paste it into an assistant
+and answer the question it asks.
+
 ## Contributing
 
 Fork it, branch, run the checks, open a pull request. Every change lands on

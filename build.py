@@ -39,6 +39,7 @@ OUT = ROOT / "data"
 
 WPM = 230  # a careful read of technical prose, not a skim
 SITE = "https://github.com/madalintat/rust-handbook"
+LIVE = "https://the-rust-handbook.com"
 
 # The full track. Units without a file in content/units are emitted as stubs so
 # the map is honest about what exists and what is still to come.
@@ -1079,6 +1080,101 @@ def build_manifest(units, exercises, drills, projects, audit):
     return manifest
 
 
+def onboarding():
+    """The first thing an assistant reads after being handed llms.txt.
+
+    Someone who pastes this file into an assistant wants one of three things and
+    the assistant cannot tell which from the file alone. Guessing wastes the
+    turn: it explains ownership to someone who wanted to fork the design, or
+    starts scaffolding a project for someone who wanted to read unit 5. So the
+    file opens by naming the three, and by saying what to ask for each.
+    """
+    return [
+        "## Start here",
+        "",
+        f"Repository: {SITE}",
+        f"Live: {LIVE}",
+        "",
+        "Someone has handed you this file. They want one of three things and this",
+        "file cannot tell you which. Ask before doing anything else, in one short",
+        "message, and offer these three:",
+        "",
+        "1. **Build a handbook like this one for another subject.** Same design,",
+        "   different mascot, different topics, different colours.",
+        "2. **Work on this handbook.** A unit, a project, a feature, a bug.",
+        "3. **Learn Rust with it.** Use the units, exercises and drills as the",
+        "   material for a course you run with them.",
+        "",
+        "Then follow the path they pick. Do not do more than one.",
+        "",
+        "### 1. Build your own",
+        "",
+        "Read `## Build your own` at the end of this file. It is the whole",
+        "reproduction guide: palette, type scale, layout rules, architecture,",
+        "content pipeline and the order to build in. Before writing anything, ask:",
+        "",
+        "- What is the subject, and what is the sequence of units? A handbook needs",
+        "  a spine where each unit depends on the ones before it.",
+        "- What can execute the learner's work and complain specifically about it?",
+        "  A compiler, a type checker, a linter, a test runner, a solver. This is",
+        "  the load bearing question. If the answer is nothing, say so plainly: the",
+        "  shape is wasted without it, and a quiz site is the honest alternative.",
+        "- What is the mascot, and what is the accent colour? Warm or cool decides",
+        "  which way the neutrals rotate.",
+        "- Who is the reader, and what do they already know?",
+        "",
+        "Then work in the order the guide gives: shell, palette, mascot, manifest,",
+        "one complete unit, the execution backend, then the rest of the content.",
+        "Do not restyle first. Do not write twenty units before one of them is",
+        "finished end to end.",
+        "",
+        "### 2. Work on this handbook",
+        "",
+        "- `docs/AUTHORING.md` is the contract for a unit or a project. It is not a",
+        "  suggestion; the build enforces most of it.",
+        "- `CONTRIBUTING.md` names the one command that runs every check:",
+        "  `./release.sh --check`, and `--net` to also compile every exercise.",
+        "- An exercise is finished when `python3 build.py --check content/ex/<slug>.md`",
+        "  prints `N clean`. Never `--validate` for a single file.",
+        "- If you touched `content/`, commit the regenerated `data/` with it.",
+        "- Ask which unit or feature, and whether they want the whole unit or just",
+        "  the exercises. Read the three `05-ownership` files first; they are the",
+        "  reference.",
+        "",
+        "### 3. Learn Rust with it",
+        "",
+        "- Ask what they already know, what they want to build, and how long they",
+        "  have. Those three answers pick the route through the track.",
+        "- The units below are in dependency order. Do not skip ahead of a unit's",
+        "  `needs`.",
+        "- Every unit is a note, eight exercises and fifteen drills. The exercises",
+        "  compile for real, so send them to the workbench rather than checking",
+        "  their code yourself.",
+        "- There are hints and no answers, deliberately. Match that. Give the",
+        "  smallest push that makes them see the error, not the corrected code.",
+        "",
+    ]
+
+
+def build_your_own():
+    """docs/BUILD-YOUR-OWN.md, inlined so the assistant needs no second fetch.
+
+    Linked rather than copied would be tidier, and useless: whoever pastes this
+    file into an assistant is usually somewhere the assistant cannot fetch from.
+    One authored source, two destinations, headings demoted one level so the
+    document still has exactly one h1.
+    """
+    src = (ROOT / "docs" / "BUILD-YOUR-OWN.md").read_text().strip().splitlines()
+    body, fenced = [], False
+    for line in src[1:]:                      # its own h1 becomes the section head
+        if line.startswith("```"):
+            fenced = not fenced
+        body.append("#" + line if not fenced and line.startswith("#") else line)
+    return ["", "## Build your own", "",
+            f"The full text of [docs/BUILD-YOUR-OWN.md]({SITE}/blob/main/docs/BUILD-YOUR-OWN.md), "
+            "so you can act on it without fetching anything.", *body, ""]
+
+
 def build_llms_txt(m):
     """A description of the whole handbook that an assistant can read in one go.
 
@@ -1109,6 +1205,9 @@ def build_llms_txt(m):
         "framework. `build.py` turns authored markdown into JSON once and the",
         "browser routes and paints.",
         "",
+    ]
+    out += onboarding()
+    out += [
         "## Units",
         "",
         "The track, in order. Each unit is a note, eight exercises and fifteen drills.",
@@ -1129,6 +1228,9 @@ def build_llms_txt(m):
                    f"({pj['tier']}, {pj['domain']}, {pj['stages']} stages): {pj['blurb']}")
 
     out += ["", "## How the content is written", "",
+            f"- [Build your own]({SITE}/blob/main/docs/BUILD-YOUR-OWN.md): the design "
+            "system, the architecture and the order to build a handbook like this one "
+            "for another subject. Inlined in full at the end of this file",
             f"- [Authoring guide]({SITE}/blob/main/docs/AUTHORING.md): the contract every "
             "unit and project follows, including the exercise format and the prose rules",
             f"- [Sources]({SITE}/blob/main/docs/SOURCES.md): which of the twelve official "
@@ -1142,6 +1244,8 @@ def build_llms_txt(m):
             "tokenizer, the playground client and the diagnostics parser",
             f"- [assets/vim.js]({SITE}/blob/main/assets/vim.js): the editor's Vim mode",
             ""]
+
+    out += build_your_own()
 
     text = "\n".join(out)
     (ROOT / "llms.txt").write_text(text)
