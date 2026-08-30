@@ -1618,6 +1618,12 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
   .prose { font-size: var(--t-body); }
   .prose table { font-size: var(--t-tiny); }
 
+  /* nowrap keeps a short literal like `&str` off two lines, and on a phone it
+     also means a literal longer than the screen runs off the side. The body
+     clips rather than scrolls, so that literal is not scrolled to, it is gone.
+     Break it instead, mid-token if that is what it takes. */
+  .prose :not(pre) > code { white-space: normal; overflow-wrap: anywhere; }
+
   /* Callouts and memory diagrams lose their inset on a narrow screen; the
      border alone is enough to separate them and the words need the width. */
   .callout { padding: 12px 13px; }
